@@ -22,11 +22,6 @@
 1. Clone the repository.
 ```bash
 git clone https://github.com/s-ccs/2024FreeViewingMSCOCO.git
-
-```
-2. Install the required packages.
-```bash
-conda env create -f environment.yaml
 ```
 
 ## Overview of Folder Structure 
