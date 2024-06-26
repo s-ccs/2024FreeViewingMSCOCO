@@ -1,0 +1,21 @@
+# environment.yaml
+
+name: FreeViewingMSCOCO
+channels:
+  - conda-forge
+  - cogsci
+dependencies:
+  - python>=3.11
+  - miniconda
+  - pip
+  - pip:
+    - -r requirements.txt
+  - opensesame 
+  - opensesame-extension-osweb 
+  - opensesame-extension-updater 
+  - opensesame-plugin-psychopy 
+  - rapunzel 
+  - pygaze 
+  - qtconsole 
+  - pyqtwebengine 
+  - wxpython

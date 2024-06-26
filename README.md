@@ -16,6 +16,19 @@
 >
 >Optional: Add a pipeline plot in which the different steps are displayed together with the corresponding scripts.
 
+
+### Installation
+
+1. Clone the repository.
+```bash
+git clone https://github.com/s-ccs/2024FreeViewingMSCOCO.git
+
+```
+2. Install the required packages.
+```bash
+conda env create -f environment.yaml
+```
+
 ## Overview of Folder Structure 
 
 ```
@@ -64,3 +77,4 @@
 TODO :
 - [ ] Update wiki with instructions
 - [ ] Setup the 5th monitor for eye test 👻
+- [ ] Recheck the environment.yaml and requirements.txt packages in the lab
