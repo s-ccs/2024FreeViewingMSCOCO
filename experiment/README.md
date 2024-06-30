@@ -1,6 +1,6 @@
 # FreeViewingMSCOCO 
 
-This is a free-viewing EEG-ET experiment written using Opensesame.
+This is a free-viewing EEG-ET experiment written using [OpenSesame](https://osdoc.cogsci.nl/).
 
 ## Installation 👩‍💻
 
