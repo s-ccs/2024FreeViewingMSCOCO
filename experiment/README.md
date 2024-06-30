@@ -10,7 +10,7 @@ conda env create -f environment.yaml
 ```
 
 > [!NOTE]  
-> Here we install opensesame via conda. If you want to install via other download options, please refer to the [official website](https://osdoc.cogsci.nl/3.2/download#all-download-options).
+> Here we install OpenSesame via conda. If you want to install it via other download options, please refer to the [official website](https://osdoc.cogsci.nl/3.2/download#all-download-options).
 
 2. EyeLink 1000 Plus Setup
     - Connect the EyeLink 1000 Plus to the host PC and follow the instructions in the manual to set up the device. [More on this later].
