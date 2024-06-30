@@ -22,7 +22,7 @@ conda env create -f environment.yaml
 
 The structure of the experiment is as follows:
 
-1. Welcome and Preliminary Instructions
+1. Welcome and Instructions
 2. Initial Calibration
 3. Start trial loop
 
@@ -66,20 +66,40 @@ The structure of the experiment is as follows:
 
 These are the triggers used in the experiment. The triggers are sent to the eyetracker for future analysis.
 
-|    **Trigger Name**   | **Trigger Number** |                               **Opensesame Location**                              |            **Runif**            |
-|:---------------------:|:------------------:|:----------------------------------------------------------------------------------:|:-------------------------------:|
-|  Fixation Point Shown |          1         | wait_for_centre_gaze (Run) wait_for_centre_gaze (Prepare) - after calibration step |                                 |
-|  Stimulus Image Shown |          2         |                             send_trigger_start_stimulus                            |                                 |
-|   Calibration Start   |          3         |                wait_for_centre_gaze (Prepare) - at calibration step                |                                 |
-|    Calibration End    |          4         |               wait_for_centre_gaze (Prepare) - after calibration step              |                                 |
-| Mandatory_Break Start |          5         |                               send_trigger-breakstart                              | =(count_block_sequence+1)%50==0 |
-|  Mandatory_Break End  |          6         |                                send_trigger-breakend                               | =(count_block_sequence+1)%50==0 |
-|    End of Practice    |          7         |                              End_of_practice sketchpad                             |                                 |
-|   Stimulus event end  |          8         |                              send_trigger_end_stimulus                             |                                 |
-|   Manual Pause Start  |          9         |                          `send_trigger_manual_pause_start`                         |  c for calibrate; r for resume  |
-|    Manual Pause End   |         10         |                           `send_trigger_manual_pasue_end`                          |                                 |
+|                                  **Trigger Name**                                 | **Trigger Number** |                                 **Opensesame Location**                                 |
+|:---------------------------------------------------------------------------------:|:------------------:|:---------------------------------------------------------------------------------------:|
+| Fixation dot shown - Run & Fixation dot shown again due to recalibration - Prepare |          1         | wait_for_centre_gaze (Run) & wait_for_centre_gaze (Prepare) - after calibration step |
+|                                Stimulus image shown                               |          2         |                               send_trigger_start_stimulus                               |
+|                                Recalibration start                                |          3         |             wait_for_centre_gaze (Prepare) - at calibration step & breaks             |
+|                                 Recalibration end                                 |          4         |                 wait_for_centre_gaze (Prepare) - after calibration step                 |
+|                                    Break start                                    |          5         |                                 send_trigger-breakstart                                 |
+|                                     Break end                                     |          6         |                                  send_trigger-breakend                                  |
+|                                  End of practice                                  |          7         |                                End_of_practice sketchpad                                |
+|                                 Stimulus event end                                |          8         |                                send_trigger_end_stimulus                                |
+|                                 Manual pause start                                |          9         |                             send_trigger_manual_pause_start                             |
 
 
-**Run if refers to the field in opensesame in the `sequence` item of the trial loop. It is used to send triggers only when the condition is met.*
 
-> [!CAUTION] Never name any variable in your inline script as `timeout` 🥲. It might break the functionality of your experiment. Follow this [discussion](https://forum.cogsci.nl/discussion/6393/sketchpad-does-not-wait-for-the-keypress) for more details!
+### Runif conditions used
+Run if refers to the field in opensesame in the `sequence` item of the trial loop. It is used to send triggers only when the condition is met.
+
+#### Main block sequence
+
+| Opensesame Object |                                                        Runif                                                       |   |
+|:-----------------:|:------------------------------------------------------------------------------------------------------------------:|---|
+|   break_sequence  | =(count_block_sequence&gt;0) and (count_block_sequence!=total_trials) and ((count_block_sequence%block_size) == 0) |   |
+
+#### fixation block sequence
+
+|      **Opensesame Object**      |                                  **Runif**                                 |
+|:-------------------------------:|:--------------------------------------------------------------------------:|
+|        manual_pause_start       |                     [response_keyboard_response] = ‘p’                     |
+| send_trigger_manual_pause_start |                     [response_keyboard_response] = ‘p’                     |
+|         manual_pause_kbd        |                     [response_keyboard_response] = ‘p’                     |
+|         manual_calibrate        | [response_keyboard_response] = ‘p’ and [response_keyboard_response] = ‘c’] |
+|         manual_pause_end        |                     [response_keyboard_response] = ‘p’                     |
+|       manual-pause_end_kbd      |                     [response_keyboard_response] = ‘p’                     |
+|  send_trigger_manual_pause_end  |                     [response_keyboard_response] = ‘p’                     |
+
+> [!CAUTION]
+> Never name any variable in your inline script as `timeout` 🥲. It might break the functionality of your experiment. Follow this [discussion](https://forum.cogsci.nl/discussion/6393/sketchpad-does-not-wait-for-the-keypress) for more details!
