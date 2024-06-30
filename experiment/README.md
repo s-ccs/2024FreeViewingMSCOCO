@@ -30,7 +30,7 @@ The structure of the experiment is as follows:
 
     b. Fixation cross
 
-    c. Wait for center gaze fixation (if not recalibrate and repeat the trial)
+    c. Wait for center gaze fixation (if not, recalibrate and repeat the trial)
 
     d. Jitter (fixation still shows up on the screen)
 
