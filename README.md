@@ -1,4 +1,4 @@
-# EEG+Freview on MSCOCO dataset
+# EEG+Freeviewing on MSCOCO dataset
 **Author:** *Benedikt Ehinger*
 
 **Year:** *2024*
@@ -68,8 +68,3 @@ git clone https://github.com/s-ccs/2024FreeViewingMSCOCO.git
 ```
 
 \*Instead of having a separate *notebooks* folder, you can also delete it and integrate your notebooks in the scripts folder. However, notebooks should always be marked by adding `nb_` in front of the file name.
-
-TODO :
-- [ ] Update wiki with instructions
-- [ ] Setup the 5th monitor for eye test 👻
-- [ ] Recheck the environment.yaml and requirements.txt packages in the lab
