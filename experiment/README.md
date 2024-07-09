@@ -89,7 +89,7 @@ These are the triggers used in the experiment. The triggers are sent to the eyet
 |:-----------------:|:------------------------------------------------------------------------------------------------------------------:|---|
 |   break_sequence  | =(count_block_sequence&gt;0) and (count_block_sequence!=total_trials) and ((count_block_sequence%block_size) == 0) |   |
 
-#### fixation block sequence
+#### Fixation block sequence
 
 |      **Opensesame Object**      |                                  **Runif**                                 |
 |:-------------------------------:|:--------------------------------------------------------------------------:|
