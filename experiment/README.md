@@ -91,7 +91,7 @@ These are the triggers used in the experiment. The triggers are sent to the eyet
 
 #### Fixation block sequence
 
-|      **Opensesame Object**      |                                  **Runif**                                 |
+|      **OpenSesame Object**      |                                  **Runif**                                 |
 |:-------------------------------:|:--------------------------------------------------------------------------:|
 |        manual_pause_start       |                     [response_keyboard_response] = ‘p’                     |
 | send_trigger_manual_pause_start |                     [response_keyboard_response] = ‘p’                     |
