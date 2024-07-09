@@ -81,7 +81,7 @@ These are the triggers used in the experiment. The triggers are sent to the eyet
 
 
 ### Runif conditions used
-Run if refers to the field in opensesame in the `sequence` item of the trial loop. It is used to send triggers only when the condition is met.
+`Run if` refers to the field in OpenSesame in the `sequence` item of the trial loop. It is used to execute certain items (e.g. breaks or sending triggers) only when the condition is met.
 
 #### Main block sequence
 
