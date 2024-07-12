@@ -16,11 +16,22 @@ conda env create -f environment.yaml
     - Connect the EyeLink 1000 Plus to the host PC and follow the instructions in the manual to set up the device. [More on this later].
     - Make sure that the EyeLink 1000 Plus is connected to the host PC via the Ethernet cable/wifi.
 
+3. Customisation: 
+	- The python script `general_setup.py` at the start of the OpenSesame experiment contains several options to configure, e.g. the number of blocks, block size, etc.
+	- To change the images shown in the practice/experimental trials, change the value of `file_name` in the general setup python file, and import the new csv file into the file pool via the practice/experimental loop respectively.
+	- The screen number & resolution in the experiment settings should match the subject's screen.
+	- Templates for the lab-notebook and participant-form files are in the assets folder. These will be copied to the data/sub/ses/beh folder upon running the exp-startup script. 
+
 ## Experiment Flow 🌊
 
 [WILL BE UPDATED WITH A FLOWCHART]
 
-The structure of the experiment is as follows:
+**Creating behavioural files (lab notebook, participant form)** - Before the experiment, from the 'scripts' folder run the script `exp-startup` to create the folder `<project-root>/data/sub-xxx/ses-yyy/beh` and copy the behavioural file templates to it.
+
+`$ ./exp-startup xxx yyy` (replace xxx and yyy with subject & session IDs respectively)
+
+
+The structure of the OpenSesame experiment is as follows:
 
 1. Welcome and Instructions
 2. Initial Calibration
@@ -36,6 +47,13 @@ The structure of the experiment is as follows:
 
     e. Image presentation
 4. End trial loop
+
+> [!NOTE]  
+> Researchers: To pause for calibration/other purpose at any point between trials (while the participant sees the “Press Space to start trial” screen), you can press ‘p’.
+> Then ‘c’ to go to calibration menu, or 
+> ‘r’ to resume
+> After that the participant is asked to press space to continue to the image.
+> The OpenSesame console shows the triggers being sent - you can use this to tell when the "Press Space" screen is being displayed.
 
 
 ## Eye tracker setup 
@@ -55,8 +73,8 @@ The structure of the experiment is as follows:
 6. **Screen resolution :** 1920x1080 px
 
 ### Experimental Parameters
-1. **No of trials :** 400
-2. **Calibration breaks** : Every 50 trials
+1. **Trial numbers :** 1-400 (+ practice trials with negative trial numbers)
+2. **Calibration breaks** : Every 50 trials (configurable)
 3. **1 Trial duration :** ~5-6 seconds
 4. **Size of Images :** 947 x 710 pixels
 5. **Calibration Type :** HV13 13 point
