@@ -1,0 +1,31 @@
+[Authors]
+  authors = "Judith Schepers, Maanik Marathe, Manpa Barman, Benedikt Ehinger"
+  affiliation = "University of Stuttgart, Germany"
+[AuthorsContact]
+  email = "benedikt.ehinger@vis.uni-stuttgart.de.com"
+[Dataset]
+  title = "2024FreeViewingMSCOCO"
+  dataset_description = "Combined EEG & Eyetracking FreeViewing on a MSCOCO subset"
+  License = "MIT License"
+  taskName = "task-FreeViewing"
+
+[Sources]
+  EEG = "EEGstream EE225"
+  marker = ["LSL_Markers","eegoSports-EE225_markersMarkers"]
+
+[Computers]
+  stimulusComputerUsed = true
+
+[Subject]
+  subject = ["Medicine, Health and Life Sciences","Engineering"]
+
+[Dataverse]
+  dataset_id = 123456
+  dataset_title = '2024FreeViewingMSCOCO'
+  pid = ' '
+
+[Consentform]
+    pay_per_hour = 15
+    use_eeg = true
+    use_eyetracking = true
+    
