@@ -1,0 +1,17 @@
+on:
+ push:
+  paths:
+    project*.toml
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        language: 
+          - de
+          - en
+    steps:
+      - name: Generate Forms
+        uses: s-ccs/consentform_gh_action@main
+        with:
+         language: ${{ matrix.language }}
