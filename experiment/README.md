@@ -20,16 +20,17 @@ conda env create -f environment.yaml
 	- The python script `general_setup.py` at the start of the OpenSesame experiment contains several options to configure, e.g. the number of blocks, block size, etc.
 	- To change the images shown in the practice/experimental trials, change the value of `file_name` in the general setup python file, and import the new csv file into the file pool via the practice/experimental loop respectively.
 	- The screen number & resolution in the experiment settings should match the subject's screen.
-	- Templates for the lab-notebook and participant-form files are in the assets folder. These will be copied to the data/sub/ses/beh folder upon running the exp-startup script. 
+	- Templates for the lab-notebook and participant-form files are in the assets folder. These will be copied to the `data/sub-xxx/ses-yyy/beh` folder upon running the exp-startup script. 
 
 ## Experiment Flow 🌊
 
 [WILL BE UPDATED WITH A FLOWCHART]
 
-**Creating behavioural files (lab notebook, participant form)** - Before the experiment, from the 'scripts' folder run the script `exp-startup` to create the folder `<project-root>/data/sub-xxx/ses-yyy/beh` and copy the behavioural file templates to it.
+**Creating behavioural files (lab notebook, participant form)** - For each participant, before the experiment, from the 'scripts' folder run the script `exp-startup` to create the folder `<project-root>/data/sub-xxx/ses-yyy/beh` and copy the behavioural file templates to it. (Replace xxx and yyy with the desired subject & session IDs respectively.)
 
-`$ ./exp-startup xxx yyy` (replace xxx and yyy with subject & session IDs respectively)
-
+```bash
+./exp-startup xxx yyy
+```
 
 The structure of the OpenSesame experiment is as follows:
 
@@ -50,9 +51,13 @@ The structure of the OpenSesame experiment is as follows:
 
 > [!NOTE]  
 > Researchers: To pause for calibration/other purpose at any point between trials (while the participant sees the “Press Space to start trial” screen), you can press ‘p’.
+
 > Then ‘c’ to go to calibration menu, or 
-> ‘r’ to resume
+
+> ‘r’ to resume.
+
 > After that the participant is asked to press space to continue to the image.
+
 > The OpenSesame console shows the triggers being sent - you can use this to tell when the "Press Space" screen is being displayed.
 
 
