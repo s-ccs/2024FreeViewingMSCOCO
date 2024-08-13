@@ -50,21 +50,12 @@ The structure of the OpenSesame experiment is as follows:
 4. End trial loop
 
 > [!NOTE]  
-> Researchers: To pause for calibration/other purpose at any point between trials (while the participant sees the “Press Space to start trial” screen), you can press ‘p’.
-
-> Then ‘c’ to go to calibration menu, or 
-
-> ‘r’ to resume.
-
-> After that the participant is asked to press space to continue to the image.
-
+> Researchers: To pause for calibration/other purpose at any point between trials (while the participant sees the “Press Space to start trial” screen), you can press ‘p’.   
+> Then ‘c’ to go to calibration menu, or   
+> ‘r’ to resume.   
+> After that the participant is asked to press space to continue to the image.   
 > The OpenSesame console shows the triggers being sent - you can use this to tell when the "Press Space" screen is being displayed.
 
-
-## Eye tracker setup 
-
-1. **Eye tracker used :** EyeLink 1000 Plus (Version 5.50)
-2. **Mount Type** : Desktop mount
 
 
 ## Experiment Details
@@ -73,16 +64,17 @@ The structure of the OpenSesame experiment is as follows:
 1. **Stimuli :** Images from the MSCOCO dataset
 2. **Task :** Free-viewing task
 3. **Electroencephalogram :** 32-channel EEG cap
-4. **Eyetracker :** EyeLink 1000 Plus
+4. **Eyetracker :** EyeLink 1000 Plus (Version 5.50), Desktop mount
 5. **Screen to eye distance :** 700 mm
 6. **Screen resolution :** 1920x1080 px
+7. **Exclusion Criteria :** If any of the following are present: any kind of colourblindness, photosensitive epilepsy, photosensitive migraine or any other neurological disorder (major depression, ADHD, autism, or similar). The participant should have corrected to normal vision.
 
 ### Experimental Parameters
 1. **Trial numbers :** 1-400 (+ practice trials with negative trial numbers)
 2. **Calibration breaks** : Every 50 trials (configurable)
 3. **1 Trial duration :** ~5-6 seconds
 4. **Size of Images :** 947 x 710 pixels
-5. **Calibration Type :** HV13 13 point
+5. **Calibration Type :** HV13 13 point (sent to the eye tracker via pygaze in OpenSesame, along with the calibration area calculated based on the image & screen size and screen-to-eye distance.)
 
 
 ### Triggers used :
