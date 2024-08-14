@@ -1,0 +1,56 @@
+[Authors]
+  authors = "Judith Schepers, Maanik Marathe, Manpa Barman, Benedikt Ehinger"
+  affiliation = "University of Stuttgart, Germany"
+[AuthorsContact]
+  email = "benedikt.ehinger@vis.uni-stuttgart.de.com"
+[Dataset]
+  title = "2024FreeViewingMSCOCO"
+  dataset_description = "Combined EEG & Eyetracking FreeViewing on a MSCOCO subset"
+  License = "MIT License"
+  taskName = "task-FreeViewing"
+
+[Sources]
+  EEG = "EEGstream EE225"
+  marker = ["LSL_Markers","eegoSports-EE225_markersMarkers"]
+
+[Computers]
+  stimulusComputerUsed = true
+
+[Subject]
+  subject = ["Medicine, Health and Life Sciences","Engineering"]
+
+[Dataverse]
+  dataset_id = 123456
+  dataset_title = '2024FreeViewingMSCOCO'
+  pid = ' '
+
+[Consentform]
+	pay_per_hour = 15
+	study_duration_hrs = 3
+
+    use_eeg = true
+    use_eyetracking = true
+	use_vr = false
+
+	study_purpose_de = """In dieser Studie untersuchen wir, wie Menschen Bilder wahrnehmen, indem wir die Gehirnaktivität mit EEG und die Augenbewegungen mit einem Eye-Tracker aufzeichnen."""
+	study_purpose_en = "In this study, we will investigate how humans perceive images by recording brain activity with EEG and eye movements using an eye-tracker."
+    
+	study_task_de =  "Es werden Ihnen verschiedene Bilder auf dem Monitor präsentiert. Ihre Aufgabe ist es, die Bilder frei zu erkunden."
+	study_task_en = "We will present different pictures on the screen. Your task is to freely explore these pictures."
+	
+	researcher_details_de = """Verantwortliche Person: Benedikt Ehinger  
+								Computational Cognitive Science (CCS)  
+								Institut für Visualisierung und Interaktive Systeme (VIS)   
+								Universität Stuttgart  
+								Universitätsstraße 32  
+								70569 Stuttgart  
+								E-mail: benedikt.ehinger@vis.uni-stuttgart.de"""
+	researcher_details_en = """Responsible Principal Investigator: Benedikt Ehinger  
+								Computational Cognitive Science (CCS)  
+								Institute for Visualisation and Interactive Systems (VIS)   
+								University of Stuttgart  
+								Universitätsstraße 32  
+								70569 Stuttgart  
+								E-mail: benedikt.ehinger@vis.uni-stuttgart.de"""
+
+	data_processing_contactperson = "Benedikt Ehinger (benedikt.ehinger@vis.uni-stuttgart.de)"

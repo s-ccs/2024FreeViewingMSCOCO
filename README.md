@@ -1,4 +1,4 @@
-# EEG+Freview on MSCOCO dataset
+# EEG+Freeviewing on MSCOCO dataset
 **Author:** *Benedikt Ehinger*
 
 **Year:** *2024*
@@ -15,6 +15,14 @@
 >Be as specific as possible. Plan to spend **at least 1h** on this.
 >
 >Optional: Add a pipeline plot in which the different steps are displayed together with the corresponding scripts.
+
+
+### Installation
+
+1. Clone the repository.
+```bash
+git clone https://github.com/s-ccs/2024FreeViewingMSCOCO.git
+```
 
 ## Overview of Folder Structure 
 
@@ -60,13 +68,3 @@
 ```
 
 \*Instead of having a separate *notebooks* folder, you can also delete it and integrate your notebooks in the scripts folder. However, notebooks should always be marked by adding `nb_` in front of the file name.
-
-TODO :
-- [ ] Set triggers in Opensesame (working now USB to TTL route) - For this we already made the list (write code)
-- [ ] Gaze Contingency code not working - (debug only)
-- [ ] Mandatory Calibration Breaks after 5 minutes (write code)
-- [ ] Jitter Implementation[400-500ms] (before showing the stimulus to avoid predictability) (write code)
-- [ ] Information about the participants will be collected in another .osexp file (opensesame file). This will include     information and tests like eyesight, epilepsy, etc. The experimenter will take this data in this file digitally.
-- [ ] Lab notebook to note the behavior of the participants during the experiment. To be uploaded in DaRUS
-- [ ] Update wiki with instructions
-- [ ] Setup the 5th monitor for eye test 👻
