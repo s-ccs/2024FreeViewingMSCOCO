@@ -1,8 +1,20 @@
 #!/bin/bash
+echo "Welcome to the FreeViewing Experiment - to generate the tsv-logger-forms, please provide subject and session numbers"
+read -p "Subject-Number:" sub
+read -p "Session-Number:" ses
+
+# convert to number
+sub=$((sub))
+ses=$((ses))
+
+
+sub=$(printf "%03d" $sub)
+ses=$(printf "%03d" $ses)
+cd "$(dirname "${BASH_SOURCE[0]}")"
 cd ..
-mkdir -p "data/sub-$1/ses-$2/beh"
-cp --target-directory="data/sub-$1/ses-$2/beh" assets/template-labnotebook.tsv assets/template-participantform.tsv
-mv "data/sub-$1/ses-$2/beh/template-labnotebook.tsv" "data/sub-$1/ses-$2/beh/sub-$1_ses-$2_labnotebook.tsv"
-mv "data/sub-$1/ses-$2/beh/template-participantform.tsv" "data/sub-$1/ses-$2/beh/sub-$1_ses-$2_participantform.tsv"
-gedit "data/sub-$1/ses-$2/beh/sub-$1_ses-$2_participantform.tsv"
-gedit "data/sub-$1/ses-$2/beh/sub-$1_ses-$2_labnotebook.tsv"
+mkdir -p "data/sub-$sub/ses-$ses/beh"
+cp --target-directory="data/sub-$sub/ses-$ses/beh" assets/template-labnotebook.tsv assets/template-participantform.tsv
+mv "data/sub-$sub/ses-$ses/beh/template-labnotebook.tsv" "data/sub-$sub/ses-$ses/beh/sub-${sub}_ses-${ses}_labnotebook.tsv"
+mv "data/sub-$sub/ses-$ses/beh/template-participantform.tsv" "data/sub-$sub/ses-$ses/beh/sub-${sub}_ses-${ses}_participantform.tsv"
+gedit "data/sub-$sub/ses-$ses/beh/sub-${sub}_ses-${ses}_participantform.tsv"
+gedit "data/sub-$sub/ses-$ses/beh/sub-${sub}_ses-${ses}_labnotebook.tsv"
