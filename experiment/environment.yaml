@@ -19,3 +19,4 @@ dependencies:
   - qtconsole 
   - pyqtwebengine 
   - wxpython
+  - session_info

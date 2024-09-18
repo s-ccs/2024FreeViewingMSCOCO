@@ -19,7 +19,10 @@ conda env create -f environment.yaml
 3. Customisation: 
 	- The python script `general_setup.py` at the start of the OpenSesame experiment contains several options to configure, e.g. the number of blocks, block size, etc.
 	- To change the images shown in the practice/experimental trials, change the value of `file_name` in the general setup python file, and import the new csv file into the file pool via the practice/experimental loop respectively.
+	- The images are stored in the assets/images folder, along with individual csv files containing details of the of images that we want to show for the practice and experimental runs. We also have one file containing the list of images for the pilot (450 images instead of the final 400) and one with just 23 images, to use while testing block sizes, breaks etc. 
 	- The screen number & resolution in the experiment settings should match the subject's screen.
+	- In general_setup.py, we send settings to the eyetracker like calibration area and type. These settings are not applied before the calibration that automatically happens in new_pygaze_init, therefore we do not use that initial calibration and instead manually trigger it at the end of general_setup.
+	- For connection to the EEG recording, we use Lab Streaming Layer with the stream name "experiment_markers" (set up in trigger_setup.py)
 	- Templates for the lab-notebook and participant-form files are in the assets folder. These will be copied to the `data/sub-xxx/ses-yyy/beh` folder upon running the exp-startup script. 
 
 ## Experiment Flow 🌊
@@ -83,6 +86,7 @@ These are the triggers used in the experiment. The triggers are sent to the eyet
 
 |                                  **Trigger Name**                                 | **Trigger Number** |                                 **Opensesame Location**                                 |
 |:---------------------------------------------------------------------------------:|:------------------:|:---------------------------------------------------------------------------------------:|
+| Python packages version info: (+contains actual version info of packages) |          0         | general_setup (directly pushing to outlet instead of calling send_trigger because it's simpler) |
 | Fixation dot shown - Run & Fixation dot shown again due to recalibration - Prepare |          1         | wait_for_centre_gaze (Run) & wait_for_centre_gaze (Prepare) - after calibration step |
 |                                Stimulus image shown                               |          2         |                               send_trigger_start_stimulus                               |
 |                                Recalibration start                                |          3         |             wait_for_centre_gaze (Prepare) - at calibration step & breaks             |

@@ -1,0 +1,24 @@
+coco_id,file_name,license,file_path_coco_dataset
+605,000000000605_MEG_size.jpg,Attribution-NonCommercial-NoDerivs License,/scratch/data/coco/coco-2017/train/data/000000000605.jpg
+625,000000000625_MEG_size.jpg,Attribution-NonCommercial-ShareAlike License,/scratch/data/coco/coco-2017/train/data/000000000625.jpg
+650,000000000650_MEG_size.jpg,Attribution-NonCommercial-ShareAlike License,/scratch/data/coco/coco-2017/train/data/000000000650.jpg
+1308,000000001308_MEG_size.jpg,Attribution-NonCommercial License,/scratch/data/coco/coco-2017/train/data/000000001308.jpg
+1625,000000001625_MEG_size.jpg,Attribution-ShareAlike License,/scratch/data/coco/coco-2017/train/data/000000001625.jpg
+1877,000000001877_MEG_size.jpg,Attribution-NoDerivs License,/scratch/data/coco/coco-2017/train/data/000000001877.jpg
+2270,000000002270_MEG_size.jpg,Attribution License,/scratch/data/coco/coco-2017/train/data/000000002270.jpg
+3521,000000003521_MEG_size.jpg,Attribution-NonCommercial License,/scratch/data/coco/coco-2017/train/data/000000003521.jpg
+5684,000000005684_MEG_size.jpg,Attribution-NonCommercial-ShareAlike License,/scratch/data/coco/coco-2017/train/data/000000005684.jpg
+6053,000000006053_MEG_size.jpg,Attribution-ShareAlike License,/scratch/data/coco/coco-2017/train/data/000000006053.jpg
+6178,000000006178_MEG_size.jpg,Attribution-NonCommercial-ShareAlike License,/scratch/data/coco/coco-2017/train/data/000000006178.jpg
+6765,000000006765_MEG_size.jpg,Attribution-NonCommercial-ShareAlike License,/scratch/data/coco/coco-2017/train/data/000000006765.jpg
+7048,000000007048_MEG_size.jpg,Attribution-NonCommercial-NoDerivs License,/scratch/data/coco/coco-2017/train/data/000000007048.jpg
+7567,000000007567_MEG_size.jpg,Attribution-ShareAlike License,/scratch/data/coco/coco-2017/train/data/000000007567.jpg
+7932,000000007932_MEG_size.jpg,Attribution-NonCommercial-ShareAlike License,/scratch/data/coco/coco-2017/train/data/000000007932.jpg
+8027,000000008027_MEG_size.jpg,Attribution-NonCommercial-NoDerivs License,/scratch/data/coco/coco-2017/train/data/000000008027.jpg
+8053,000000008053_MEG_size.jpg,Attribution-NonCommercial-NoDerivs License,/scratch/data/coco/coco-2017/train/data/000000008053.jpg
+8998,000000008998_MEG_size.jpg,Attribution-NonCommercial-ShareAlike License,/scratch/data/coco/coco-2017/train/data/000000008998.jpg
+9199,000000009199_MEG_size.jpg,Attribution-NonCommercial-ShareAlike License,/scratch/data/coco/coco-2017/train/data/000000009199.jpg
+9987,000000009987_MEG_size.jpg,Attribution-NonCommercial-ShareAlike License,/scratch/data/coco/coco-2017/train/data/000000009987.jpg
+10046,000000010046_MEG_size.jpg,Attribution-NonCommercial-ShareAlike License,/scratch/data/coco/coco-2017/train/data/000000010046.jpg
+10743,000000010743_MEG_size.jpg,Attribution-NonCommercial-NoDerivs License,/scratch/data/coco/coco-2017/train/data/000000010743.jpg
+10903,000000010903_MEG_size.jpg,Attribution-NonCommercial License,/scratch/data/coco/coco-2017/train/data/000000010903.jpg
