@@ -18,9 +18,12 @@ conda env create -f environment.yaml
 
 3. Customisation: 
 	- The python script `general_setup.py` at the start of the OpenSesame experiment contains several options to configure, e.g. the number of blocks, block size, etc.
-	- To change the images shown in the practice/experimental trials, change the value of `file_name` in the general setup python file, and import the new csv file into the file pool via the practice/experimental loop respectively.
 	- The images are stored in the assets/images folder, along with individual csv files containing details of the of images that we want to show for the practice and experimental runs. We also have one file containing the list of images for the pilot (450 images instead of the final 400) and one with just 23 images, to use while testing block sizes, breaks etc. 
-	- The screen number & resolution in the experiment settings should match the subject's screen.
+	- To change the images shown in the practice/experimental trials, update the file details in the respective csv file; then in OpenSesame, 
+		- Change the csv file in the corresponding loop item - delete the old csv file from the file pool and import the new csv file into the file pool.
+		- If you have changed the experimental images file to a different csv, set the new filename/path in the value `exp_imgdetails_file_name` in the general_setup python file.
+		- If you have changed the number of practice trials, update the value of n_practicetrials in the general_setup python file.
+	- The screen number & resolution in the OpenSesame experiment settings should match the subject's screen.
 	- In general_setup.py, we send settings to the eyetracker like calibration area and type. These settings are not applied before the calibration that automatically happens in new_pygaze_init, therefore we do not use that initial calibration and instead manually trigger it at the end of general_setup.
 	- For connection to the EEG recording, we use Lab Streaming Layer with the stream name "experiment_markers" (set up in trigger_setup.py)
 	- Templates for the lab-notebook and participant-form files are in the assets folder. These will be copied to the `data/sub-xxx/ses-yyy/beh` folder upon running the exp-startup script. 
@@ -29,7 +32,7 @@ conda env create -f environment.yaml
 
 [WILL BE UPDATED WITH A FLOWCHART]
 
-**Creating behavioural files (lab notebook, participant form)** - For each participant, before the experiment, from the 'scripts' folder run the script `exp-startup` to create the folder `<project-root>/data/sub-xxx/ses-yyy/beh` and copy the behavioural file templates to it. (Replace xxx and yyy with the desired subject & session IDs respectively.)
+**Creating behavioural files (lab notebook, participant form)** - For each participant, before the experiment, from the 'scripts' folder run the script `exp-startup` which will create the folder `<project-root>/data/sub-xxx/ses-yyy/beh` and will copy the behavioural file templates to it. (Replace xxx and yyy with the desired subject & session IDs respectively.)
 
 ```bash
 ./exp-startup xxx yyy
@@ -74,11 +77,11 @@ The structure of the OpenSesame experiment is as follows:
 
 ### Experimental Parameters
 1. **Trial numbers :** 1-400 (+ practice trials with negative trial numbers)
-2. **Calibration breaks** : Every 50 trials (configurable)
+2. **Calibration breaks :** Every 50 trials (configurable - see 'customisation' section above)
 3. **1 Trial duration :** ~5-6 seconds
 4. **Size of Images :** 947 x 710 pixels
 5. **Calibration Type :** HV13 13 point (sent to the eye tracker via pygaze in OpenSesame, along with the calibration area calculated based on the image & screen size and screen-to-eye distance.)
-
+6. **Number of Practice/Experimental Trials :** Configurable - see 'customisation' section above
 
 ### Triggers used :
 
@@ -86,7 +89,7 @@ These are the triggers used in the experiment. The triggers are sent to the eyet
 
 |                                  **Trigger Name**                                 | **Trigger Number** |                                 **Opensesame Location**                                 |
 |:---------------------------------------------------------------------------------:|:------------------:|:---------------------------------------------------------------------------------------:|
-| Python packages version info: (+contains actual version info of packages) |          0         | general_setup (directly pushing to outlet instead of calling send_trigger because it's simpler) |
+| Python packages version info: (+contains actual version info of packages)         |          0         | general_setup (directly pushing to outlet instead of calling send_trigger because it's simpler) |
 | Fixation dot shown - Run & Fixation dot shown again due to recalibration - Prepare |          1         | wait_for_centre_gaze (Run) & wait_for_centre_gaze (Prepare) - after calibration step |
 |                                Stimulus image shown                               |          2         |                               send_trigger_start_stimulus                               |
 |                                Recalibration start                                |          3         |             wait_for_centre_gaze (Prepare) - at calibration step & breaks             |

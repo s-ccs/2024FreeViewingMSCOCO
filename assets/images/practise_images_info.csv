@@ -2,5 +2,3 @@ coco_id,file_name,license,file_path_coco_dataset
 222921,000000222921_MEG_size.jpg,Attribution-NonCommercial License,/scratch/data/coco/coco-2017/train/data/000000222921.jpg
 303436,000000303436_MEG_size.jpg,Attribution-NonCommercial-NoDerivs License,/scratch/data/coco/coco-2017/train/data/000000303436.jpg
 304187,000000304187_MEG_size.jpg,Attribution License,/scratch/data/coco/coco-2017/train/data/000000304187.jpg
-344729,000000344729_MEG_size.jpg,Attribution-NonCommercial-NoDerivs License,/scratch/data/coco/coco-2017/train/data/000000344729.jpg
-450584,000000450584_MEG_size.jpg,Attribution-NonCommercial-NoDerivs License,/scratch/data/coco/coco-2017/train/data/000000450584.jpg
