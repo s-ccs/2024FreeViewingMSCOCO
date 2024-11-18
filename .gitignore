@@ -24,3 +24,6 @@ docs/site/
 *.asv
 *.m~
 
+# for images
+assets/images/*.jpg
+
