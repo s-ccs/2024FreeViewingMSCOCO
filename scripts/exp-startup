@@ -10,8 +10,31 @@ ses=$((ses))
 
 sub=$(printf "%03d" $sub)
 ses=$(printf "%03d" $ses)
+
+
 cd "$(dirname "${BASH_SOURCE[0]}")"
 cd ..
+
+# Check whether subject folder already exists
+if [ -d "data/sub-$sub/ses-$ses/beh" ] 
+then
+	echo "Directory already exists. Please check the existing folder and make sure that you entered the correct subject number."
+	while true; do
+
+		read -p "Do you want to overwrite (y/n)? Make sure no data will be lost! " choice
+		if [ $choice == "y" ]; then
+			echo "Overwriting subject files."
+			break
+		elif [ $choice == "n" ]; then
+			echo "Aborting script."
+			exit 1  # Exit the script with an error code
+		else
+			# Prompt again if input is not valid
+			echo "Invalid input. Please enter 'y' to overwrite or 'n' to abort."
+		fi
+	done
+fi
+
 mkdir -p "data/sub-$sub/ses-$ses/beh"
 cp --target-directory="data/sub-$sub/ses-$ses/beh" assets/template-labnotebook.tsv assets/template-participantform.tsv
 mv "data/sub-$sub/ses-$ses/beh/template-labnotebook.tsv" "data/sub-$sub/ses-$ses/beh/sub-${sub}_ses-${ses}_labnotebook.tsv"
