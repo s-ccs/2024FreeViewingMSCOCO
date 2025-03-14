@@ -32,10 +32,10 @@ conda env create -f environment.yaml
 
 [WILL BE UPDATED WITH A FLOWCHART]
 
-**Creating behavioural files (lab notebook, participant form)** - For each participant, before the experiment, from the 'scripts' folder run the script `exp-startup` which will create the folder `<project-root>/data/sub-xxx/ses-yyy/beh` and will copy the behavioural file templates to it. (Replace xxx and yyy with the desired subject & session IDs respectively.)
+**Creating behavioural files (lab notebook, participant form)** - For each participant, before the experiment, from the 'scripts' folder run the script `exp-startup`. When prompted, enter the subject and session number respectively. The script will create the folder `<project-root>/data/sub-xxx/ses-yyy/beh` and will copy the behavioural file templates (participant form, lab-notebook) to it. (xxx and yyy are the specified subject & session IDs respectively.)
 
 ```bash
-./exp-startup xxx yyy
+./exp-startup
 ```
 
 The structure of the OpenSesame experiment is as follows:
@@ -57,8 +57,7 @@ The structure of the OpenSesame experiment is as follows:
 
 > [!NOTE]  
 > Researchers: To pause for calibration/other purpose at any point between trials (while the participant sees the “Press Space to start trial” screen), you can press ‘p’.   
-> Then ‘c’ to go to calibration menu, or   
-> ‘r’ to resume.   
+> Then ‘c’ to go to calibration menu, or ‘r’ to resume.   
 > After that the participant is asked to press space to continue to the image.   
 > The OpenSesame console shows the triggers being sent - you can use this to tell when the "Press Space" screen is being displayed.
 
@@ -69,7 +68,7 @@ The structure of the OpenSesame experiment is as follows:
 ### General Information
 1. **Stimuli :** Images from the MSCOCO dataset
 2. **Task :** Free-viewing task
-3. **Electroencephalogram :** 32-channel EEG cap
+3. **Electroencephalogram :** 128-channel EEG cap
 4. **Eyetracker :** EyeLink 1000 Plus (Version 5.50), Desktop mount
 5. **Screen to eye distance :** 700 mm
 6. **Screen resolution :** 1920x1080 px
@@ -87,18 +86,27 @@ The structure of the OpenSesame experiment is as follows:
 
 These are the triggers used in the experiment. The triggers are sent to the eyetracker for future analysis.
 
-|                                  **Trigger Name**                                 | **Trigger Number** |                                 **Opensesame Location**                                 |
+> [!NOTE]  
+> Some trigger numbers have more than one trigger name/text associated with them. E.g. trigger number 1 corresponds to the fixation cross being shown, however this could happen either in the normal course of the experiment, or again after a recalibration was necessary because the fixation was not detected the first time. For these trigger numbers, the table has a separate row for each instance of trigger text, with the trigger number being the same.
+
+|                                  **Trigger Name/Text**                            | **Trigger Number** |                                 **Opensesame Location**                                 |
 |:---------------------------------------------------------------------------------:|:------------------:|:---------------------------------------------------------------------------------------:|
 | Python packages version info: (+contains actual version info of packages)         |          0         | general_setup (directly pushing to outlet instead of calling send_trigger because it's simpler) |
-| Fixation dot shown - Run & Fixation dot shown again due to recalibration - Prepare |          1         | wait_for_centre_gaze (Run) & wait_for_centre_gaze (Prepare) - after calibration step |
+| 				Fixation dot shown 				    |          1         | wait_for_centre_gaze (Run) |
+| 		   Fixation dot shown again due to recalibration		    |          1         | wait_for_centre_gaze (Prepare) - after recalibration 				|
 |                                Stimulus image shown                               |          2         |                               send_trigger_start_stimulus                               |
-|                                Recalibration start                                |          3         |             wait_for_centre_gaze (Prepare) - at calibration step ; send_trigger_breakend - at the end of the break ; manual_calibrate - when researcher pauses the experiment to calibrate between trials           |
-|                                 Recalibration end                                 |          4         |                 wait_for_centre_gaze (Prepare) - after calibration step ;  send_trigger_breakend - at the end of the break ; manual_calibrate - when researcher pauses the experiment to calibrate between trials                |
-|                                    Break start                                    |          5         |                                 send_trigger-breakstart                                 |
-|                                     Break end                                     |          6         |                                  send_trigger-breakend                                  |
-|                                  End of practice                                  |          7         |                                End_of_practice sketchpad                                |
-|                                 Stimulus event end                                |          8         |                                send_trigger_end_stimulus                                |
+|		 Recalibration start - wait_for_center_gaze timed out               |          3         |             wait_for_centre_gaze (Prepare) - at calibration step       |
+|           		Recalibration start  - send_trigger_breakend                |          3         |             send_trigger_breakend - at the end of the break            |
+|              		 Recalibration start  - manual calibrate                    |          3         |             manual_calibrate - when researcher pauses the experiment to calibrate between trials           |
+| 	 	Recalibration end  - wait_for_center_gaze timed out        	    |          4         |                 wait_for_centre_gaze (Prepare) - after calibration step                 |
+|         	 	Recalibration end  - send_trigger_breakend                  |          4         |                 send_trigger_breakend - at the end of the break                 	 |
+|                       Recalibration end  - manual calibrate       	            |          4         |                 manual_calibrate - when researcher pauses the experiment to calibrate between trials                |
+|                                    Break start                                    |          5         |                                 send_trigger_breakstart                                 |
+|                                     Break end                                     |          6         |                                  send_trigger_breakend                                  |
+|                               End of practice trials                              |          7         |                                send_trigger_end_practice                                |
+|                                 Stimulus end                             	    |          8         |                                send_trigger_end_stimulus                                |
 |                                 Manual pause start                                |          9         |                             send_trigger_manual_pause_start                             |
+|                                 Manual pause end                                  |          10        |                             send_trigger_manual_pause_end	                           |
 
 
 
