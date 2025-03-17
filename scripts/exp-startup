@@ -3,10 +3,8 @@ echo "Welcome to the FreeViewing Experiment - to generate the tsv-logger-forms, 
 read -p "Subject-Number:" sub
 read -p "Session-Number:" ses
 
-# convert to number
-sub=$((sub))
-ses=$((ses))
-
+sub=$((10#$sub))
+ses=$((10#$ses))
 
 sub=$(printf "%03d" $sub)
 ses=$(printf "%03d" $ses)
