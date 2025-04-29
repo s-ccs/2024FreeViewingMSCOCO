@@ -24,3 +24,11 @@ docs/site/
 *.asv
 *.m~
 
+# for images
+assets/images/*.jpg
+
+# for exit questions
+experiment/2024FreeViewingMSCOCO_exit_questions.tsv
+
+# for data
+data/

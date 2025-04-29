@@ -1,0 +1,22 @@
+#!/bin/bash
+echo "Welcome to the FreeViewing Experiment - To open the corresponding OpenSesame files, please chose: 
+
+1: Startup the EyeTracking Test
+2: Startup the 2024FreeViewingMSCOCO Experiment
+"
+read -p "File: " num  
+
+num=$((num)) # convert to number
+
+source ~/miniconda3/etc/profile.d/conda.sh
+conda activate 2024FreeViewingMSCOCO
+
+if [ $num -eq 1 ]
+then 
+    opensesame /home/stimulus/projects/2024EyetrackingTest/ETCalibrationTest.osexp
+elif [ $num -eq 2 ]
+then
+    opensesame /home/stimulus/projects/2024FreeViewingMSCOCO/experiment/free_viewing_experiment.osexp
+else
+    echo "Please choose 1 or 2"
+fi 
