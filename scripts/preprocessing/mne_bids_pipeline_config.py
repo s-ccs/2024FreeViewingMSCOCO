@@ -712,6 +712,10 @@ ica_n_components = 0.9999999999
 # it is to run but the less data you have to compute a good ICA. Set to
 # `1` or `None` to not perform any decimation.
 # """
+ica_use_icalabel = True
+icalabel_include = ["brain", "other"]
+ica_use_eog_detection = False
+ica_use_ecg_detection = False
 
 # ### Amplitude-based artifact rejection
 #
@@ -890,6 +894,7 @@ mne_log_level = "info"
 # Set the MNE-Python logging verbosity.
 # """
 
+on_error = "debug"
 # on_error: Literal["continue", "abort", "debug"] = "abort"
 # """
 # Whether to abort processing as soon as an error occurs, continue with all other
