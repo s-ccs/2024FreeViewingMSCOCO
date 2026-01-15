@@ -7,8 +7,8 @@ cd "$data_path"
 # Set target task
 target_task="freeviewing"
 
-# Find all files that have "task-" in their name
-find . -type f -name "*task-*" | while read -r file; do
+# Find all files (and symbolic links) that have "task-" in their name (excluding xdf files)
+find . \( -type f -o -type l \) -name "*task-*" -not -name "*.xdf"| while read -r file; do
     dir=$(dirname "$file")
     base=$(basename "$file")
     
