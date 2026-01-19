@@ -8,7 +8,7 @@ def update_filename_column(file_path, target_task):
     # Read the tsv file
     df = pd.read_csv(file_path, sep='\t')
 
-    # Replace current task with target task
+    # Replace current task with target task if necessary
     if 'filename' in df.columns:
         new_filename = df['filename'].str.replace("task-([^_]+)", f"task-{target_task}", regex=True)
 

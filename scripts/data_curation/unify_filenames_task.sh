@@ -35,6 +35,7 @@ find . \( -type f -o -type l \) -name "*task-*" -not -name "*.xdf"| while read -
     fi
 done
 
+# Find all subjects' scans.tsv files and adapt the path(s) in the `filename` column if necessary 
 find . -type f -name "*sub-[0-9][0-9][0-9]_ses-[0-9][0-9][0-9]_scans.tsv" | while read -r file; do
     path=$(realpath "$file")
     echo "Processing: $path"
