@@ -1,5 +1,11 @@
 #!/bin/bash
 
+# Bash script directory
+script_dir=$(dirname "$(readlink -f "$0")")
+
+# Path to Python script
+python_script_path="$script_dir/adapt_filename_in_tsv.py"
+
 # Go to the data set directory
 data_path="/scratch/data/2024FreeViewingMSCOCO"
 cd "$data_path"
@@ -27,4 +33,10 @@ find . \( -type f -o -type l \) -name "*task-*" -not -name "*.xdf"| while read -
         fi
 
     fi
+done
+
+find . -type f -name "*sub-[0-9][0-9][0-9]_ses-[0-9][0-9][0-9]_scans.tsv" | while read -r file; do
+    path=$(realpath "$file")
+    echo "Processing: $path"
+    python3 "$python_script_path" "$path" "$target_task"
 done
