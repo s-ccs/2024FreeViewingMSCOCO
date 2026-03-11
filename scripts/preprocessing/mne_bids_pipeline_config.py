@@ -1,6 +1,17 @@
+#zapline_fline =  50
+#zapline_iter = True
+
+et_has_run = False
+et_has_task = True
+
 sync_eyelink = True
-#sync_eventtype_regex_et = ".*Stimulus image shown.*"
+# remove_blink_saccades = True
+sync_eventtype_regex_et = "trigger=02 Stimulus image shown.*"
+#sync_eventtype_regex = "1-trigger=02 Stimulus image shown.*"
 sync_eventtype_regex = ".*Stimulus image shown.*"
+
+sync_heog_ch = ("HEOGL","HEOGR")
+sync_plot_samps = 200#500
 
 
 # Default settings for data processing and analysis.
@@ -22,18 +33,8 @@ sync_eventtype_regex = ".*Stimulus image shown.*"
 # %%
 # # General settings
 bids_root = "data"
-# bids_root: Optional[PathLike] = None
-# """
-# Specify the BIDS root directory. Pass an empty string or ```None` to use
-# the value specified in the `BIDS_ROOT` environment variable instead.
-# Raises an exception if the BIDS root has not been specified.
-
-# ???+ example "Example"
-#     ``` python
-#     bids_root = '/path/to/your/bids_root'  # Use this to specify a path here.
-#     bids_root = None  # Make use of the `BIDS_ROOT` environment variable.
-#     ```
-# """
+deriv_root = "data/derivatives/test-bad-channel-detection" # not automatically in bids_root
+pyprep_bad_chans = True
 
 # deriv_root: Optional[PathLike] = None
 # """
@@ -42,116 +43,20 @@ bids_root = "data"
 # `derivatives/mne-bids-pipeline` inside the BIDS root.
 
 # interactive: bool = False
-# """
-# If True, the steps will provide some interactive elements, such as
-# figures. If running the steps from a notebook or Spyder,
-# run `%matplotlib qt` in the command line to open the figures in a separate
-# window.
 
-# !!! info
-#     Enabling interactive mode deactivates parallel processing.
-# """
-
-# sessions: Union[list, Literal["all"]] = "all"
-# """
-# The sessions to process. If `'all'`, will process all sessions found in the
-# BIDS dataset.
-# """
-
-task = "2024FreeViewingMSCOCO"
-# task: str = ""
-# """
-# The task to process.
-# """
+#task = "Default"
+task = "freeviewing"
 
 #subjects = "all"
-subjects = ["001"]
-# subjects: Union[Sequence[str], Literal["all"]] = "all"
-# """
-# Subjects to analyze. If `'all'`, include all subjects. To only
-# include a subset of subjects, pass a list of their identifiers. Even
-# if you plan on analyzing only a single subject, pass their identifier
-# as a list.
+subjects = ["005", "006", "007", "022", "029"]
+#subjects = ["005", "013", "016", "025"]
 
-# Please note that if you intend to EXCLUDE only a few subjects, you
-# should consider setting `subjects = 'all'` and adding the
-# identifiers of the excluded subjects to `exclude_subjects` (see next
-# section).
-
-# ???+ example "Example"
-#     ```python
-#     subjects = 'all'  # Include all subjects.
-#     subjects = ['05']  # Only include subject 05.
-#     subjects = ['01', '02']  # Only include subjects 01 and 02.
-#     ```
-# """
 
 exclude_subjects = []
-# exclude_subjects: Sequence[str] = []
-# """
-# Specify subjects to exclude from analysis. The MEG empty-room mock-subject
-# is automatically excluded from regular analysis.
-
-# ???+ info "Good Practice / Advice"
-#     Keep track of the criteria leading you to exclude
-#     a participant (e.g. too many movements, missing blocks, aborted experiment,
-#     did not understand the instructions, etc, ...)
-#     The `emptyroom` subject will be excluded automatically.
-# """
 
 ch_types = ["eeg"]
-# ch_types: Annotated[Sequence[Literal["meg", "mag", "grad", "eeg"]], Len(1, 4)] = []
-# """
-# The channel types to consider.
-
-# ???+ example "Example"
-#     ```python
-#     # Use EEG channels:
-#     ch_types = ['eeg']
-
-#     # Use magnetometer and gradiometer MEG channels:
-#     ch_types = ['mag', 'grad']
-
-#     # Use MEG and EEG channels:
-#     ch_types = ['meg', 'eeg']
-#     ```
-# """
-
 data_type = "eeg"
-# data_type: Optional[Literal["meg", "eeg"]] = None
-# """
-# The BIDS data type.
-
-# For MEG recordings, this will usually be 'meg'; and for EEG, 'eeg'.
-# However, if your dataset contains simultaneous recordings of MEG and EEG,
-# stored in a single file, you will typically need to set this to 'meg'.
-# If `None`, we will assume that the data type matches the channel type.
-
-# ???+ example "Example"
-#     The dataset contains simultaneous recordings of MEG and EEG, and we only
-#     wish to process the EEG data, which is stored inside the MEG files:
-
-#     ```python
-#     ch_types = ['eeg']
-#     data_type = 'meg'
-#     ```
-
-#     The dataset contains simultaneous recordings of MEG and EEG, and we only
-#     wish to process the gradiometer data:
-
-#     ```python
-#     ch_types = ['grad']
-#     data_type = 'meg'  # or data_type = None
-#     ```
-
-#     The dataset contains only EEG data:
-
-#     ```python
-#     ch_types = ['eeg']
-#     data_type = 'eeg'  # or data_type = None
-#     ```
-# """
-
+#eog_channels = ["VEOGL"]
 # eog_channels: Optional[Sequence[str]] = None
 # """
 # Specify EOG channels to use, or create virtual EOG channels.
@@ -224,33 +129,16 @@ task_is_rest = True
 rest_epochs_overlap = 0
 rest_epochs_duration = 1
 epochs_tmin = 0
+epochs_tmax = rest_epochs_duration
 baseline = None
 
 run_source_estimation = False
 
 eeg_reference = "average"
-# eeg_reference: Union[Literal["average"], str, Sequence["str"]] = "average"
-# """
-# The EEG reference to use. If `average`, will use the average reference,
-# i.e. the average across all channels. If a string, must be the name of a single
-# channel. To use multiple channels as reference, set to a list of channel names.
 
-# ???+ example "Example"
-#     Use the average reference:
-#     ```python
-#     eeg_reference = 'average'
-#     ```
+eeg_online_reference_channel = "CPz"
+#add_online_reference_channel = True
 
-#     Use the `P9` channel as reference:
-#     ```python
-#     eeg_reference = 'P9'
-#     ```
-
-#     Use the average of the `P9` and `P10` channels as reference:
-#     ```python
-#     eeg_reference = ['P9', 'P10']
-#     ```
-# """
 
 eeg_template_montage = "standard_1005"
 # eeg_template_montage: Optional[Union[str, DigMontageType]] = None
@@ -281,7 +169,8 @@ eeg_template_montage = "standard_1005"
 #     ```
 # """
 
-drop_channels = ["Bipolar64","Bipolar65","sampleNumber"]
+drop_channels = ["sampleNumber"]
+# drop_channels = ["Bipolar64","Bipolar65","sampleNumber"]
 # drop_channels: Sequence[str] = []
 # """
 # Names of channels to remove from the data. This can be useful, for example,
@@ -318,7 +207,7 @@ drop_channels = ["Bipolar64","Bipolar65","sampleNumber"]
 #     ```
 # """
 
-reader_extra_params = {"units": "uV"}
+#r eader_extra_params = {"units": "uV"}
 # reader_extra_params: dict = {}
 # """
 # Parameters to be passed to `read_raw_bids()` calls when importing raw data.
@@ -510,6 +399,7 @@ h_freq = 100
 # parameters.
 # """
 
+notch_freq = [50, 100, 150]
 # notch_freq: Optional[Union[float, Sequence[float]]] = None
 # """
 # Notch filter frequency. More than one frequency can be supplied, e.g. to remove
@@ -583,7 +473,7 @@ spatial_filter = "ica"
 # ways using the configuration options you can find below.
 # """
 
-ica_reject = {'eeg': 800e-6}
+ica_reject = {'eeg': 8600e-6}
 # ica_reject: Optional[Union[dict[str, float], Literal["autoreject_local"]]] = None
 # """
 # Peak-to-peak amplitude limits to exclude epochs from ICA fitting. This allows you to
@@ -643,7 +533,8 @@ ica_algorithm = "picard-extended_infomax"
 # algorithm (but may converge in less time).
 # """
 
-ica_l_freq = 1.0
+ica_h_freq = 100
+ica_l_freq = 1
 # ica_l_freq: Optional[float] = 1.0
 # """
 # The cutoff frequency of the high-pass filter to apply before running ICA.
@@ -680,6 +571,7 @@ ica_max_iterations = 500
 # """
 
 ica_n_components = 0.9999999999
+#ica_n_components = 124
 # ica_n_components: Optional[Union[float, int]] = None
 # """
 # MNE conducts ICA as a sort of a two-step procedure: First, a PCA is run
@@ -713,7 +605,7 @@ ica_n_components = 0.9999999999
 # `1` or `None` to not perform any decimation.
 # """
 ica_use_icalabel = True
-icalabel_include = ["brain", "other"]
+ica_icalabel_include = ["brain", "other"]
 ica_use_eog_detection = False
 ica_use_ecg_detection = False
 
@@ -725,7 +617,7 @@ ica_use_ecg_detection = False
 #     You can do a quick average of blink data and check what the amplitude looks
 #     like.
 
-reject = {"eeg": 200e-6}
+reject = {"eeg": 300e-6}
 # reject: Optional[
 #     Union[dict[str, float], Literal["autoreject_global", "autoreject_local"]]
 # ] = None
