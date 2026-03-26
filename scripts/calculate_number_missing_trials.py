@@ -1,9 +1,10 @@
 import mne
 import numpy as np
 import pandas as pd
-# import sys
+from itertools import chain
 import json
 import os.path
+import warnings
 
 def calculate_missing_data(subject_id, data_root_path, output_path):
     #----
@@ -12,14 +13,17 @@ def calculate_missing_data(subject_id, data_root_path, output_path):
     #subject_id = int(sys.argv[1]) # Use command line argument
     padded_subject_id = f"{subject_id:03}"
 
-    path = os.path.join(data_root_path, f"sub-{padded_subject_id}/ses-001/eeg/sub-{padded_subject_id}_ses-001_task-2024FreeViewingMSCOCO_eeg.set")
+    # TODO: Generalize to multiple runs
+    path = os.path.join(data_root_path, f"sub-{padded_subject_id}/ses-001/eeg/sub-{padded_subject_id}_ses-001_task-freeviewing_run-1_eeg.set")
     raw = mne.io.read_raw_eeglab(path, preload=True)
 
     #----
     # Find missing data segments in the EEG data
 
     eeg_data = raw.get_data(units="uV")
-    sample_nr = eeg_data[-1,:] # The last "channel" in the eeg_data is the sample number
+    # TODO: Sample numbers look unexpected (check whether they were filtered or resampled in LSLAutoBIDS)
+    sample_nr_idx = raw.ch_names.index('sampleNumber') # Find index of the sample_nr "channel"
+    sample_nr = eeg_data[sample_nr_idx,:] 
 
     def find_missing_data_segments(data):
         start_missing = []
@@ -30,6 +34,7 @@ def calculate_missing_data(subject_id, data_root_path, output_path):
             start_missing.append(0)
             if (not np.isnan(data[1])):
                 end_missing.append(0)
+
         # Find transitions between existing values and nan-values
         for i in range(1,len(data)-1):
             if (np.isnan(data[i]) and not np.isnan(data[i-1])):
@@ -45,6 +50,8 @@ def calculate_missing_data(subject_id, data_root_path, output_path):
 
         return start_missing, end_missing
 
+    # Checks missing data based on sample_nr
+    # TODO: Cannot find cases in which the sample_nr is not nan but the eeg channels are
     start_idx, end_idx = find_missing_data_segments(sample_nr)
 
     missing_segments = pd.DataFrame({
@@ -56,54 +63,154 @@ def calculate_missing_data(subject_id, data_root_path, output_path):
     missing_segments['duration'] = missing_segments['end_time']-missing_segments['start_time']
 
     #----
-    # Count number of trials (images shown) within the missing eeg data segments
+    # Count number of trials (images shown) with missing eeg data i.e. nan values + store their trial numbers
 
-    events = raw.annotations.to_data_frame() # load events/trigger messages
+    events = raw.annotations.to_data_frame(time_format=None) # load events/trigger messages
 
-    events["onset_seconds"] = events.onset.apply(lambda x: x.timestamp())
+    # Find all "Stimulus image shown" and "Stimulus end" events
+    stim_shown_df = events[events["description"].str.contains(r"trigger=02|trigger=08")]
+    stim_shown_df.reset_index(inplace=True)
 
-    # Find all "Stimulus shown" events
-    stim_shown_df = events[events["description"].str.contains("trigger=02")]
+    # Function to extract the trial info (trigger, block, trial and image) from the event description
+    def extract_trial_info(description_string):
+        parts = [part.strip() for part in description_string.split('|')]
+        
+        trial_info = {}
+        for part in parts:
+            key,value = part.split("=",1)
+            if "trigger" in key:
+                key = "trigger"
+            
+            trial_info[key] = value
+        
+        return trial_info
+    
+    trial_info_df = pd.DataFrame(list(stim_shown_df["description"].apply(extract_trial_info)))
+    trial_info_df["block"] = trial_info_df["block"].astype(int)
+    trial_info_df["trial"] = trial_info_df["trial"].astype(int)
 
-    # Function to count how many images were shown in the time window that has missing EEG data
-    def count_missing_trials(start_time, end_time, stim_shown_events):
-        return stim_shown_events.query("(onset_seconds >= @start_time) & (onset_seconds <= @end_time)").shape[0]
+    # Add the additional trial info to the "Stimulus image shown" and "Stimulus end" events df
+    stim_shown_df = pd.concat([stim_shown_df, trial_info_df], axis=1)
 
-    missing_segments.loc[:, "count_missing_trials"] = missing_segments.apply(lambda row: count_missing_trials(row["start_time"], row["end_time"], stim_shown_df), axis=1)
+    # Split data frame in stimulus onset and offset events
+    stim_onset_events = stim_shown_df.query("trigger == '02 Stimulus image shown'").copy()
+    stim_offset_events = stim_shown_df.query("trigger == '08 Stimulus end'").copy()
+
+    # Initialise list 
+    trials_missing_onset_or_offset = []
+
+    # Check whether the number of stimulus onset and offset events matches
+    # If a trial is missing onset or offset, its number is saved and afterwards dropped from the df for the calculation
+    if len(stim_onset_events) != len(stim_offset_events):
+        warning_msg = "The number of stimulus onset and offset events does not match. " \
+        "Check whether all triggers have been send correctly."
+
+        trials_without_offset = set(stim_onset_events.trial) - set(stim_offset_events.trial)
+        trials_without_onset = set(stim_offset_events.trial) - set(stim_onset_events.trial)
+
+        incomplete_trials_msg = ""
+        if trials_without_offset:
+            incomplete_trials_msg += f" The following trials have an onset event but no offset event: {trials_without_offset}."
+            trials_missing_onset_or_offset.extend(trials_without_offset)
+            stim_onset_events.drop(stim_onset_events[stim_onset_events["trial"].isin(trials_without_offset)].index, inplace=True)
+        
+        if trials_without_onset:
+            incomplete_trials_msg += f" The following trials have an offset event but no onset event: {trials_without_onset}."
+            trials_missing_onset_or_offset.extend(trials_without_onset)
+            stim_offset_events.drop(stim_offset_events[stim_offset_events["trial"].isin(trials_without_onset)].index, inplace=True)
+
+        warnings.warn(warning_msg + incomplete_trials_msg)
+
+    # Check that the stimulus onset/offset pairs have the same trial number
+    assert (stim_onset_events["trial"].reset_index(drop=True) == stim_offset_events["trial"].reset_index(drop=True)).all(), \
+        "The trial numbers of the stimulus onset and offset events do not match for at least one pair."
+
+    # Combine onset and offset events in one df which one row per trial
+    trial_df = pd.DataFrame({
+        "block": stim_onset_events["block"].values,
+        "trial": stim_onset_events["trial"].values,
+        "stim_onset": stim_onset_events["onset"].values,
+        "stim_offset": stim_offset_events["onset"].values
+    })
+
+    # Function to find the trial numbers of trials which have missing EEG data + count them
+    # Applied per missing data segment (i.e. its start_time and end_time)
+    def find_trials_with_missing(start_time, end_time, trial_df):
+        #missing_trials_df = stim_shown_events.query("(onset >= @start_time) & (onset <= @end_time)")
+        trials_with_missing_df = trial_df.query(
+            "(@start_time <= stim_onset <= @end_time) | \
+            (@start_time <= stim_offset <= @end_time) | \
+            (stim_onset <= @start_time <= stim_offset) | \
+            (stim_onset <= @end_time <= stim_offset)")
+        count_trials_with_missing = len(trials_with_missing_df)
+        missing_trial_numbers = list(trials_with_missing_df["trial"])
+        return count_trials_with_missing, missing_trial_numbers
+    
+    if missing_segments.empty: # If there are no missing segments, add empty columns
+        missing_segments = missing_segments.assign(
+            count_trials_with_missing = pd.Series(dtype=int),
+            missing_trial_numbers = pd.Series(dtype=object),
+        )
+    else: # Count trials with missing in segments and store their trial numbers
+        missing_segments[["count_trials_with_missing","missing_trial_numbers"]]= missing_segments.apply(
+            lambda row: find_trials_with_missing(row["start_time"], row["end_time"], stim_shown_df),
+            axis=1,
+            result_type = "expand")
 
     #----
-    #Create overview of missing trials
+    # Create overview of trials with missing data/missing trials
 
     # 400 trials during the experiment + 3 practice trials
-    total_nr_trials = 400 + 3
+    nr_practice_trials = 3
+    nr_exp_trials = 400
+    total_nr_trials = nr_practice_trials + nr_exp_trials
 
-    # Count how many images (trials) were shown during interruption of the EEG stream and thereby have no EEG data
-    total_missing_in_segments = missing_segments.count_missing_trials.sum()
+    # Create list of trials that should theoretically exist
+    practice_trials = range(-nr_practice_trials, 0)
+    exp_trials = range(1, nr_exp_trials + 1)
+    all_trials = list(chain(practice_trials, exp_trials))
+
+    # Count how many images (trials) were shown during interruption of the EEG stream and thereby have no/missing EEG data
+    count_trials_with_missing_in_segments = missing_segments.count_trials_with_missing.sum()
+
+    # Count trials that have a missing onset or offset event
+    count_missing_onset_or_offset = len(trials_missing_onset_or_offset)
 
     # For example if the experiment was aborted early and not all images were shown
-    additional_missing_trials = total_nr_trials - stim_shown_df.shape[0]
+    count_additional_missing_trials = total_nr_trials - (len(trial_df) + count_missing_onset_or_offset)
 
     # Calculate total number of missing trials (absolute and relative)
-    total_num_missing_trials = total_missing_in_segments + additional_missing_trials
-    percentage_missing = round(total_num_missing_trials/total_nr_trials * 100, 2)
+    total_num_missing_trials = count_trials_with_missing_in_segments + count_missing_onset_or_offset + count_additional_missing_trials
+    percentage_missing_trials = round(total_num_missing_trials/total_nr_trials * 100, 2)
+
+    # Extract trial numbers of missing trials
+    trials_with_missing_in_segments = list(chain.from_iterable(missing_segments["missing_trial_numbers"]))
+
+    existing_trials = set(stim_shown_df['trial'].astype(int))
+    additional_missing_trials = list(set(all_trials)-existing_trials)
 
     missing_trials_info = {
         "participant_id": int(subject_id),
         #"missing_segments_df": missing_segments.to_dict(orient="records"),
-        "total_missing_in_segments": int(total_missing_in_segments), # has to be converted to Python int because the default JSON encoder can't handle np.int64
-        "additional_missing_trials": int(additional_missing_trials),
+        "has_nans": False if missing_segments.empty else True,
+        "count_trials_with_missing_in_segments": int(count_trials_with_missing_in_segments), # has to be converted to Python int because the default JSON encoder can't handle np.int64
+        "trials_with_missing_in_segments": trials_with_missing_in_segments,
+        "count_missing_onset_or_offset": count_missing_onset_or_offset,
+        "trials_missing_onset_or_offset": trials_missing_onset_or_offset,
+        "count_additional_missing_trials": int(count_additional_missing_trials),
+        "additional_missing_trials": additional_missing_trials,
         "total_num_missing_trials": int(total_num_missing_trials),
-        "percentage_missing": float(percentage_missing)
+        "percentage_missing_trials": float(percentage_missing_trials)
     }
 
-    print(f"For participant {padded_subject_id}, {missing_trials_info["total_num_missing_trials"]} out of {total_nr_trials} trials ({missing_trials_info["percentage_missing"]}%) are missing.")
+    print(f"For participant {padded_subject_id}, {missing_trials_info["total_num_missing_trials"]} out of {total_nr_trials} trials ({missing_trials_info["percentage_missing_trials"]}%) are missing.")
 
     #----
     # Save missing segments and missing trials info to file
 
-    missing_segments.to_csv(output_path+f"sub-{padded_subject_id}_missing_data_segments", sep="\t", index=False)
+    missing_segments.to_csv(os.path.join(output_path,f"sub-{padded_subject_id}_missing_data_segments.tsv"), sep="\t", index=False)
 
-    with open(output_path+f'sub-{padded_subject_id}_missing_trials_info.json', 'w') as f:
+    with open(os.path.join(output_path,f'sub-{padded_subject_id}_missing_trials_info.json'), 'w') as f:
         f.write(json.dumps(missing_trials_info, indent=4))
 
     return missing_trials_info
@@ -115,28 +222,36 @@ def main():
     data_root_path = "/scratch/data/2024FreeViewingMSCOCO/"
 
     # Get the path to the current script
-    script_dir = os.path.dirname(os.path.abspath(__file__))
+    #script_dir = os.path.dirname(os.path.abspath(__file__))
     
     # Path where the missing trials info should be saved
-    output_path = os.path.join(script_dir,"../missing_data/") 
+    #output_path = os.path.join(script_dir,"../missing_data/") 
+    output_path = os.path.join(data_root_path, "derivatives", "missing_data/")
+
+    # Test whether output folder already exists, otherwise create it
+    os.makedirs(output_path, exist_ok=True)
 
     # Extract participant ids
     participants = pd.read_csv(os.path.join(data_root_path, "participants.tsv"), sep='\t')
     participant_list = participants.participant_id
 
-    pilot_subjects = {"sub-770", "sub-889", "sub-890", "sub-999"}
-    participant_list = [item for item in participant_list if item not in pilot_subjects]
-    subject_ids = [int(participant.split('-')[1]) for participant in participant_list]
+    # Exclude pilot subjects
+    #pilot_subjects = {"sub-770", "sub-889", "sub-890", "sub-999"}
+    #participant_list = [item for item in participant_list if item not in pilot_subjects]
 
-    #missing_trials_info_df = pd.DataFrame(columns=["total_missing_in_segments",
-    #                                               "additional_missing_trials",
-    #                                               "total_num_missing_trials",
-    #                                               "percentage_missing"])
+    # Extract subject ids
+    #subject_ids = [int(participant.split('-')[1]) for participant in participant_list]
+    subject_ids = [5, 30]
 
     missing_trials_info_list = []
-    # calculate number of missing trials for all subjects
+    # Calculate number of missing trials for all subjects
     for id in subject_ids:
-        missing_trials_info_list.append(calculate_missing_data(id, data_root_path, output_path))
+        padded_subject_id = f"{id:03}"
+        output_path_subject = os.path.join(output_path, f"sub-{padded_subject_id}")
+        # Test whether subject output folder already exists, otherwise create it
+        os.makedirs(output_path_subject, exist_ok=True)
+
+        missing_trials_info_list.append(calculate_missing_data(id, data_root_path, output_path_subject))
     
     missing_trials_info_all_df = pd.DataFrame(missing_trials_info_list)
 
