@@ -136,7 +136,6 @@ def calculate_missing_data(subject_id, data_root_path, output_path):
     # Function to find the trial numbers of trials which have missing EEG data + count them
     # Applied per missing data segment (i.e. its start_time and end_time)
     def find_trials_with_missing(start_time, end_time, trial_df):
-        #missing_trials_df = stim_shown_events.query("(onset >= @start_time) & (onset <= @end_time)")
         trials_with_missing_df = trial_df.query(
             "(@start_time <= stim_onset <= @end_time) | \
             (@start_time <= stim_offset <= @end_time) | \
@@ -191,7 +190,6 @@ def calculate_missing_data(subject_id, data_root_path, output_path):
 
     missing_trials_info = {
         "participant_id": int(subject_id),
-        #"missing_segments_df": missing_segments.to_dict(orient="records"),
         "has_nans": False if missing_segments.empty else True,
         "count_trials_with_missing_in_segments": int(count_trials_with_missing_in_segments), # has to be converted to Python int because the default JSON encoder can't handle np.int64
         "trials_with_missing_in_segments": trials_with_missing_in_segments,
@@ -220,12 +218,8 @@ def main():
 
     # Specify paths
     data_root_path = "/scratch/data/2024FreeViewingMSCOCO/"
-
-    # Get the path to the current script
-    #script_dir = os.path.dirname(os.path.abspath(__file__))
     
     # Path where the missing trials info should be saved
-    #output_path = os.path.join(script_dir,"../missing_data/") 
     output_path = os.path.join(data_root_path, "derivatives", "missing_data/")
 
     # Test whether output folder already exists, otherwise create it
@@ -235,13 +229,8 @@ def main():
     participants = pd.read_csv(os.path.join(data_root_path, "participants.tsv"), sep='\t')
     participant_list = participants.participant_id
 
-    # Exclude pilot subjects
-    #pilot_subjects = {"sub-770", "sub-889", "sub-890", "sub-999"}
-    #participant_list = [item for item in participant_list if item not in pilot_subjects]
-
     # Extract subject ids
-    #subject_ids = [int(participant.split('-')[1]) for participant in participant_list]
-    subject_ids = [5, 30]
+    subject_ids = [int(participant.split('-')[1]) for participant in participant_list]
 
     missing_trials_info_list = []
     # Calculate number of missing trials for all subjects
