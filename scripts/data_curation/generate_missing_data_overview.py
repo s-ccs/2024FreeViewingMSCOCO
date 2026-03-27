@@ -152,7 +152,7 @@ def calculate_missing_data(subject_id, data_root_path, output_path):
         )
     else: # Count trials with missing in segments and store their trial numbers
         missing_segments[["count_trials_with_missing","missing_trial_numbers"]]= missing_segments.apply(
-            lambda row: find_trials_with_missing(row["start_time"], row["end_time"], stim_shown_df),
+            lambda row: find_trials_with_missing(row["start_time"], row["end_time"], trial_df),
             axis=1,
             result_type = "expand")
 
@@ -213,6 +213,58 @@ def calculate_missing_data(subject_id, data_root_path, output_path):
 
     return missing_trials_info
 
+def generate_missing_data_overview_plot(missing_trials_info_all_df, output_path):
+
+    import matplotlib.pyplot as plt
+    from matplotlib.lines import Line2D
+
+    missing_trials_info_all_df["max_num_trials"] = 403
+    missing_trials_info_all_df["existing_num_trials"] = missing_trials_info_all_df["max_num_trials"]-missing_trials_info_all_df["total_num_missing_trials"]
+    missing_trials_info_all_df.sort_values(by="percentage_missing_trials", inplace=True)
+
+    plt.figure(figsize=(12, 5))
+
+    plt.bar(missing_trials_info_all_df["participant_id"].astype(str),missing_trials_info_all_df["existing_num_trials"], width=0.5)
+    plt.bar(missing_trials_info_all_df["participant_id"].astype(str),missing_trials_info_all_df["count_trials_with_missing_in_segments"],
+            bottom=missing_trials_info_all_df["existing_num_trials"],
+            width=0.5, label="Trials with missing EEG data", color="lightgray")
+    plt.bar(missing_trials_info_all_df["participant_id"].astype(str),missing_trials_info_all_df["count_additional_missing_trials"],
+            bottom=missing_trials_info_all_df["existing_num_trials"]+missing_trials_info_all_df["count_trials_with_missing_in_segments"],
+            width=0.5, color="gray", label="Additional missing trials \n(e.g. early termination of the experiment)")
+    plt.bar(missing_trials_info_all_df["participant_id"].astype(str),missing_trials_info_all_df["count_missing_onset_or_offset"],
+            bottom=missing_trials_info_all_df["existing_num_trials"]+
+            missing_trials_info_all_df["count_trials_with_missing_in_segments"]+
+            missing_trials_info_all_df["count_additional_missing_trials"],
+            width=0.5, color="black", label="Trials with missing onset or offset trigger")
+    plt.axhline(y=0.65*403, linestyle="--", color="black", label="Participant inclusion threshold")
+
+    plt.xlim(-0.5, len(missing_trials_info_all_df['participant_id']) - 0.5)
+    plt.xlabel("Participant ID")
+    plt.ylabel("Number of trials")
+    barplot_legend = plt.legend(loc="lower left", framealpha=1)
+
+    ax = plt.gca()
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
+    ax.add_artist(barplot_legend)
+
+    colors = {True: '#FF6B6B', False: '#8A8AFF'}
+    for i, label in enumerate(ax.get_xticklabels()):
+        participant_id = int(label.get_text())
+        has_nans = missing_trials_info_all_df.loc[missing_trials_info_all_df['participant_id'] == participant_id, 'has_nans'].values[0]
+        label.set_color(colors[has_nans])
+        label.set_alpha(1)
+
+    # Create proxy artists for the tick label legend
+    legend_elements = [
+        Line2D([0], [0], marker='s', color='w', label='Has nans', markerfacecolor='#FF6B6B', markersize=10),
+        Line2D([0], [0], marker='s', color='w', label='No nans', markerfacecolor='#8A8AFF', markersize=10)
+    ]
+
+    # Add the second legend for the tick label colors
+    ax.legend(handles=legend_elements, loc='lower right', title='Participant nan Status', framealpha=1)
+
+    plt.savefig(os.path.join(output_path, "Missing_data_overview.svg"))
 
 def main():
 
@@ -245,6 +297,9 @@ def main():
     missing_trials_info_all_df = pd.DataFrame(missing_trials_info_list)
 
     missing_trials_info_all_df.to_csv(output_path+"missing_trials_info_all_participants.tsv", sep="\t", index=False)
+
+    # Generate a missing data overview plot
+    generate_missing_data_overview_plot(missing_trials_info_all_df, output_path)
 
 if __name__ == '__main__':
     main()
