@@ -57,3 +57,6 @@ See `missing_trials_info_all_participants.tsv`
 ```bash
     python generate_missing_data_overview.py
 ```
+
+## Rename files
+Since we used inconsistent task names during the recordings, we had do unify the task name to `"freeviewing"` afterwards using the `unify_filenames_task.sh` script which uses `adapt_filenames_in_tsv.py`.
