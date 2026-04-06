@@ -9,9 +9,9 @@ ses=$((10#$ses))
 sub=$(printf "%03d" $sub)
 ses=$(printf "%03d" $ses)
 
-
+# change to work from the main project directory, then go on to create participant-specific files from the templates in the assets folder
 cd "$(dirname "${BASH_SOURCE[0]}")"
-cd ..
+cd .. 
 
 # Check whether subject folder already exists
 if [ -d "data/sub-$sub/ses-$ses/beh" ] 
