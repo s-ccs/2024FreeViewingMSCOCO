@@ -1,6 +1,8 @@
 # FreeViewingMSCOCO 
 
-This is a free-viewing EEG-ET experiment written using [OpenSesame](https://osdoc.cogsci.nl/).
+This is a free-viewing EEG-EyeTracking experiment. Participants are shown a series of images (selected from the MSCOCO dataset) - for each trial, first a plus symbol is displayed at the center of the screen; then, once the participant has fixated their gaze on this target, an image is shown to them for a fixed duration and the participant is free to explore the image.
+
+The experiment is implemented using [OpenSesame](https://osdoc.cogsci.nl/).
 
 ## Installation 👩‍💻
 
@@ -28,11 +30,13 @@ Some packages need to be installed using pip. For this, a `requirements.txt` is 
 	- The screen number & resolution in the OpenSesame experiment settings should match the subject's screen.
 	- In general_setup.py, we send settings to the eyetracker like calibration area and type. These settings are not applied before the calibration that automatically happens in new_pygaze_init, therefore we do not use that initial calibration and instead manually trigger it at the end of general_setup.
 	- For connection to the EEG recording, we use Lab Streaming Layer with the stream name "experiment_markers" (set up in trigger_setup.py)
-	- Templates for the lab-notebook and participant-form files are in the assets folder. These will be copied to the `data/sub-xxx/ses-yyy/beh` folder upon running the exp-startup script. 
+	- Templates for the lab-notebook and participant-form files are stored in the assets folder (you can customise these to your liking). These will be copied to the `data/sub-xxx/ses-yyy/beh` folder upon running the exp-startup script for each participant. 
+	- `exp-startup` and `startup-opensesame` scripts: customise the file/folder paths for the data/participant files and the opensesame experiments respectively according to your setup.
 
 ## Experiment Flow 🌊
 
-**Creating behavioural files (lab notebook, participant form)** - For each participant, before the experiment, from the 'scripts' folder run the script `exp-startup`. When prompted, enter the subject and session number respectively. The script will create the folder `<project-root>/data/sub-xxx/ses-yyy/beh` and will copy the behavioural file templates (participant form, lab-notebook) to it. (xxx and yyy are the specified subject & session IDs respectively.)
+**Creating behavioural files (lab notebook, participant form)** - For each participant, before the experiment, from the 'experiment' folder run the script `exp-startup`. When prompted, enter the subject and session number respectively. The script will create the folder `<project-root>/data/sub-xxx/ses-yyy/beh` and will copy the behavioural file templates (participant form, lab-notebook) to it. (xxx and yyy are the specified subject & session IDs respectively.)
+
 
 ```bash
 ./exp-startup
