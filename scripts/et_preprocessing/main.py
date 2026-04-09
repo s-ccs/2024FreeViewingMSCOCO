@@ -296,6 +296,7 @@ def main():
 
     if args.subjects == ["all"]:
         subjects = os.listdir(config.DATA_ROOT)
+        subjects = [x for x in subjects if "sub-" in x]
     else:
         subjects = args.subjects
 
