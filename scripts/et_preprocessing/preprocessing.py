@@ -15,7 +15,6 @@ Helpers:
     annotate_saccades_near_blinks_in_df()
 
 TBD maybe refactored for events.tsv ?!
-    compute_angle()
     compute_saccade_amplitude()
     compute_saccade_amplitude_from_radians()
 """
@@ -40,65 +39,20 @@ from config import (
 
 # Load Input file(s)
 # =============================================================================
-def load_all_et_events(
-    data_root: Path, window_ms: float = BLINK_WINDOW_MS
-) -> pd.DataFrame:
-    """
-    # TBD: Check if even necessary!!!!
-    1. Iterate through all subject folders directory & load all `events.tsv`
-    2. concatenate them to one big df
-
-    Args:
-        data_root (Path): Root of the BIDS directory
-        window_ms (float, optional): Half-window in ms around each blink event for flagging saccades as "near blink", default: config.BLINK_WINDOW_MS
-
-    Returns:
-        pd.DataFrame: Concatenated events DataFrame + 'subject_id' column
-    """
-    dfs = []
-
-    for sub_dir in sorted(data_root.glob("sub-*")):
-        tsv_file = (
-            sub_dir
-            / SESSION
-            / "misc"
-            / f"{sub_dir.name}_{SESSION}_task-{TASK}_et_events.tsv"
-        )
-
-        if not tsv_file.exists():
-            print(f"[Info] No {tsv_file} found, skipping.")
-            continue
-
-        df = pd.read_csv(tsv_file, sep="\t")
-        df["subject_id"] = sub_dir.name[4:]
-        df = annotate_saccades_near_blinks_in_df(df, window_ms)
-        dfs.append(df)
-
-    all_events = pd.concat(dfs, ignore_index=True)
-    print(f"[Info] Loaded {len(dfs)} subjects, {len(all_events)} total rows.")
-
-    return all_events
-
-
 def load_subject_tsv(
     folder_path: Path, subject_id: str, window_ms: float = BLINK_WINDOW_MS
 ) -> pd.DataFrame:
     """
-    Load a TSV file for a specific subject.
+    Args:
+        folder_path (Path): Directory containing the subject's TSV file
+        subject_id (str): subject number, e.g. "005"
+        window_ms (float, optional): Window in ms around each blink for near-blink annotation. Defaults to BLINK_WINDOW_MS.
 
-    Parameters
-    ----------
-    folder_path : Path
-        Directory containing the subject's TSV file.
-    subject_id : str
-        Subject identifier string, e.g. "005".
-    window_ms : float
-        Window in ms around each blink for near-blink annotation.
+    Raises:
+        FileNotFoundError: _description_
 
-    Returns
-    -------
-    pd.DataFrame
-        Events DataFrame with near_blink column added.
+    Returns:
+        pd.DataFrame: Events DataFrame
     """
     filename = f"{subject_id}_{SESSION}_task-{TASK}_et_events.tsv"
     filepath = os.path.join(folder_path, filename)
@@ -395,7 +349,7 @@ def annotate_saccades_near_blinks_in_df(
     return events
 
 
-def compute_angle(x1, y1, z1, x2, y2, z2):  # TBD
+def compute_angle(x1, y1, z1, x2, y2, z2):
     """
     Compute the angle (deg) between two 3D cartesian vectors.
     """
@@ -407,39 +361,3 @@ def compute_angle(x1, y1, z1, x2, y2, z2):  # TBD
         return np.nan
     alpha_rad = np.arccos(np.clip(np.dot(p1, p2) / denom, -1.0, 1.0))
     return math.degrees(alpha_rad)
-
-
-def compute_saccade_amplitude(sx, sy, ex, ey):  # TBD
-    """
-    Compute saccade amplitude (deg) from degree coordinates via unit sphere.
-    """
-    t1 = np.radians(sx) + np.pi / 2
-    p1 = np.radians(sy) + np.pi / 2
-    t2 = np.radians(ex) + np.pi / 2
-    p2 = np.radians(ey) + np.pi / 2
-
-    x1 = np.cos(p1) * np.sin(t1)
-    y1 = np.sin(p1) * np.sin(t1)
-    z1 = np.cos(t1)
-
-    x2 = np.cos(p2) * np.sin(t2)
-    y2 = np.sin(p2) * np.sin(t2)
-    z2 = np.cos(t2)
-
-    return compute_angle(x1, y1, z1, x2, y2, z2)
-
-
-def compute_saccade_amplitude_from_radians(sx, sy, ex, ey):  # TBD
-    """
-    Compute saccade amplitude (deg) from start/end in visual-angle radians.
-    """
-    x1 = np.cos(sy) * np.sin(sx)
-    y1 = np.sin(sy) * np.sin(sx)
-    z1 = np.cos(sx)
-
-    x2 = np.cos(ey) * np.sin(ex)
-    y2 = np.sin(ey) * np.sin(ex)
-    z2 = np.cos(ex)
-
-    dot = np.clip(x1 * x2 + y1 * y2 + z1 * z2, -1.0, 1.0)
-    return np.degrees(np.arccos(dot))
