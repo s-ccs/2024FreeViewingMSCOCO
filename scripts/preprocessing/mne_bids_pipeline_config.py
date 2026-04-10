@@ -33,9 +33,12 @@ sync_plot_samps = 200#500
 # %%
 # # General settings
 bids_root = "data"
-deriv_root = "data/derivatives/test-bad-channel-detection" # not automatically in bids_root
+# deriv_root = "data/derivatives/test-bad-channel-detection" # not automatically in bids_root
 pyprep_bad_chans = True
-
+pyprep_by_correlation = True
+pyprep_all_bads = False
+pyprep_by_SNR = True
+pyprep_by_deviation = False
 # deriv_root: Optional[PathLike] = None
 # """
 # The root of the derivatives directory in which the pipeline will store
@@ -48,9 +51,10 @@ pyprep_bad_chans = True
 task = "freeviewing"
 
 #subjects = "all"
-subjects = ["005", "006", "007", "022", "029"]
+subjects = ["005", "006"]#, "007", "022", "029"]
 #subjects = ["005", "013", "016", "025"]
-
+#subjects = ['005', '006', '007', '009', '010', '011', '013', '017', '021', '022', '029', '030', '034', '038', '039', '043', '048', '049', '050', '051', '053', '055', '056', '059', '060', '061', '062', '063', '064', '065'] # no missing data in segments and <35% missing in general
+#subjects = ["005", "006", "007", "009", "010", "017", "021", "022", "029", "030", "038", "039", "043"] # Subject 11 has more than one eeg file (2 runs), but 1 ET file -> Number of sync events not equal, ICA for sub-013 did not return for more than 12 hours, sub-018 seems to have nans but why?!,  sub-024 ZeroDevisionError in _04_frequency_filter, sub-035, sub-045 have nan values too, sub-034: EEG recording was started late therefore sync events do not have same length
 
 exclude_subjects = []
 
@@ -137,6 +141,7 @@ run_source_estimation = False
 eeg_reference = "average"
 
 eeg_online_reference_channel = "CPz"
+drop_channel_after_rereference = False
 #add_online_reference_channel = True
 
 
@@ -737,7 +742,7 @@ reject = {"eeg": 300e-6}
 # These options control how the pipeline is executed but should not affect
 # what outputs get produced.
 
-# n_jobs: int = 1
+n_jobs: int = 64
 # """
 # Specifies how many subjects you want to process in parallel. If `1`, disables
 # parallel processing.
