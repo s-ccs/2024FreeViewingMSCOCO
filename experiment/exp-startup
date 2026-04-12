@@ -33,6 +33,7 @@ then
 	done
 fi
 
+# copy files from the templates and rename
 mkdir -p "data/sub-$sub/ses-$ses/beh"
 cp --target-directory="data/sub-$sub/ses-$ses/beh" assets/template-labnotebook.tsv assets/template-participantform.tsv
 mv "data/sub-$sub/ses-$ses/beh/template-labnotebook.tsv" "data/sub-$sub/ses-$ses/beh/sub-${sub}_ses-${ses}_labnotebook.tsv"
