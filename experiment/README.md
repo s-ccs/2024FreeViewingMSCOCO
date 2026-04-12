@@ -61,18 +61,18 @@ Some packages need to be installed using pip. For this, a `requirements.txt` is 
 
 
 ## Customisation: 
-	- The python script `general_setup.py` at the start of the OpenSesame experiment contains several options to configure, e.g. the number of blocks, block size, etc.
-	- The images are stored in the `assets/images` folder, along with individual csv files containing details of the images that we want to show for the practice and the experimental runs. There is also one file containing the list of images for the pilot (450 images instead of the final 400) and one with just 23 images, to use while testing block sizes, breaks etc. 
-	- You may need to update the image file paths in the csv files, based on where the images are located in your setup.
-	- To change the images shown in the practice/experimental trials, update the file details in the respective csv file; then in OpenSesame, 
-		- Change the csv file in the corresponding loop item - delete the old csv file from the file pool and import the new csv file into the file pool.
-		- If you have changed the experimental images file to a different csv, set the new filename/path in the value `exp_imgdetails_file_name` in the general_setup python file. This ensures that the experiment shows the correct number of trials.
-		- If you have changed the number of practice trials, update the value of n_practicetrials in the general_setup python file.
-	- The screen number & resolution in the OpenSesame experiment settings should match the subject's screen.
-	- Note regarding initial calibration in OpenSesame: In general_setup.py, we send settings to the eyetracker, like the calibration area and type. These settings are not applied before the calibration that automatically happens in OpenSesame's `new_pygaze_init`, therefore we do not use that initial calibration and instead manually trigger it at the end of general_setup.
-	- For connection to the EEG recording, we use Lab Streaming Layer with the stream name "experiment_markers" (set up in trigger_setup.py)
-	- Templates for the lab-notebook and participant-form files are stored in the assets folder (you can customise these templates to your liking). These will be copied to the `data/sub-xxx/ses-yyy/beh` folder upon running the exp-startup script for each participant. 
-	- `exp-startup` and `startup-opensesame` scripts: customise the file/folder paths for the data/participant files and the opensesame experiments respectively according to your setup.
+- The python script `general_setup.py` at the start of the OpenSesame experiment contains several options to configure, e.g. the number of blocks, block size, etc.
+- The images are stored in the `assets/images` folder, along with individual csv files containing details of the images that we want to show for the practice and the experimental runs. There is also one file containing the list of images for the pilot (450 images instead of the final 400) and one with just 23 images, to use while testing block sizes, breaks etc. 
+- You may need to update the image file paths in the csv files, based on where the images are located in your setup.
+- To change the images shown in the practice/experimental trials, update the file details in the respective csv file; then in OpenSesame, 
+	- Change the csv file in the corresponding loop item - delete the old csv file from the file pool and import the new csv file into the file pool.
+	- If you have changed the experimental images file to a different csv, set the new filename/path in the value `exp_imgdetails_file_name` in the general_setup python file. This ensures that the experiment shows the correct number of trials.
+	- If you have changed the number of practice trials, update the value of n_practicetrials in the general_setup python file.
+- The screen number & resolution in the OpenSesame experiment settings should match the subject's screen.
+- Note regarding initial calibration in OpenSesame: In general_setup.py, we send settings to the eyetracker, like the calibration area and type. These settings are not applied before the calibration that automatically happens in OpenSesame's `new_pygaze_init`, therefore we do not use that initial calibration and instead manually trigger it at the end of general_setup.
+- For connection to the EEG recording, we use Lab Streaming Layer with the stream name "experiment_markers" (set up in trigger_setup.py)
+- Templates for the lab-notebook and participant-form files are stored in the assets folder (you can customise these templates to your liking). These will be copied to the `data/sub-xxx/ses-yyy/beh` folder upon running the exp-startup script for each participant. 
+- `exp-startup` and `startup-opensesame` scripts: customise the file/folder paths for the data/participant files and the opensesame experiments respectively according to your setup.
 
 
 
