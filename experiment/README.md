@@ -76,7 +76,7 @@ Some packages need to be installed using pip. For this, a `requirements.txt` is 
 
 
 
-## Experiment Implementation Details
+## Implementation Details
 
 ### Experiment Flow
 
@@ -149,3 +149,11 @@ These are the triggers used in the experiment. The triggers are sent to the eyet
 
 > [!CAUTION]
 > Never name any variable in your inline script as `timeout` 🥲. It might break the functionality of your experiment. Follow this [discussion](https://forum.cogsci.nl/discussion/6393/sketchpad-does-not-wait-for-the-keypress) for more details!
+
+### Form creation
+
+The participant form and consent form were created using a github action, which can be found at https://github.com/s-ccs/consentform_gh_action.
+
+The specific forms actually generated and used during data-collection were saved directly as PDFs, as the github action was still under development at the time and was not linked to this git repo. These forms can be found in the `forms` folder.
+
+In general, the content of the forms is customisable - e.g. details of the experiment procedure, participant remuneration, etc. can be filled in to a project-specific TOML file and this file is then used to generate the PDF forms. 
