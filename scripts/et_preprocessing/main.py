@@ -5,9 +5,9 @@ Usage:
 - Only preprocessing: python main.py --steps preprocessing --overwrite
 - Only visualisation + for specific subs + show plots interactively: python main.py --steps visualisation --subjects 005 006 --show_plots
 
-TBD: Single vs summarized plots, add option 2 args!
-Oder einfach die Fkt zur Verfügung stellen
-
+Logging:
+- Default log level is INFO. To change verbosity, pass --log-level followed by one of:
+  DEBUG, INFO, WARNING, ERROR — e.g. python main.py --log-level WARNING
 """
 
 import argparse
@@ -34,6 +34,7 @@ from plotting import (
     plot_saccade_angles,
     plot_summary,
 )
+from report import generate_report
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +57,7 @@ def parse_args() -> argparse.Namespace:
         default="both",
         help=(
             "Which pipeline steps to run. "
-            "'preprocessing' and 'visualisation'; default: both"
+            "'preprocessing' and 'visualisation'; default: binocular"
         ),
     )
 
@@ -112,8 +113,10 @@ def subject_paths(subject_id: str) -> dict:
                 ├── sub-XXX_ses-001_task-freeviewing_et_events_merged.tsv
                 └── plots/
     """
-    misc_dir = config.DATA_ROOT / f"{subject_id}" / config.SESSION / config.MISC_SUBDIR
-    stem = f"{subject_id}_{config.SESSION}_task-{config.TASK}"
+    misc_dir = (
+        config.DATA_ROOT / f"sub-{subject_id}" / config.SESSION / config.MISC_SUBDIR
+    )
+    stem = f"sub-{subject_id}_{config.SESSION}_task-{config.TASK}"
     return {
         "misc_dir": misc_dir,
         "raw_tsv": misc_dir / f"{stem}_et_events.tsv",
@@ -139,13 +142,13 @@ def run_preprocessing(subject_id: str, overwrite: bool) -> bool:
 
     if paths["merged_tsv"].exists() and not overwrite:
         logger.info(
-            f"Skipping preprocessing for {subject_id} — merged file already exists: "
+            f"Skipping preprocessing for sub-{subject_id} — merged file already exists: "
             f"{paths['merged_tsv'].name}. Use --overwrite to reprocess."
         )
         return True
 
     # 1. Load events
-    logger.info(f"Loading events TSV from {paths['misc_dir']} ...")
+    logger.info(f"Loading events TSV from dir:{paths['misc_dir']} ...")
     try:
         events_raw = load_subject_tsv(
             folder_path=paths["misc_dir"],
@@ -172,19 +175,34 @@ def run_preprocessing(subject_id: str, overwrite: bool) -> bool:
     # Save
     os.makedirs(paths["misc_dir"], exist_ok=True)
     events_merged.to_csv(paths["merged_tsv"], sep="\t", index=False)
-    logger.info(f"Saved merged TSV: {paths['merged_tsv']}")
+    logger.info(f"--> Saved merged TSV: {paths['merged_tsv']}")
 
     # 3. pre/post-merge eye trace comparison
     os.makedirs(paths["plots_dir"], exist_ok=True)
     logger.info("Plotting eye trace comparison...")
-    fig = plot_eye_trace_both_eyes(events_raw, events_merged)
-    fig.savefig(
-        paths["plots_dir"] / f"sub-{subject_id}_eye_trace_merge_comparison.png",
-        dpi=300,
-        bbox_inches="tight",
+    plot_eye_trace_both_eyes(
+        events_before=events_raw,
+        events_after=events_merged,
+        out_path=paths["plots_dir"],
+        out_file_format="svg",
+        title="Eye Trace Merge Comparison",
+        time_window=(180, 200),
     )
-    logger.info(f"Eye trace comparison saved to: {paths['plots_dir']}")
-    plt.close(fig)
+
+    if config.REPORT:
+        logger.info("Generating Subject Report...")
+        generate_report(
+            events_raw=events_raw,
+            events_merged=events_merged,
+            subject_id=f"sub-{subject_id}",
+            out_path=str(paths["misc_dir"]),
+            by_eye=config.BY_EYE,
+            sac_amp_max=config.SACC_AMP_MAX_DEG,
+            fix_dur_min=config.FIX_DUR_MIN_MS,
+            fix_dur_max=config.FIX_DUR_MAX_MS,
+            sac_dur_max=config.SACC_DUR_MAX_MS,
+            drop_near_blinks=config.DROP_NEAR_BLINKS,
+        )
 
     return True
 
@@ -209,7 +227,7 @@ def run_visualisation(subject_id: str) -> bool:
         )
         return False
 
-    logger.info(f"Loading merged events from {paths['misc_dir']} ...")
+    logger.info(f"Loading merged events from dir: {paths['misc_dir']} ...")
     events = pd.read_csv(paths["merged_tsv"], sep="\t")
 
     out_path = str(paths["plots_dir"])
@@ -222,8 +240,6 @@ def run_visualisation(subject_id: str) -> bool:
         out_file_format=config.OUT_FILE_FORMAT,
         by_eye=config.BY_EYE,
         drop_near_blinks=config.DROP_NEAR_BLINKS,
-        drop_ms_outliers=config.MS_DROP_OUTLIERS,
-        ms_outlier_mad_thresh=config.MS_OUTLIER_MAD_THRESH,
     )
 
     logger.info("Plotting fixation duration...")
@@ -232,9 +248,8 @@ def run_visualisation(subject_id: str) -> bool:
         out_path=out_path,
         out_file_format=config.OUT_FILE_FORMAT,
         by_eye=config.BY_EYE,
-        fix_dur_min_ms=config.FIX_DUR_MIN_MS,
-        fix_dur_max_ms=config.FIX_DUR_MAX_MS,
-        bin_w=config.FIX_DUR_BIN_W,
+        fix_dur_min=config.FIX_DUR_MIN_MS,
+        fix_dur_max=config.FIX_DUR_MAX_MS,
     )
 
     logger.info("Plotting saccade amplitude...")
@@ -243,7 +258,7 @@ def run_visualisation(subject_id: str) -> bool:
         by_eye=config.BY_EYE,
         out_path=out_path,
         out_file_format=config.OUT_FILE_FORMAT,
-        sac_amp_max_deg=config.SACC_AMP_MAX_DEG,
+        sac_amp_max=config.SACC_AMP_MAX_DEG,
     )
 
     logger.info("Plotting saccade duration...")
@@ -252,7 +267,7 @@ def run_visualisation(subject_id: str) -> bool:
         by_eye=config.BY_EYE,
         out_path=out_path,
         out_file_format=config.OUT_FILE_FORMAT,
-        sac_dur_max_ms=config.SACC_DUR_MAX_MS,
+        sac_dur_max=config.SACC_DUR_MAX_MS,
     )
 
     logger.info("Plotting fixation frequency...")
@@ -280,14 +295,14 @@ def run_visualisation(subject_id: str) -> bool:
         out_file_format=config.OUT_FILE_FORMAT,
         by_eye=config.BY_EYE,
         title="Summary",
-        fix_dur_min_ms=config.FIX_DUR_MIN_MS,
-        fix_dur_max_ms=config.FIX_DUR_MIN_MAX,
-        sac_amp_max_deg=config.SACC_AMP_MAX_DEG,
-        sac_dur_max_ms=config.SACC_DUR_MAX_MS,
+        fix_dur_min=config.FIX_DUR_MIN_MS,
+        fix_dur_max=config.FIX_DUR_MAX_MS,
+        sac_amp_max=config.SACC_AMP_MAX_DEG,
+        sac_dur_max=config.SACC_DUR_MAX_MS,
         drop_near_blinks=config.DROP_NEAR_BLINKS,
     )
 
-    logger.info(f"All figures saved to: {out_path}")
+    logger.info(f"--> All figures saved to: {out_path}")
     return True
 
 
@@ -310,15 +325,17 @@ def main():
 
     # Pipeline Overview
     print(f"\n{'=' * 60}")
-    print(f"\tPipeline steps : {args.steps}")
-    print(f"\tSubjects       : {args.subjects}")
-    print(f"\tOverwrite      : {args.overwrite}")
-    print(f"\tShow plots     : {args.show_plots}")
-    print(f"\tLog level      : {args.log_level}")
-    print(f"\tBIDS root      : {config.DATA_ROOT}")
-    print(f"\tOutput subdir  : .../{config.SESSION}/{config.MISC_SUBDIR}/")
-    print(f"\tFigures subdir : .../{config.MISC_SUBDIR}/{config.PLOTS_SUBDIR}/")
-    print(f"{'=' * 60}\n")
+    print(f"Pipeline steps : {args.steps}")
+    print(f"Subjects       : {args.subjects}")
+    print(f"Overwrite      : {args.overwrite}")
+    print(f"Show plots     : {args.show_plots}")
+    print(f"Log level      : {args.log_level}")
+    print(
+        f"BIDS root      : {config.DATA_ROOT}"
+    )  # TBD make the '\' and '/' einheitlich
+    print(f"Output subdir  : .../{config.SESSION}/{config.MISC_SUBDIR}/")
+    print(f"Figures subdir : .../{config.MISC_SUBDIR}/{config.PLOTS_SUBDIR}/")
+    print(f"{'=' * 60}")
 
     n_ok = 0
     n_fail = 0
@@ -330,11 +347,11 @@ def main():
         subjects = args.subjects
 
     for subject_id in subjects:
-        print(f"\n── sub-{subject_id} {'─' * (48 - len(subject_id))}")
+        print(f"\n── sub-{subject_id} {'─' * (51 - len(subject_id))}")
         ok = True
 
         if args.steps in ("preprocessing", "both"):
-            logger.info(f"Running preprocessing...")
+            logger.info(f"Running Preprocessing...")
             success = run_preprocessing(
                 subject_id,
                 overwrite=args.overwrite,
@@ -342,7 +359,7 @@ def main():
             ok = ok and success
 
         if args.steps in ("visualisation", "both"):
-            logger.info(f"Running visualisation...")
+            logger.info(f"Running Visualisation...")
             success = run_visualisation(subject_id)
             ok = ok and success
 
@@ -353,9 +370,9 @@ def main():
 
     # Pipeline Summary
     print(f"\n{'=' * 60}")
-    print(f"\tCompleted : {n_ok}/{len(subjects)} subject(s)")
+    print(f"Completed : {n_ok}/{len(subjects)} subject(s)")
     if n_fail:
-        print(f"\tFailed    : {n_fail}/{len(subjects)} subject(s)")
+        print(f"Failed    : {n_fail}/{len(subjects)} subject(s)")
     print(f"{'=' * 60}\n")
 
 

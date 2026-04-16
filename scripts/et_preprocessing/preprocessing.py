@@ -58,10 +58,10 @@ def load_subject_tsv(
     Returns:
         pd.DataFrame: Events DataFrame
     """
-    filename = f"{subject_id}_{SESSION}_task-{TASK}_et_events.tsv"
+    filename = f"sub-{subject_id}_{SESSION}_task-{TASK}_et_events.tsv"
     filepath = os.path.join(folder_path, filename)
 
-    logger.info(f"Loading events TSV: {filepath}")
+    logger.info(f"Loading events TSV: {filename}")
 
     if not os.path.exists(filepath):
         raise FileNotFoundError(f"File not found: {filepath}")
