@@ -2,30 +2,168 @@
 plotting.py: Eye-tracking visualisation.
 
 Overview:
+---------
 
 Preprocessing comparison:
-    plot_eye_trace_both_eyes() -> Horizontal eye trace before vs. after merging (Hooge et al. 2022)
+    plot_eye_trace_both_eyes()
+        -> Horizontal eye trace before vs. after merging (Hooge et al. 2022)
 
 Main sequence:
     plot_main_sequence()
-    detect_main_sequence_outliers() #TBD maybe delete
-    log_main_sequence_outliers() #TBD maybe delete
 
-TBD / not yet refactored for events.tsv:
-    plot_fixation_duration()      # TBD
-    saccade_amplitude()           # TBD
-    saccade_duration()            # TBD
-    fixation_frequency()          # TBD
-    saccade_angular_histogram()   # TBD
+Fixations:
+    plot_fixation_duration()
+    plot_fixation_frequency()
+
+Saccade Amplitudes:
+    plot_saccade_amplitude()
+    plot_saccade_duration()
+    plot_saccade_angles()
 """
 
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
+import logging
 import os
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 from sklearn.linear_model import HuberRegressor
 
+logger = logging.getLogger(__name__)
 
+
+# =============================================================================
+# Eye Trace Comparison (pre/post merge)
+# =============================================================================
+def plot_eye_trace_both_eyes(
+    events_before: pd.DataFrame,
+    events_after: pd.DataFrame,
+    out_path: str = None,
+    out_file_format: str = "svg",
+    title: str = "Eye Trace Merge Comparison",
+    time_window: tuple = None,
+):
+    """
+    Horizontal eye position trace for both eyes with fixation boxes overlaid,
+    comparing before and after the Hooge et al. (2022) merging procedure.
+
+    Args:
+        events_before (pd.DataFrame): Original (pre-merge) events dataframe.
+        events_after (pd.DataFrame): Merged (post-merge) events dataframe.
+        out_path (str): Directory to save the figure. Pass None to skip saving (default).
+        out_file_format (str): File extension for saving, e.g. 'svg', 'pdf', 'png'. Defaults to 'svg'.
+        title (str, optional): Defaults to 'Eye Trace Merge Comparison'.
+        time_window (tuple, optional): (start_time, end_time) in seconds to zoom into a specific range.
+    """
+    fig, axes = plt.subplots(2, 1, figsize=(15, 8), sharex=True)
+
+    for ax_idx, eye in enumerate(["L", "R"]):
+        ax = axes[ax_idx]
+
+        before = events_before[events_before["eye"] == eye].copy()
+        after = events_after[events_after["eye"] == eye].copy()
+
+        if time_window:
+            before = before[
+                (before["onset"] >= time_window[0])
+                & (before["onset"] <= time_window[1])
+            ]
+            after = after[
+                (after["onset"] >= time_window[0]) & (after["onset"] <= time_window[1])
+            ]
+
+        pos_col = "fix_avg_x"
+        before_fix = before[before["trial_type"] == "fixation"]
+        after_fix = after[after["trial_type"] == "fixation"]
+
+        # Build trace as isolated horizontal segments per fixation
+        times = []
+        positions = []
+        for _, row in before_fix.iterrows():
+            times.extend([row["onset"], row["end_time"]])
+            positions.extend([row[pos_col], row[pos_col]])
+
+        ax.plot(
+            times,
+            positions,
+            "k-",
+            linewidth=1.5,
+            alpha=0.8,
+            label="Eye trace" if ax_idx == 0 else "",
+        )
+
+        # Fixation boxes BEFORE merging
+        for idx, row in before_fix.iterrows():
+            y_center = row[pos_col]
+            box_height = 20
+            ax.add_patch(
+                plt.Rectangle(
+                    (row["onset"], y_center - box_height / 2),
+                    row["duration"],
+                    box_height,
+                    facecolor="limegreen",
+                    edgecolor="mediumorchid",
+                    alpha=0.4,
+                    linewidth=1.5,
+                    label=(
+                        "Before merging"
+                        if (ax_idx == 0 and idx == before_fix.index[0])
+                        else ""
+                    ),
+                )
+            )
+
+        # Fixation boxes AFTER merging
+        for idx, row in after_fix.iterrows():
+            y_center = row[pos_col]
+            box_height = 20
+            ax.add_patch(
+                plt.Rectangle(
+                    (row["onset"], y_center - box_height / 2),
+                    row["duration"],
+                    box_height,
+                    facecolor="tomato",
+                    edgecolor="crimson",
+                    alpha=0.6,
+                    linewidth=2,
+                    label=(
+                        "After merging"
+                        if (ax_idx == 0 and idx == after_fix.index[0])
+                        else ""
+                    ),
+                )
+            )
+
+        ax.set_ylabel(f"Eye {eye}\nHorizontal position", fontsize=12, fontweight="bold")
+        ax.set_title(
+            f"Eye {eye}: n={len(before_fix)} → {len(after_fix)} fixations",
+            fontsize=11,
+            loc="right",
+            style="italic",
+        )
+        ax.grid(True, alpha=0.3)
+
+        if ax_idx == 0:
+            ax.legend(loc="upper right", fontsize=10)
+
+    axes[-1].set_xlabel("Time (s)", fontsize=12)
+    fig.suptitle(title, fontsize=14, fontweight="bold", y=0.995)
+    fig.tight_layout()
+
+    if out_path is not None:
+        out_file = (
+            f"{out_path}/{title.lower().replace(' ', '_')}-bothEyes.{out_file_format}"
+        )
+        fig.savefig(out_file, bbox_inches="tight")
+        logger.info(f"{title} plot saved to '{out_file}'")
+    else:
+        logger.warning(f"{title} plot not saved — pass `out_path` to save.")
+
+    plt.show()
+    plt.close(fig)
+
+
+# =============================================================================
 # Main Sequence
 # =============================================================================
 def plot_main_sequence(
@@ -101,15 +239,13 @@ def plot_main_sequence(
 
     if out_path is not None:
         out_file = os.path.join(out_path, f"{base_name}.{out_file_format}")
-        fig.savefig(
-            out_file,
-            bbox_inches="tight",
-        )
-        print(f"{title} Plot saved to file '{out_file}'")
+        fig.savefig(out_file, bbox_inches="tight")
+        logger.info(f"{title} plot saved to '{out_file}'")
     else:
-        print(f"{title} Plot not saved — pass `out_path` to save.")
+        logger.warning(f"{title} plot not saved — pass `out_path` to save.")
 
 
+# =============================================================================
 # Fixation Duration
 # =============================================================================
 def plot_fixation_duration(
@@ -158,13 +294,14 @@ def plot_fixation_duration(
         raise ValueError(
             "No fixation durations post filtering. Check inputs or ranges."
         )
-    else:  # tBD: verbatim?
-        # Report counts
+    else:
         dropouts = len(fix["duration_ms"]) - len(dur)
-        print(f"Total fixations: {len(fix["duration_ms"])}")
-        print(f"Kept fixations ({min_ms}ms <= duration <= {max_ms}ms): {len(dur)}")
-        print(
-            f"Dropped outliers: {dropouts}, {(dropouts/len(fix["duration_ms"]))*100:.2f}%"
+        logger.info(f"Total fixations: {len(fix['duration_ms'])}")
+        logger.info(
+            f"Kept fixations ({min_ms}ms <= duration <= {max_ms}ms): {len(dur)}"
+        )
+        logger.info(
+            f"Dropped outliers: {dropouts} ({(dropouts/len(fix['duration_ms']))*100:.2f}%)"
         )
 
     # 4) create the figure
@@ -187,14 +324,15 @@ def plot_fixation_duration(
     if out_path is not None:
         out_file = f"{out_path}/{title.lower().replace(' ', '_')}-{by_eye}Eyes.{out_file_format}"
         fig.savefig(out_file, bbox_inches="tight")
-        print(f"{title} Plot saved to file '{out_file}'")
+        logger.info(f"{title} plot saved to '{out_file}'")
     else:
-        print(f"{title} Plot not saved — pass `out_path` to save.")
+        logger.warning(f"{title} plot not saved — pass `out_path` to save.")
 
     plt.show()
     plt.close(fig)
 
 
+# =============================================================================
 # Saccade Amplitude
 # =============================================================================
 def plot_saccade_amplitude(
@@ -215,6 +353,8 @@ def plot_saccade_amplitude(
         by_eye (str): One of: 'all', 'left', 'right', 'both'. Defaults to 'both'.
         max_deg (float, optional): Upper bound (deg) to drop implausibly large saccade amplitudes. Defaults to 40°
         title (str, optional): Defaults to 'Saccade Amplitude'.
+    Raises:
+        ValueError: No saccade amplitudes within 0 - max_deg found.
     """
 
     s_df = events_df[events_df["trial_type"] == "saccade"].copy()
@@ -226,25 +366,23 @@ def plot_saccade_amplitude(
         s_df = s_df.query("eye == @chosen_eye").copy()
 
     # 2) Select saccade amplitudes in degrees
-    # amplitudes = df["amplitude_deg"].dropna()
     all_amplitudes = s_df["sacc_visual_angle"].dropna()
     if max_deg is not None:
         amplitudes = all_amplitudes[all_amplitudes <= max_deg]
 
+    if amplitudes.empty:
+        raise ValueError(f"No saccade amplitudes within 0–{max_deg}° found.")
+
     # Identify dropped outliers
     dropout = len(all_amplitudes[all_amplitudes > max_deg])
-
-    # Report counts
-    # TBD: verbatim?
-    print(f"Total saccades: {len(all_amplitudes)}")
-    print(f"Kept saccades (<={max_deg}°): {len(amplitudes)}")
-    print(
-        f"Dropped outliers (>{max_deg}°): {dropout}, {(dropout/len(all_amplitudes))*100:.2f}%"
+    logger.info(f"Total saccades: {len(all_amplitudes)}")
+    logger.info(f"Kept saccades (<={max_deg}°): {len(amplitudes)}")
+    logger.info(
+        f"Dropped outliers (>{max_deg}°): {dropout} ({(dropout/len(all_amplitudes))*100:.2f}%)"
     )
 
     # 3) Create figure
     fig, ax = plt.subplots(figsize=(5, 4))
-
     ax.hist(amplitudes, bins=40, edgecolor="black")
 
     # 4) Labels & title
@@ -266,14 +404,15 @@ def plot_saccade_amplitude(
     if out_path is not None:
         out_file = f"{out_path}/{title.lower().replace(' ', '_')}-{by_eye}Eyes.{out_file_format}"
         fig.savefig(out_file, bbox_inches="tight")
-        print(f"{title} Plot saved to file '{out_file}'")
+        logger.info(f"{title} plot saved to '{out_file}'")
     else:
-        print(f"{title} Plot not saved — pass `out_path` to save.")
+        logger.warning(f"{title} plot not saved — pass `out_path` to save.")
 
     plt.show()
     plt.close(fig)
 
 
+# =============================================================================
 # Saccade Duration
 # =============================================================================
 def plot_saccade_duration(
@@ -306,25 +445,20 @@ def plot_saccade_duration(
 
     # 2) Convert duration from seconds to milliseconds
     durations = (s_df["duration"] * 1000).dropna()
-    # Report counts
-    # TBD: verbatim?
-    print(f"Total saccades: {len(durations)}")
+    logger.info(f"Total saccades: {len(durations)}")
 
     # 3) Drop saccades >120ms
     if max_dur is not None:
         durations = durations[durations <= max_dur]
         durations_copy = durations.copy()
         dropout = len(durations_copy[durations > max_dur])
-        # Report counts
-        # TBD: verbatim?
-        print(f"Kept saccades (<={max_dur}°): {len(durations)}")
-        print(
-            f"Dropped {(dropout/len(durations))*100:.2f}% samples of duration > {max_dur} milliseconds."
+        logger.info(f"Kept saccades (<={max_dur}ms): {len(durations)}")
+        logger.info(
+            f"Dropped outliers (>{max_dur}ms): {dropout} ({(dropout/len(durations))*100:.2f}%)"
         )
 
     # 4) Create figure
     fig, ax = plt.subplots(figsize=(5, 4))
-
     ax.hist(durations, bins=40, edgecolor="black")
 
     # 5) Labels & title
@@ -346,14 +480,15 @@ def plot_saccade_duration(
     if out_path is not None:
         out_file = f"{out_path}/{title.lower().replace(' ', '_')}-{by_eye}Eyes.{out_file_format}"
         fig.savefig(out_file, bbox_inches="tight")
-        print(f"{title} Plot saved to file '{out_file}'")
+        logger.info(f"{title} plot saved to '{out_file}'")
     else:
-        print(f"{title} Plot not saved — pass `out_path` to save.")
+        logger.warning(f"{title} plot not saved — pass `out_path` to save.")
 
     plt.show()
     plt.close(fig)
 
 
+# =============================================================================
 # Fixation Frequency
 # =============================================================================
 def plot_fixation_frequency(
@@ -372,6 +507,8 @@ def plot_fixation_frequency(
         out_file_format (str): File extension for saving, e.g. 'svg', 'pdf', 'png'. Defaults to 'svg'.
         by_eye (str, optional): One of: 'all', 'left', 'right', 'both'. Defaults to "both".
         title (str, optional): Defaults to 'Fixation frequency histogram'.
+    Raises:
+        ValueError: No fixation events found for the specified eye selection.
     """
     f_df = events_df[events_df["trial_type"] == "fixation"].copy()
 
@@ -379,6 +516,9 @@ def plot_fixation_frequency(
         eye_mapping = {"left": "L", "right": "R", "both": "both"}
         chosen_eye = eye_mapping[by_eye]
         f_df = f_df.query("eye == @chosen_eye").copy()
+
+    if f_df.empty:
+        raise ValueError(f"No fixation events found for eye='{by_eye}'.")
 
     f_df["sec"] = f_df["onset"].astype(float).floordiv(1).astype(int)
     fix_per_sec = f_df.groupby("sec").size()
@@ -398,14 +538,15 @@ def plot_fixation_frequency(
     if out_path is not None:
         out_file = f"{out_path}/{title.lower().replace(' ', '_')}-{by_eye}Eyes.{out_file_format}"
         plt.savefig(out_file, bbox_inches="tight")
-        print(f"{title} Plot saved to file '{out_file}'")
+        logger.info(f"{title} plot saved to '{out_file}'")
     else:
-        print(f"{title} Plot not saved — pass `out_path` to save.")
+        logger.warning(f"{title} plot not saved — pass `out_path` to save.")
 
     plt.show()
 
 
-# 1.9 Saccade Angular Histogram
+# =============================================================================
+# Saccade Angular Histogram
 # =============================================================================
 def plot_saccade_angles(
     events_df: pd.DataFrame,
@@ -466,9 +607,9 @@ def plot_saccade_angles(
         if out_path is not None:
             out_file = f"{out_path}/{title.lower().replace(' ', '_')}-{by_eye}Eyes.{out_file_format}"
             plt.savefig(out_file, bbox_inches="tight")
-            print(f"{title} Plot saved to file '{out_file}'")
+            logger.info(f"Polar {title} plot saved to '{out_file}'")
         else:
-            print(f"{title} Plot not saved — pass `out_path` to save.")
+            logger.warning(f"Polar {title} plot not saved — pass `out_path` to save.")
 
         plt.show()
 
@@ -481,10 +622,12 @@ def plot_saccade_angles(
 
         # 5) Save & show
         if out_path is not None:
-            out_file = f"{out_path}/{cart_title.lower().replace(' ', '_')}-{by_eye}Eyes.{out_file_format}"
+            out_file = f"{out_path}/{title.lower().replace(' ', '_')}-{by_eye}Eyes.{out_file_format}"  # noqa: F821
             plt.savefig(out_file, bbox_inches="tight")
-            print(f"Plot saved to file '{out_file}'")
+            logger.info(f"Cartesian {title} plot saved to '{out_file}'")
         else:
-            print(f"{title} Plot not saved — pass `out_path` to save.")
+            logger.warning(
+                f"Cartesian {title} plot not saved — pass `out_path` to save."
+            )
 
         plt.show()

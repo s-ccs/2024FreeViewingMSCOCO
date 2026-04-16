@@ -11,27 +11,30 @@ Oder einfach die Fkt zur Verfügung stellen
 """
 
 import argparse
+import logging
 import os
 import sys
 from pathlib import Path
 
-import pandas as pd
 import matplotlib.pyplot as plt
+import pandas as pd
 
 import config
 from preprocessing import (
     load_subject_tsv,
     merge_events,
 )
-from visualisation import (
+from plotting import (
     plot_eye_trace_both_eyes,
     plot_main_sequence,
     plot_fixation_duration,
-    saccade_amplitude,
-    saccade_duration,
-    fixation_frequency,
-    saccade_angular_histogram,
+    plot_saccade_amplitude,
+    plot_saccade_duration,
+    plot_fixation_frequency,
+    plot_saccade_angles,
 )
+
+logger = logging.getLogger(__name__)
 
 
 # =============================================================================
@@ -71,14 +74,24 @@ def parse_args() -> argparse.Namespace:
         "--overwrite",
         action="store_true",
         help=(
-            "If set, re-run preprocessing even if a merged TSV already exists for a subject. Otherwise, processed subjects are skipped."
+            "If set, re-run preprocessing even if a merged TSV already exists for a subject. "
+            "Otherwise, processed subjects are skipped."
         ),
     )
 
     parser.add_argument(
         "--show_plots",
         action="store_true",
-        help=("If set, display figures. Otherwise figures are saved to disk silently."),
+        help="If set, display figures. Otherwise figures are saved to disk silently.",
+    )
+
+    parser.add_argument(
+        "--log-level",
+        default="INFO",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR"],
+        type=str.upper,
+        metavar="LEVEL",
+        help="Logging verbosity level. One of: DEBUG, INFO, WARNING, ERROR. Default: INFO.",
     )
 
     return parser.parse_args()
@@ -111,29 +124,27 @@ def subject_paths(subject_id: str) -> dict:
 def run_preprocessing(subject_id: str, overwrite: bool) -> bool:
     """
     1. Load events: sub-XXX_ses-001_task-freeviewing_et_events.tsv
-    2. Eun the two-stage merge + save to merged TSV: sub-XXX_ses-001_task-freeviewing_et_events_merged.tsv
+    2. Run the two-stage merge + save to merged TSV: sub-XXX_ses-001_task-freeviewing_et_events_merged.tsv
     3. pre/post-merge eye trace comparison figure.
 
     Args:
         subject_id (str): subject ID (zero-padded)
         overwrite (bool): if False -> skips subs when merged.tsv exists
-        show_plots (bool)
 
     Returns:
         bool: preprocessing ran through
     """
     paths = subject_paths(subject_id)
 
-    # check if the file is already processed/ --overwrite flag is set; if not: skip preprocessing
     if paths["merged_tsv"].exists() and not overwrite:
-        print(
-            f"[Info] Skipping Preprocessing for {subject_id} since merged file already exists: {paths['merged_tsv'].name}"
+        logger.info(
+            f"Skipping preprocessing for {subject_id} — merged file already exists: "
+            f"{paths['merged_tsv'].name}. Use --overwrite to reprocess."
         )
-        print(f"Set flag --overwrite to reprocess.")
         return True
 
     # 1. Load events
-    print(f"    Loading events TSV from {paths['misc_dir']} ...")
+    logger.info(f"Loading events TSV from {paths['misc_dir']} ...")
     try:
         events_raw = load_subject_tsv(
             folder_path=paths["misc_dir"],
@@ -141,12 +152,12 @@ def run_preprocessing(subject_id: str, overwrite: bool) -> bool:
             window_ms=config.BLINK_WINDOW_MS,
         )
     except FileNotFoundError as e:
-        print(f"\n[Error] {e}")
+        logger.error(e)
         return False
 
     # 2. Hooge et al. (2022) merger
-    print(
-        f"\n[Info] Merging events  "
+    logger.info(
+        f"Merging events  "
         f"(a_min={config.A_MIN}°, "
         f"t_min_fix={config.T_MIN_FIX * 1000:.0f} ms, "
         f"blink_window={config.BLINK_WINDOW_MS:.0f} ms)..."
@@ -160,18 +171,18 @@ def run_preprocessing(subject_id: str, overwrite: bool) -> bool:
     # Save
     os.makedirs(paths["misc_dir"], exist_ok=True)
     events_merged.to_csv(paths["merged_tsv"], sep="\t", index=False)
-    print(f"\n[Info] Saved: {paths['merged_tsv']}")
+    logger.info(f"Saved merged TSV: {paths['merged_tsv']}")
 
     # 3. pre/post-merge eye trace comparison
     os.makedirs(paths["plots_dir"], exist_ok=True)
-    print(f"[Info] Plotting eye trace comparison...")
+    logger.info("Plotting eye trace comparison...")
     fig = plot_eye_trace_both_eyes(events_raw, events_merged)
     fig.savefig(
         paths["plots_dir"] / f"sub-{subject_id}_eye_trace_merge_comparison.png",
         dpi=300,
         bbox_inches="tight",
     )
-    print(f"\n[Info] Saved: {paths['plots_dir']}")
+    logger.info(f"Eye trace comparison saved to: {paths['plots_dir']}")
     plt.close(fig)
 
     return True
@@ -186,24 +197,24 @@ def run_visualisation(subject_id: str) -> bool:
         subject_id (str): subject ID (zero-padded)
 
     Returns:
-        bool: preprocessing ran through
+        bool: visualisation ran through
     """
     paths = subject_paths(subject_id)
 
     if not paths["merged_tsv"].exists():
-        print(f"    [skip] No merged file found: {paths['merged_tsv'].name}")
-        print(f"           Run --steps preprocessing first.")
+        logger.warning(
+            f"No merged file found for {subject_id}: {paths['merged_tsv'].name}. "
+            f"Run --steps preprocessing first."
+        )
         return False
 
-    # --- Load merged events ---
-    print(f"    Loading merged events from {paths['misc_dir']} ...")
+    logger.info(f"Loading merged events from {paths['misc_dir']} ...")
     events = pd.read_csv(paths["merged_tsv"], sep="\t")
 
     out_path = str(paths["plots_dir"])
     os.makedirs(out_path, exist_ok=True)
 
-    # --- Main sequence ---
-    print(f"    Plotting main sequence...")
+    logger.info("Plotting main sequence...")
     plot_main_sequence(
         events_df=events,
         out_path=out_path,
@@ -214,8 +225,7 @@ def run_visualisation(subject_id: str) -> bool:
         ms_outlier_mad_thresh=config.MS_OUTLIER_MAD_THRESH,
     )
 
-    # Fixation duration
-    print(f"\nPlotting fixation duration...")
+    logger.info("Plotting fixation duration...")
     plot_fixation_duration(
         events_df=events,
         out_path=out_path,
@@ -226,9 +236,8 @@ def run_visualisation(subject_id: str) -> bool:
         bin_w=config.FIX_DUR_BIN_W,
     )
 
-    # Saccade amplitude
-    print(f"\nPlotting saccade amplitude...")
-    saccade_amplitude(
+    logger.info("Plotting saccade amplitude...")
+    plot_saccade_amplitude(
         events_df=events,
         by_eye=config.BY_EYE,
         out_path=out_path,
@@ -236,9 +245,8 @@ def run_visualisation(subject_id: str) -> bool:
         max_deg=config.SACC_AMP_MAX_DEG,
     )
 
-    # Saccade duration
-    print(f"\nPlotting saccade duration...")
-    saccade_duration(
+    logger.info("Plotting saccade duration...")
+    plot_saccade_duration(
         events_df=events,
         by_eye=config.BY_EYE,
         out_path=out_path,
@@ -246,26 +254,25 @@ def run_visualisation(subject_id: str) -> bool:
         max_saccade_duration=config.SACC_DUR_MAX_MS,
     )
 
-    # Fixation freq
-    print(f"\nPlotting fixation frequency...")
-    fixation_frequency(
+    logger.info("Plotting fixation frequency...")
+    plot_fixation_frequency(
         events_df=events,
         by_eye=config.BY_EYE,
         out_path=out_path,
         out_file_format=config.OUT_FILE_FORMAT,
     )
 
-    # Saccade angular histogram
-    print(f" Plotting saccade angular histogram...")
-    saccade_angular_histogram(
+    logger.info("Plotting saccade angular histogram...")
+    plot_saccade_angles(
         events_df=events,
-        by_eye=config.BY_EYE,
         out_path=out_path,
         out_file_format=config.OUT_FILE_FORMAT,
-        refinement=config.ANG_HIST_REFINEMENT,
+        by_eye=config.BY_EYE,
+        title="Saccade Direction Histogram",
+        style=None,
     )
 
-    print(f"Figures saved: {out_path}")
+    logger.info(f"All figures saved to: {out_path}")
     return True
 
 
@@ -275,6 +282,12 @@ def run_visualisation(subject_id: str) -> bool:
 def main():
     args = parse_args()
 
+    logging.basicConfig(
+        level=getattr(logging, args.log_level),
+        format="%(asctime)s  %(levelname)-8s  %(name)s — %(message)s",
+        datefmt="%H:%M:%S",
+    )
+
     # Monkey Patching: Suppress interactive display unless --show_plots is passed.
     # Replaces plt.show() GLOBALLY, also inside visualisation.py.
     if not args.show_plots:
@@ -283,11 +296,12 @@ def main():
     # Pipeline Overview
     print(f"\n{'=' * 60}")
     print(f"\tPipeline steps : {args.steps}")
-    print(f"\tSubjects : {args.subjects}")
-    print(f"\tOverwrite : {args.overwrite}")
-    print(f"\tShow plots : {args.show_plots}")
-    print(f"\tBIDS root : {config.DATA_ROOT}")
-    print(f"\tOutput subdir : .../{config.SESSION}/{config.MISC_SUBDIR}/")
+    print(f"\tSubjects       : {args.subjects}")
+    print(f"\tOverwrite      : {args.overwrite}")
+    print(f"\tShow plots     : {args.show_plots}")
+    print(f"\tLog level      : {args.log_level}")
+    print(f"\tBIDS root      : {config.DATA_ROOT}")
+    print(f"\tOutput subdir  : .../{config.SESSION}/{config.MISC_SUBDIR}/")
     print(f"\tFigures subdir : .../{config.MISC_SUBDIR}/{config.PLOTS_SUBDIR}/")
     print(f"{'=' * 60}\n")
 
@@ -305,7 +319,7 @@ def main():
         ok = True
 
         if args.steps in ("preprocessing", "both"):
-            print(f"Run Step: [preprocessing]")
+            logger.info(f"[{subject_id}] Running preprocessing...")
             success = run_preprocessing(
                 subject_id,
                 overwrite=args.overwrite,
@@ -313,7 +327,7 @@ def main():
             ok = ok and success
 
         if args.steps in ("visualisation", "both"):
-            print("Run Step: [visualisation]")
+            logger.info(f"[{subject_id}] Running visualisation...")
             success = run_visualisation(subject_id)
             ok = ok and success
 
@@ -326,7 +340,7 @@ def main():
     print(f"\n{'=' * 60}")
     print(f"\tCompleted : {n_ok}/{len(subjects)} subject(s)")
     if n_fail:
-        print(f"\tFailed : {n_fail}{len(subjects)}  subject(s)")
+        print(f"\tFailed    : {n_fail}/{len(subjects)} subject(s)")
     print(f"{'=' * 60}\n")
 
 

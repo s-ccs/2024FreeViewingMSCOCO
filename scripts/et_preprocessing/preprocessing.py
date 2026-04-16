@@ -19,22 +19,26 @@ TBD maybe refactored for events.tsv ?!
     compute_saccade_amplitude_from_radians()
 """
 
-import pandas as pd
-import numpy as np
+import logging
 import math
 import os
 from pathlib import Path
 
+import numpy as np
+import pandas as pd
+
 from config import (
-    SESSION,
-    TASK,
-    BLINK_WINDOW_MS,
     A_MIN,
-    T_MIN_FIX,
+    BLINK_WINDOW_MS,
+    SCREEN_DIST_M,
     SCREEN_RES,
     SCREEN_SIZE_M,
-    SCREEN_DIST_M,
+    SESSION,
+    T_MIN_FIX,
+    TASK,
 )
+
+logger = logging.getLogger(__name__)
 
 
 # Load Input file(s)
@@ -57,10 +61,15 @@ def load_subject_tsv(
     filename = f"{subject_id}_{SESSION}_task-{TASK}_et_events.tsv"
     filepath = os.path.join(folder_path, filename)
 
+    logger.info(f"Loading events TSV: {filepath}")
+
     if not os.path.exists(filepath):
         raise FileNotFoundError(f"File not found: {filepath}")
 
     df = pd.read_csv(filepath, sep="\t")
+    logger.debug(
+        f"Loaded {len(df)} events. Annotating near-blink saccades (window={window_ms} ms)..."
+    )
     df = annotate_saccades_near_blinks_in_df(df, window_ms)
 
     return df
@@ -84,8 +93,11 @@ def merge_events(
     Returns:
         pd.DataFrame: merged events
     """
+    logger.info("Stage 1: merging fixation candidates (dropping micro-saccades)...")
     s1 = merge_fixation_candidates(events, a_min)
+    logger.info("Stage 2: merging saccade candidates (dropping short fixations)...")
     s2 = merge_saccade_candidates(s1, t_min_fix)
+    logger.info(f"Merging complete. Events before: {len(events)}, after: {len(s2)}")
     return s2
 
 
@@ -111,6 +123,7 @@ def merge_fixation_candidates(events, a_min=A_MIN):
     # Sort by eye and onset to prevent cross-eye merging
     events = events.sort_values(["eye", "onset"])
 
+    n_before = (events["trial_type"] == "saccade").sum()
     # Drop saccades that are BOTH below amplitude AND duration threshold
     events = events[
         ~(
@@ -119,6 +132,10 @@ def merge_fixation_candidates(events, a_min=A_MIN):
             & (events["duration"] < t_min_sacc)
         )
     ].reset_index(drop=True)
+    n_dropped = n_before - (events["trial_type"] == "saccade").sum()
+    logger.info(
+        f"Dropped {n_dropped} micro-saccades (amplitude < {a_min}° and duration < {t_min_sacc*1000:.1f} ms)"
+    )
 
     # Identify naturally consecutive fixation pairs (should not be merged)
     consecutives = find_consecutive_trial_types(events, trial_type="fixation")
@@ -183,10 +200,15 @@ def merge_saccade_candidates(events, t_min_fix: float = T_MIN_FIX):
     """
     events = events.sort_values(["eye", "onset"])
 
+    n_before = (events["trial_type"] == "fixation").sum()
     # Drop fixations shorter than t_min_fix
     events = events[
         ~((events["trial_type"] == "fixation") & (events["duration"] < t_min_fix))
     ].reset_index(drop=True)
+    n_dropped = n_before - (events["trial_type"] == "fixation").sum()
+    logger.info(
+        f"Dropped {n_dropped} short fixations (duration < {t_min_fix*1000:.0f} ms)"
+    )
 
     # Identify naturally consecutive saccade pairs (should not be merged)
     consecutives = find_consecutive_trial_types(events, trial_type="saccade")
@@ -282,7 +304,7 @@ def find_consecutive_trial_types(events, trial_type: str) -> pd.DataFrame:
         i += 1
 
     result = events_sorted.loc[sorted(consecutives)].copy()
-    print(f"Found {len(consecutives) // 2} consecutive {trial_type} pairs. Merging...")
+    logger.debug(f"Found {len(consecutives) // 2} consecutive {trial_type} pairs.")
 
     return result
 
@@ -345,6 +367,11 @@ def annotate_saccades_near_blinks_in_df(
 
     events["near_blink"] = False
     events.loc[saccades_mask, "near_blink"] = near_blinks
+
+    n_flagged = sum(near_blinks)
+    logger.info(
+        f"Near-blink annotation: {n_flagged}/{len(near_blinks)} saccades flagged (window=±{window_ms} ms)"
+    )
 
     return events
 
