@@ -631,3 +631,160 @@ def plot_saccade_angles(
             )
 
         plt.show()
+
+
+# =============================================================================
+# Summary Figure
+# =============================================================================
+def plot_summary(
+    events_df: pd.DataFrame,
+    out_path: str = None,
+    out_file_format: str = "svg",
+    by_eye: str = "both",
+    title: str = "Summary",
+    # per-plot thresholds, mirroring the individual functions
+    ms_fix_dur_min: float = 60,
+    ms_fix_dur_max: float = 1000,
+    deg_sacc_amp_max: float = 40,
+    ms_sacc_dur_max: float = 120,
+    drop_near_blinks: bool = False,
+):
+    """
+    summary figure combining all core plots into one panel (2×3 grid):
+        [0] Main sequence         [1] Fixation duration    [2] Fixation frequency
+        [3] Saccade amplitude     [4] Saccade duration     [5] Saccade angles (polar)
+
+    Args:
+        events_df (pd.DataFrame)
+        out_path (str): Directory to save the figure. Pass None to skip saving (default).
+        out_file_format (str): File extension for saving, e.g. 'svg', 'pdf', 'png'. Defaults to 'svg'.
+        by_eye (str): One of: 'all', 'left', 'right', 'both'. Defaults to 'both'.
+        title (str, optional): Pass None for no title. Defaults to 'Summary Plots'.
+        ms_fix_dur_min (float, optional): Lower bound for fixation duration (ms). Defaults to 60.
+        ms_fix_dur_max (float, optional): Upper bound for fixation duration (ms). Defaults to 1000.
+        deg_sacc_amp_max (float, optional): Upper bound for saccade amplitude (deg). Defaults to 40.
+        ms_sacc_dur_max (float, optional): Upper bound for saccade duration (ms). Defaults to 120.
+        drop_near_blinks (bool, optional): If True, exclude near-blink saccades from main sequence. Defaults to False.
+    """
+    eye_mapping = {"left": "L", "right": "R", "both": "both"}
+    title_map = {
+        "all": "All eyes",
+        "left": "Left eye only",
+        "right": "Right eye only",
+        "both": "Binocular only",
+    }
+
+    # --- Shared data prep ---
+    fix_df = events_df[events_df["trial_type"] == "fixation"].copy()
+    sacc_df = events_df[events_df["trial_type"] == "saccade"].copy()
+
+    if by_eye != "all":
+        chosen_eye = eye_mapping[by_eye]
+        fix_df = fix_df[fix_df["eye"] == chosen_eye]
+        sacc_df = sacc_df[sacc_df["eye"] == chosen_eye]
+
+    # Figure layout
+    fig = plt.figure(figsize=(16, 10))
+    ax_ms = fig.add_subplot(2, 3, 1)  # main sequence
+    ax_fdur = fig.add_subplot(2, 3, 2)  # fixation duration
+    ax_ffreq = fig.add_subplot(2, 3, 3)  # fixation frequency
+    ax_samp = fig.add_subplot(2, 3, 4)  # saccade amplitude
+    ax_sdur = fig.add_subplot(2, 3, 5)  # saccade duration
+    ax_angles = fig.add_subplot(2, 3, 6, polar=True)  # saccade directions
+
+    # 1) Main sequence
+    s_ms = sacc_df.copy()
+    if drop_near_blinks:
+        s_ms = s_ms[s_ms["near_blink"] == False]
+    if by_eye == "all":
+        for eye, sub in s_ms.groupby("eye"):
+            ax_ms.scatter(
+                sub["sacc_visual_angle"], sub["peak_velocity"], s=6, label=str(eye)
+            )
+        ax_ms.legend(title="Eye", fontsize=7)
+    else:
+        ax_ms.scatter(s_ms["sacc_visual_angle"], s_ms["peak_velocity"], s=6)
+    ax_ms.set_xscale("log")
+    ax_ms.set_yscale("log")
+    ax_ms.set_xlabel("Amplitude (deg)")
+    ax_ms.set_ylabel("Peak velocity (deg/s)")
+    ax_ms.set_title("Main Sequence")
+
+    # 2) Fixation duration
+    dur_ms = fix_df["duration"].dropna() * 1000
+    dur_ms = dur_ms[(dur_ms >= ms_fix_dur_min) & (dur_ms <= ms_fix_dur_max)]
+    if dur_ms.empty:
+        logger.warning("Summary: no fixation durations in range, skipping panel.")
+    else:
+        ax_fdur.hist(dur_ms, bins=40, edgecolor="black")
+    ax_fdur.set_xlabel("Duration (ms)")
+    ax_fdur.set_ylabel("Count")
+    ax_fdur.set_title("Fixation Duration")
+
+    # 3) Fixation frequency
+    f_freq = fix_df.copy()
+    f_freq["sec"] = f_freq["onset"].astype(float).floordiv(1).astype(int)
+    fix_per_sec = f_freq.groupby("sec").size()
+    if fix_per_sec.empty:
+        logger.warning("Summary: no fixation frequency data, skipping panel.")
+    else:
+        ax_ffreq.hist(
+            fix_per_sec.values,
+            bins=np.arange(fix_per_sec.max() + 2) - 0.3,
+            width=0.6,
+            edgecolor="black",
+        )
+    ax_ffreq.set_xlim(left=-0.3)
+    ax_ffreq.set_xlabel("Fixations per second")
+    ax_ffreq.set_ylabel("Count")
+    ax_ffreq.set_title("Fixation Frequency")
+
+    # 4) Saccade amplitude
+    all_amp = sacc_df["sacc_visual_angle"].dropna()
+    amp = all_amp[all_amp <= deg_sacc_amp_max]
+    if amp.empty:
+        logger.warning("Summary: no saccade amplitudes in range, skipping panel.")
+    else:
+        ax_samp.hist(amp, bins=40, edgecolor="black")
+    ax_samp.set_xlabel("Amplitude (deg)")
+    ax_samp.set_ylabel("Count")
+    ax_samp.set_xlim(left=0)
+    ax_samp.set_title("Saccade Amplitude")
+
+    # 5) Saccade duration
+    all_sdur = (sacc_df["duration"] * 1000).dropna()
+    sdur = all_sdur[all_sdur <= ms_sacc_dur_max]
+    if sdur.empty:
+        logger.warning("Summary: no saccade durations in range, skipping panel.")
+    else:
+        ax_sdur.hist(sdur, bins=40, edgecolor="black")
+    ax_sdur.set_xlabel("Duration (ms)")
+    ax_sdur.set_ylabel("Count")
+    ax_sdur.set_xlim(left=0)
+    ax_sdur.set_title("Saccade Duration")
+
+    # Saccade angles (polar)
+    dx = sacc_df["sacc_end_x"] - sacc_df["sacc_start_x"]
+    dy = sacc_df["sacc_end_y"] - sacc_df["sacc_start_y"]
+    angles_deg = (np.degrees(np.arctan2(dy, dx)) + 360) % 360
+    angles_rad = np.deg2rad(angles_deg)
+    ax_angles.hist(angles_rad, bins=36, edgecolor="black")
+    ax_angles.set_theta_zero_location("E")
+    ax_angles.set_theta_direction(1)
+    ax_angles.set_title("Saccade Directions")
+
+    # Title
+    if title is not None:
+        fig.suptitle(f"{title} — {title_map[by_eye]}", fontsize=14, fontweight="bold")
+    fig.tight_layout()
+
+    # Save & show
+    if out_path is not None:
+        out_file = f"{out_path}/{title.lower().replace(' ', '_')}-{by_eye}Eyes.{out_file_format}"
+        fig.savefig(out_file, bbox_inches="tight")
+        logger.info(f"{title} plot saved to '{out_file}'")
+    else:
+        logger.warning(f"{title} plot not saved — pass `out_path` to save.")
+
+    plt.show()
+    plt.close(fig)
