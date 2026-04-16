@@ -25,35 +25,16 @@ import matplotlib.pyplot as plt
 import os
 from sklearn.linear_model import HuberRegressor
 
-from config import (
-    BY_EYE,
-    OUT_FILE_FORMAT,
-    MS_DROP_NEAR_BLINKS,
-    MS_DROP_OUTLIERS,
-    MS_OUTLIER_MAD_THRESH,  # TBD: evtl rausnehmen (Code dafür ist in ET_Data_Plotting.ipynb)
-    MS_DETECT_MAD_THRESH,
-    FIX_DUR_MIN_MS,
-    FIX_DUR_MAX_MS,
-    FIX_DUR_BIN_W,
-    SACC_AMP_MAX_DEG,
-    SACC_DUR_MAX_MS,
-    ANG_HIST_REFINEMENT,
-    ANG_HIST_MICROSACC_MIN_DEG,
-    ANG_HIST_BINS_POLAR,
-    ANG_HIST_BIN_WIDTH_CART,
-)
 
 # Main Sequence
 # =============================================================================
-
-
 def plot_main_sequence(
     events_df: pd.DataFrame,
-    out_path: str,
-    out_file_format: str = OUT_FILE_FORMAT,
-    by_eye: str = BY_EYE,
+    out_path: str = None,
+    out_file_format: str = "svg",
+    by_eye: str = "both",
     title: str = "Main Sequence",
-    drop_near_blinks: bool = MS_DROP_NEAR_BLINKS,
+    drop_near_blinks: bool = False,
 ):
     """
     Plots main sequence: saccade amplitude vs. peak velocity (log-log).
@@ -61,11 +42,11 @@ def plot_main_sequence(
 
     Args:
         events_df (pd.DataFrame)
-        out_path (str): Directory to save the figure. Pass None to skip saving.
-        out_file_format (str): File extension for saving, e.g. 'svg', 'pdf', 'eps'
-        by_eye (str): One of: 'all', 'left', 'right', 'both'
+        out_path (str): Directory to save the figure. Pass None to skip saving (default).
+        out_file_format (str): File extension for saving, e.g. 'svg', 'pdf', 'svg'. Defaults to 'svg'.
+        by_eye (str): One of: 'all', 'left', 'right', 'both'. Defaults to 'both'.
         title (str) : Defaults to  'Main Sequence', gets extended by 'by_eye'(blinked-cleaned|' ') # TBD find better description
-        drop_near_blinks (bool, optional): If True, exclude saccades flagged as near a blink. Defaults to config.MS_DROP_NEAR_BLINKS.
+        drop_near_blinks (bool, optional): If True, exclude saccades flagged as near a blink. Defaults to False.
     """
 
     s = events_df[events_df["trial_type"] == "saccade"].copy()
@@ -119,20 +100,23 @@ def plot_main_sequence(
     plt.show()
 
     if out_path is not None:
-        os.makedirs(out_path, exist_ok=True)
+        out_file = os.path.join(out_path, f"{base_name}.{out_file_format}")
         fig.savefig(
-            os.path.join(out_path, f"{base_name}.{out_file_format}"),
+            out_file,
             bbox_inches="tight",
         )
+        print(f"{title} Plot saved to file '{out_file}'")
+    else:
+        print(f"{title} Plot not saved — pass `out_path` to save.")
 
 
 # Fixation Duration
 # =============================================================================
 def plot_fixation_duration(
     events_df: pd.DataFrame,
-    out_path: str,
-    out_file_format: str = OUT_FILE_FORMAT,
-    by_eye: str = BY_EYE,
+    out_path: str = None,
+    out_file_format: str = "svg",
+    by_eye: str = "both",
     min_ms: float = 60,
     max_ms: float = 1000,
     title: str = "Fixation Durations",
@@ -142,11 +126,11 @@ def plot_fixation_duration(
 
     Args:
         events_df (pd.DataFrame):
-        out_path (str): Directory to save the figure. Pass None to skip saving. # TBD
-        out_file_format (str): File extension for saving, e.g. 'svg', 'pdf', 'eps'
-        by_eye (str): One of: 'all', 'left', 'right', 'both'
-        min_ms (float, optional): lower bound to drop ultra-short blinks/micro-fixations
-        max_ms (float, optional): upper bound to drop implausibly long fixations #TBD ist das überhaupt noch notwendig mit preprocessing?
+        out_path (str): Directory to save the figure. Pass None to skip saving (default).
+        out_file_format (str): File extension for saving, e.g. 'svg', 'pdf', 'png'. Defaults to 'svg'.
+        by_eye (str): One of: 'all', 'left', 'right', 'both'. Defaults to 'both'.
+        min_ms (float, optional): lower bound to drop ultra-short blinks/micro-fixations. Defaults to 60ms.
+        max_ms (float, optional): upper bound to drop implausibly long fixations. Defaults to 1000ms.
         title (str, optional): Defaults to 'Fixation Durations'.
     Raises:
         ValueError: No fixation durations within min_ms - max_ms found
@@ -183,6 +167,7 @@ def plot_fixation_duration(
             f"Dropped outliers: {dropouts}, {(dropouts/len(fix["duration_ms"]))*100:.2f}%"
         )
 
+    # 4) create the figure
     fig, ax = plt.subplots()
     ax.hist(dur)
     ax.set_xlabel("Fixation duration (ms)")
@@ -195,38 +180,40 @@ def plot_fixation_duration(
         "both": "Binocular only",
     }
     ax.set_title(f"{title} — {title_map[by_eye]}")
-    plt.show()
-
     fig = ax.figure
     fig.tight_layout()
-    fig.savefig(
-        f"{out_path}/{title.lower().replace(' ', '_')}-{by_eye}Eyes.{out_file_format}",
-        bbox_inches="tight",
-    )
-    print(
-        f"Plot saved to file '{out_path}/{title.lower().replace(' ', '_')}-{by_eye}Eyes.{out_file_format}'"
-    )
+
+    # Save & show
+    if out_path is not None:
+        out_file = f"{out_path}/{title.lower().replace(' ', '_')}-{by_eye}Eyes.{out_file_format}"
+        fig.savefig(out_file, bbox_inches="tight")
+        print(f"{title} Plot saved to file '{out_file}'")
+    else:
+        print(f"{title} Plot not saved — pass `out_path` to save.")
+
+    plt.show()
+    plt.close(fig)
 
 
 # Saccade Amplitude
 # =============================================================================
 def plot_saccade_amplitude(
     events_df: pd.DataFrame,
-    out_path: str,
-    out_file_format: str = OUT_FILE_FORMAT,
-    by_eye: str = BY_EYE,
-    max_deg: float = SACC_AMP_MAX_DEG,
+    out_path: str = None,
+    out_file_format: str = "svg",
+    by_eye: str = "both",
     title: str = "Saccade Amplitude",
+    max_deg: float = 40,
 ):
     """
     Histogram of saccade amplitudes (degrees), outliers dropped (upper bound max_deg).
 
     Args:
         events_df (pd.DataFrame): Event dataframe containing a 'trial_type' column with saccade events.
-        out_path (str): Directory to save the figure. Pass None to skip saving.
-        out_file_format (str): File extension for saving, e.g. 'svg', 'pdf', 'eps'
-        by_eye (str): One of: 'all', 'left', 'right', 'both'
-        max_deg (float, optional): Upper bound to drop implausibly large saccade amplitudes.
+        out_path (str): Directory to save the figure. Pass None to skip saving (default).
+        out_file_format (str): File extension for saving, e.g. 'svg', 'pdf', 'png'. Defaults to "svg".
+        by_eye (str): One of: 'all', 'left', 'right', 'both'. Defaults to 'both'.
+        max_deg (float, optional): Upper bound (deg) to drop implausibly large saccade amplitudes. Defaults to 40°
         title (str, optional): Defaults to 'Saccade Amplitude'.
     """
 
@@ -276,11 +263,13 @@ def plot_saccade_amplitude(
     fig.tight_layout()
 
     # 5) Save & show
-    out_file = (
-        f"{out_path}/{title.lower().replace(' ', '_')}-{by_eye}Eyes.{out_file_format}"
-    )
-    fig.savefig(out_file, bbox_inches="tight")
-    print(f"Plot saved to file '{out_file}'")
+    if out_path is not None:
+        out_file = f"{out_path}/{title.lower().replace(' ', '_')}-{by_eye}Eyes.{out_file_format}"
+        fig.savefig(out_file, bbox_inches="tight")
+        print(f"{title} Plot saved to file '{out_file}'")
+    else:
+        print(f"{title} Plot not saved — pass `out_path` to save.")
+
     plt.show()
     plt.close(fig)
 
@@ -289,22 +278,22 @@ def plot_saccade_amplitude(
 # =============================================================================
 def plot_saccade_duration(
     events_df: pd.DataFrame,
-    out_path: str,
-    out_file_format: str = OUT_FILE_FORMAT,
-    by_eye: str = BY_EYE,
+    out_path: str = None,
+    out_file_format: str = "svg",
+    by_eye: str = "both",
     title: str = "Saccade Duration",
-    max_dur: int = SACC_DUR_MAX_MS,
+    max_dur: int = 120,
 ):
     """
     Histogram of fixation frequency (fixations per second).
 
     Args:
         events_df (pd.DataFrame):
-        out_path (str): Directory to save the figure. Pass None to skip saving.
-        out_file_format (str, optional):  File extension for saving, e.g. 'svg', 'pdf', 'eps'. Defaults to OUT_FILE_FORMAT.
-        by_eye (str, optional): One of: 'all', 'left', 'right', 'both'. Defaults to BY_EYE.
+        out_path (str): Directory to save the figure. Pass None to skip saving (default).
+        out_file_format (str, optional):  File extension for saving, e.g. 'svg', 'pdf', 'eps'. Defaults to 'svg'.
+        by_eye (str, optional): One of: 'all', 'left', 'right', 'both'. Defaults to 'both'.
         title (str, optional): Defaults to "Saccade Duration".
-        max_dur (int, optional): _description_. Defaults to SACC_DUR_MAX_MS.
+        max_dur (int, optional): Maximum duration of a saccade (ms). Pass None to disable clipping. Defaults to 120ms.
     """
 
     s_df = events_df[events_df["trial_type"] == "saccade"].copy()
@@ -354,12 +343,12 @@ def plot_saccade_duration(
     fig.tight_layout()
 
     # 6) Save & show
-    # TBD: Overwrite Flag/None/Show
-    out_file = (
-        f"{out_path}/{title.lower().replace(' ', '_')}-{by_eye}Eyes.{out_file_format}"
-    )
-    fig.savefig(out_file, bbox_inches="tight")
-    print(f"Plot saved to file '{out_file}'")
+    if out_path is not None:
+        out_file = f"{out_path}/{title.lower().replace(' ', '_')}-{by_eye}Eyes.{out_file_format}"
+        fig.savefig(out_file, bbox_inches="tight")
+        print(f"{title} Plot saved to file '{out_file}'")
+    else:
+        print(f"{title} Plot not saved — pass `out_path` to save.")
 
     plt.show()
     plt.close(fig)
@@ -367,13 +356,11 @@ def plot_saccade_duration(
 
 # Fixation Frequency
 # =============================================================================
-
-
 def plot_fixation_frequency(
     events_df: pd.DataFrame,
-    out_path: str,
-    out_file_format: str = OUT_FILE_FORMAT,
-    by_eye: str = BY_EYE,
+    out_path: str = None,
+    out_file_format: str = "svg",
+    by_eye: str = "both",
     title="Fixation frequency histogram",
 ):
     """
@@ -381,9 +368,9 @@ def plot_fixation_frequency(
 
     Args:
         events_df (pd.DataFrame): Event dataframe containing a 'trial_type' column with fixation events.
-        out_path (str): Directory to save the figure. Pass None to skip saving.
-        out_file_format (str): File extension for saving, e.g. 'svg', 'pdf', 'eps'.
-        by_eye (str): One of: 'all', 'left', 'right', 'both'
+        out_path (str): Directory to save the figure. Pass None to skip saving (default).
+        out_file_format (str): File extension for saving, e.g. 'svg', 'pdf', 'png'. Defaults to 'svg'.
+        by_eye (str, optional): One of: 'all', 'left', 'right', 'both'. Defaults to "both".
         title (str, optional): Defaults to 'Fixation frequency histogram'.
     """
     f_df = events_df[events_df["trial_type"] == "fixation"].copy()
@@ -407,25 +394,24 @@ def plot_fixation_frequency(
     plt.ylabel("Count")
     plt.title(title)
 
-    # TBD: Overwrite Flag/None/Show
-    out_file = (
-        f"{out_path}/{title.lower().replace(' ', '_')}-{by_eye}Eyes.{out_file_format}"
-    )
-    plt.savefig(out_file, bbox_inches="tight")
-    print(f"Plot saved to '{out_file}'")
+    # 5) Save & show
+    if out_path is not None:
+        out_file = f"{out_path}/{title.lower().replace(' ', '_')}-{by_eye}Eyes.{out_file_format}"
+        plt.savefig(out_file, bbox_inches="tight")
+        print(f"{title} Plot saved to file '{out_file}'")
+    else:
+        print(f"{title} Plot not saved — pass `out_path` to save.")
+
     plt.show()
 
 
-title = "Saccade Direction Histogram"
-cart_title = "Cartesian Angular Histogram"
-refinement = False  # refinements: weight by saccade amplitude, excluding microsaccades or artifacts
-
-
+# 1.9 Saccade Angular Histogram
+# =============================================================================
 def plot_saccade_angles(
     events_df: pd.DataFrame,
-    out_path: str,
-    out_file_format: str = OUT_FILE_FORMAT,
-    by_eye: str = BY_EYE,
+    out_path: str = None,
+    out_file_format: str = "svg",
+    by_eye: str = "both",
     title: str = "Saccade Direction Histogram",
     style: str = None,
 ):
@@ -434,8 +420,9 @@ def plot_saccade_angles(
 
     Args:
         events_df (pd.DataFrame):
-        out_file_format (str): File extension for saving, e.g. 'svg', 'pdf', 'eps'
-        by_eye (str): One of: 'all', 'left', 'right', 'both'
+        out_path (str): Directory to save the figure. Pass None to skip saving. Defaults to None.
+        out_file_format (str): File extension for saving, e.g. 'svg', 'pdf', 'png'. Defaults to 'svg'.
+        by_eye (str): One of: 'all', 'left', 'right', 'both'. Defaults to 'both'
         title (str, optional): Defaults to 'Saccade Direction Histogram'.
         style (str, optional): One of: 'polar', 'cartesian', or None (produces both). Defaults to None.
     """
@@ -472,14 +459,16 @@ def plot_saccade_angles(
         # Configure axes
         ax.set_theta_zero_location("E")  # 0° to the right
         ax.set_theta_direction(1)  # counter-clockwise
-        ax.set_title(title)
+        ax.set_title(f"Polar {title}")
         plt.tight_layout()
 
         # 5) Save & show
-        # TBD overwrite/show flag
-        out_file = f"{out_path}/{title.lower().replace(' ', '_')}-{by_eye}Eyes.{out_file_format}"
-        plt.savefig(out_file, bbox_inches="tight")
-        print(f"Plot saved to file '{out_file}'")
+        if out_path is not None:
+            out_file = f"{out_path}/{title.lower().replace(' ', '_')}-{by_eye}Eyes.{out_file_format}"
+            plt.savefig(out_file, bbox_inches="tight")
+            print(f"{title} Plot saved to file '{out_file}'")
+        else:
+            print(f"{title} Plot not saved — pass `out_path` to save.")
 
         plt.show()
 
@@ -488,12 +477,14 @@ def plot_saccade_angles(
         plt.hist(angles_deg, bins=np.arange(0, 361, 10), edgecolor="black")
         plt.xlabel("Saccade direction (deg)")
         plt.ylabel("Count")
-        plt.title(cart_title)
+        plt.title(f"Cartesian {title}")
 
         # 5) Save & show
-        # TBD overwrite/show flag
-        out_file = f"{out_path}/{cart_title.lower().replace(' ', '_')}-{by_eye}Eyes.{out_file_format}"
-        plt.savefig(out_file, bbox_inches="tight")
-        print(f"Plot saved to file '{out_file}'")
+        if out_path is not None:
+            out_file = f"{out_path}/{cart_title.lower().replace(' ', '_')}-{by_eye}Eyes.{out_file_format}"
+            plt.savefig(out_file, bbox_inches="tight")
+            print(f"Plot saved to file '{out_file}'")
+        else:
+            print(f"{title} Plot not saved — pass `out_path` to save.")
 
         plt.show()
