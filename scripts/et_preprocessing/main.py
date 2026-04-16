@@ -32,6 +32,7 @@ from plotting import (
     plot_saccade_duration,
     plot_fixation_frequency,
     plot_saccade_angles,
+    plot_summary,
 )
 
 logger = logging.getLogger(__name__)
@@ -220,7 +221,7 @@ def run_visualisation(subject_id: str) -> bool:
         out_path=out_path,
         out_file_format=config.OUT_FILE_FORMAT,
         by_eye=config.BY_EYE,
-        drop_near_blinks=config.MS_DROP_NEAR_BLINKS,
+        drop_near_blinks=config.DROP_NEAR_BLINKS,
         drop_ms_outliers=config.MS_DROP_OUTLIERS,
         ms_outlier_mad_thresh=config.MS_OUTLIER_MAD_THRESH,
     )
@@ -231,8 +232,8 @@ def run_visualisation(subject_id: str) -> bool:
         out_path=out_path,
         out_file_format=config.OUT_FILE_FORMAT,
         by_eye=config.BY_EYE,
-        min_ms=config.FIX_DUR_MIN_MS,
-        max_ms=config.FIX_DUR_MAX_MS,
+        fix_dur_min_ms=config.FIX_DUR_MIN_MS,
+        fix_dur_max_ms=config.FIX_DUR_MAX_MS,
         bin_w=config.FIX_DUR_BIN_W,
     )
 
@@ -242,7 +243,7 @@ def run_visualisation(subject_id: str) -> bool:
         by_eye=config.BY_EYE,
         out_path=out_path,
         out_file_format=config.OUT_FILE_FORMAT,
-        max_deg=config.SACC_AMP_MAX_DEG,
+        sac_amp_max_deg=config.SACC_AMP_MAX_DEG,
     )
 
     logger.info("Plotting saccade duration...")
@@ -251,7 +252,7 @@ def run_visualisation(subject_id: str) -> bool:
         by_eye=config.BY_EYE,
         out_path=out_path,
         out_file_format=config.OUT_FILE_FORMAT,
-        max_saccade_duration=config.SACC_DUR_MAX_MS,
+        sac_dur_max_ms=config.SACC_DUR_MAX_MS,
     )
 
     logger.info("Plotting fixation frequency...")
@@ -272,6 +273,20 @@ def run_visualisation(subject_id: str) -> bool:
         style=None,
     )
 
+    logger.info("Plotting summary...")
+    plot_summary(
+        events_df=events,
+        out_path=out_path,
+        out_file_format=config.OUT_FILE_FORMAT,
+        by_eye=config.BY_EYE,
+        title="Summary",
+        fix_dur_min_ms=config.FIX_DUR_MIN_MS,
+        fix_dur_max_ms=config.FIX_DUR_MIN_MAX,
+        sac_amp_max_deg=config.SACC_AMP_MAX_DEG,
+        sac_dur_max_ms=config.SACC_DUR_MAX_MS,
+        drop_near_blinks=config.DROP_NEAR_BLINKS,
+    )
+
     logger.info(f"All figures saved to: {out_path}")
     return True
 
@@ -284,7 +299,7 @@ def main():
 
     logging.basicConfig(
         level=getattr(logging, args.log_level),
-        format="%(asctime)s  %(levelname)-8s  %(name)s — %(message)s",
+        format="%(levelname)-8s  %(name)s — %(message)s",
         datefmt="%H:%M:%S",
     )
 
@@ -319,7 +334,7 @@ def main():
         ok = True
 
         if args.steps in ("preprocessing", "both"):
-            logger.info(f"[{subject_id}] Running preprocessing...")
+            logger.info(f"Running preprocessing...")
             success = run_preprocessing(
                 subject_id,
                 overwrite=args.overwrite,
@@ -327,7 +342,7 @@ def main():
             ok = ok and success
 
         if args.steps in ("visualisation", "both"):
-            logger.info(f"[{subject_id}] Running visualisation...")
+            logger.info(f"Running visualisation...")
             success = run_visualisation(subject_id)
             ok = ok and success
 
