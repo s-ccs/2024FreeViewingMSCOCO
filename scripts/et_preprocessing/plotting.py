@@ -253,8 +253,8 @@ def plot_fixation_duration(
     out_path: str = None,
     out_file_format: str = "svg",
     by_eye: str = "both",
-    min_ms: float = 60,
-    max_ms: float = 1000,
+    fix_dur_min_ms: float = 60,
+    fix_dur_max_ms: float = 1000,
     title: str = "Fixation Durations",
 ):
     """
@@ -265,11 +265,11 @@ def plot_fixation_duration(
         out_path (str): Directory to save the figure. Pass None to skip saving (default).
         out_file_format (str): File extension for saving, e.g. 'svg', 'pdf', 'png'. Defaults to 'svg'.
         by_eye (str): One of: 'all', 'left', 'right', 'both'. Defaults to 'both'.
-        min_ms (float, optional): lower bound to drop ultra-short blinks/micro-fixations. Defaults to 60ms.
-        max_ms (float, optional): upper bound to drop implausibly long fixations. Defaults to 1000ms.
+        fix_dur_min_ms (float, optional): lower bound to drop ultra-short blinks/micro-fixations. Defaults to 60ms.
+        fix_dur_max_ms (float, optional): upper bound to drop implausibly long fixations. Defaults to 1000ms.
         title (str, optional): Defaults to 'Fixation Durations'.
     Raises:
-        ValueError: No fixation durations within min_ms - max_ms found
+        ValueError: No fixation durations within fix_dur_min_ms - fix_dur_max_ms found
     """
     if by_eye not in {"all", "left", "right", "both"}:
         raise ValueError("by_eye must be one of: 'all', 'left', 'right', 'both'")
@@ -289,7 +289,7 @@ def plot_fixation_duration(
 
     # 3) Filter by plausible duration range
     dur = fix["duration_ms"]
-    dur = dur[(dur >= min_ms) & (dur <= max_ms)]
+    dur = dur[(dur >= fix_dur_min_ms) & (dur <= fix_dur_max_ms)]
     if dur.empty:
         raise ValueError(
             "No fixation durations post filtering. Check inputs or ranges."
@@ -298,7 +298,7 @@ def plot_fixation_duration(
         dropouts = len(fix["duration_ms"]) - len(dur)
         logger.info(f"Total fixations: {len(fix['duration_ms'])}")
         logger.info(
-            f"Kept fixations ({min_ms}ms <= duration <= {max_ms}ms): {len(dur)}"
+            f"Kept fixations ({fix_dur_min_ms}ms <= duration <= {fix_dur_max_ms}ms): {len(dur)}"
         )
         logger.info(
             f"Dropped outliers: {dropouts} ({(dropouts/len(fix['duration_ms']))*100:.2f}%)"
@@ -341,20 +341,20 @@ def plot_saccade_amplitude(
     out_file_format: str = "svg",
     by_eye: str = "both",
     title: str = "Saccade Amplitude",
-    max_deg: float = 40,
+    sac_amp_max_deg: float = 40,
 ):
     """
-    Histogram of saccade amplitudes (degrees), outliers dropped (upper bound max_deg).
+    Histogram of saccade amplitudes (degrees), outliers dropped (upper bound sac_amp_max_deg).
 
     Args:
         events_df (pd.DataFrame): Event dataframe containing a 'trial_type' column with saccade events.
         out_path (str): Directory to save the figure. Pass None to skip saving (default).
         out_file_format (str): File extension for saving, e.g. 'svg', 'pdf', 'png'. Defaults to "svg".
         by_eye (str): One of: 'all', 'left', 'right', 'both'. Defaults to 'both'.
-        max_deg (float, optional): Upper bound (deg) to drop implausibly large saccade amplitudes. Defaults to 40°
+        sac_amp_max_deg (float, optional): Upper bound (deg) to drop implausibly large saccade amplitudes. Defaults to 40°
         title (str, optional): Defaults to 'Saccade Amplitude'.
     Raises:
-        ValueError: No saccade amplitudes within 0 - max_deg found.
+        ValueError: No saccade amplitudes within 0 - sac_amp_max_deg found.
     """
 
     s_df = events_df[events_df["trial_type"] == "saccade"].copy()
@@ -367,18 +367,18 @@ def plot_saccade_amplitude(
 
     # 2) Select saccade amplitudes in degrees
     all_amplitudes = s_df["sacc_visual_angle"].dropna()
-    if max_deg is not None:
-        amplitudes = all_amplitudes[all_amplitudes <= max_deg]
+    if sac_amp_max_deg is not None:
+        amplitudes = all_amplitudes[all_amplitudes <= sac_amp_max_deg]
 
     if amplitudes.empty:
-        raise ValueError(f"No saccade amplitudes within 0–{max_deg}° found.")
+        raise ValueError(f"No saccade amplitudes within 0–{sac_amp_max_deg}° found.")
 
     # Identify dropped outliers
-    dropout = len(all_amplitudes[all_amplitudes > max_deg])
+    dropout = len(all_amplitudes[all_amplitudes > sac_amp_max_deg])
     logger.info(f"Total saccades: {len(all_amplitudes)}")
-    logger.info(f"Kept saccades (<={max_deg}°): {len(amplitudes)}")
+    logger.info(f"Kept saccades (<={sac_amp_max_deg}°): {len(amplitudes)}")
     logger.info(
-        f"Dropped outliers (>{max_deg}°): {dropout} ({(dropout/len(all_amplitudes))*100:.2f}%)"
+        f"Dropped outliers (>{sac_amp_max_deg}°): {dropout} ({(dropout/len(all_amplitudes))*100:.2f}%)"
     )
 
     # 3) Create figure
@@ -421,7 +421,7 @@ def plot_saccade_duration(
     out_file_format: str = "svg",
     by_eye: str = "both",
     title: str = "Saccade Duration",
-    max_dur: int = 120,
+    sac_dur_max_ms: int = 120,
 ):
     """
     Histogram of fixation frequency (fixations per second).
@@ -432,7 +432,7 @@ def plot_saccade_duration(
         out_file_format (str, optional):  File extension for saving, e.g. 'svg', 'pdf', 'eps'. Defaults to 'svg'.
         by_eye (str, optional): One of: 'all', 'left', 'right', 'both'. Defaults to 'both'.
         title (str, optional): Defaults to "Saccade Duration".
-        max_dur (int, optional): Maximum duration of a saccade (ms). Pass None to disable clipping. Defaults to 120ms.
+        sac_dur_max_ms (int, optional): Maximum duration of a saccade (ms). Pass None to disable clipping. Defaults to 120ms.
     """
 
     s_df = events_df[events_df["trial_type"] == "saccade"].copy()
@@ -448,13 +448,13 @@ def plot_saccade_duration(
     logger.info(f"Total saccades: {len(durations)}")
 
     # 3) Drop saccades >120ms
-    if max_dur is not None:
-        durations = durations[durations <= max_dur]
+    if sac_dur_max_ms is not None:
+        durations = durations[durations <= sac_dur_max_ms]
         durations_copy = durations.copy()
-        dropout = len(durations_copy[durations > max_dur])
-        logger.info(f"Kept saccades (<={max_dur}ms): {len(durations)}")
+        dropout = len(durations_copy[durations > sac_dur_max_ms])
+        logger.info(f"Kept saccades (<={sac_dur_max_ms}ms): {len(durations)}")
         logger.info(
-            f"Dropped outliers (>{max_dur}ms): {dropout} ({(dropout/len(durations))*100:.2f}%)"
+            f"Dropped outliers (>{sac_dur_max_ms}ms): {dropout} ({(dropout/len(durations))*100:.2f}%)"
         )
 
     # 4) Create figure
@@ -642,7 +642,6 @@ def plot_summary(
     out_file_format: str = "svg",
     by_eye: str = "both",
     title: str = "Summary",
-    # per-plot thresholds, mirroring the individual functions
     ms_fix_dur_min: float = 60,
     ms_fix_dur_max: float = 1000,
     deg_sacc_amp_max: float = 40,
