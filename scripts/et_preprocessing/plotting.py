@@ -120,9 +120,9 @@ def plot_main_sequence(
 
     if out_path is not None:
         os.makedirs(out_path, exist_ok=True)
-        fname = base_name + ("_msOutliersDropped" if drop_ms_outliers else "")
         fig.savefig(
-            os.path.join(out_path, f"{fname}.{out_file_format}"), bbox_inches="tight"
+            os.path.join(out_path, f"{base_name}.{out_file_format}"),
+            bbox_inches="tight",
         )
 
 
@@ -353,7 +353,7 @@ def plot_saccade_duration(
 
     fig.tight_layout()
 
-    # 6) Save pre show
+    # 6) Save & show
     # TBD: Overwrite Flag/None/Show
     out_file = (
         f"{out_path}/{title.lower().replace(' ', '_')}-{by_eye}Eyes.{out_file_format}"
@@ -414,3 +414,86 @@ def plot_fixation_frequency(
     plt.savefig(out_file, bbox_inches="tight")
     print(f"Plot saved to '{out_file}'")
     plt.show()
+
+
+title = "Saccade Direction Histogram"
+cart_title = "Cartesian Angular Histogram"
+refinement = False  # refinements: weight by saccade amplitude, excluding microsaccades or artifacts
+
+
+def plot_saccade_angles(
+    events_df: pd.DataFrame,
+    out_path: str,
+    out_file_format: str = OUT_FILE_FORMAT,
+    by_eye: str = BY_EYE,
+    title: str = "Saccade Direction Histogram",
+    style: str = None,
+):
+    """
+    Histogram of saccade directions (degrees), shown as a polar rose plot, a Cartesian bar histogram, or both.
+
+    Args:
+        events_df (pd.DataFrame):
+        out_file_format (str): File extension for saving, e.g. 'svg', 'pdf', 'eps'
+        by_eye (str): One of: 'all', 'left', 'right', 'both'
+        title (str, optional): Defaults to 'Saccade Direction Histogram'.
+        style (str, optional): One of: 'polar', 'cartesian', or None (produces both). Defaults to None.
+    """
+
+    s_df = events_df[events_df["trial_type"] == "saccade"].copy()
+
+    # 1) Filter by eye
+    if by_eye != "all":
+        eye_mapping = {"left": "L", "right": "R", "both": "both"}
+        chosen_eye = eye_mapping[by_eye]
+        s_df = s_df.query("eye == @chosen_eye").copy()
+
+    # 2) Compute saccade angles
+    dx = s_df["sacc_end_x"] - s_df["sacc_start_x"]
+    dy = s_df["sacc_end_y"] - s_df["sacc_start_y"]
+
+    # Angle in radians, then degrees
+    angles_rad = np.arctan2(dy, dx)
+    angles_deg = np.degrees(angles_rad)
+
+    # Optional: map to [0, 360)
+    angles_deg = (angles_deg + 360) % 360
+
+    if style in ["polar", None]:
+        # Convert degrees back to radians for polar plotting
+        angles_rad = np.deg2rad(angles_deg)
+
+        # 4) create Figure
+        fig = plt.figure(figsize=(5, 5))
+        ax = fig.add_subplot(111, polar=True)
+
+        ax.hist(angles_rad, bins=36, edgecolor="black")  # 10° bins
+
+        # Configure axes
+        ax.set_theta_zero_location("E")  # 0° to the right
+        ax.set_theta_direction(1)  # counter-clockwise
+        ax.set_title(title)
+        plt.tight_layout()
+
+        # 5) Save & show
+        # TBD overwrite/show flag
+        out_file = f"{out_path}/{title.lower().replace(' ', '_')}-{by_eye}Eyes.{out_file_format}"
+        plt.savefig(out_file, bbox_inches="tight")
+        print(f"Plot saved to file '{out_file}'")
+
+        plt.show()
+
+    if style in ["cartesian", None]:
+        # 4) Create Figure 2: Cartesian Angular Histogramm
+        plt.hist(angles_deg, bins=np.arange(0, 361, 10), edgecolor="black")
+        plt.xlabel("Saccade direction (deg)")
+        plt.ylabel("Count")
+        plt.title(cart_title)
+
+        # 5) Save & show
+        # TBD overwrite/show flag
+        out_file = f"{out_path}/{cart_title.lower().replace(' ', '_')}-{by_eye}Eyes.{out_file_format}"
+        plt.savefig(out_file, bbox_inches="tight")
+        print(f"Plot saved to file '{out_file}'")
+
+        plt.show()
