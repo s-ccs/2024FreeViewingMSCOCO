@@ -96,7 +96,7 @@ def compute_stats(events_df: pd.DataFrame) -> dict:
 # HTML rendering
 # =============================================================================
 def _render_table(section_title: str, rows: dict) -> str:
-    """Render a dict as an HTML stats table with a section heading."""
+    """Render a dict as a simple key-value stats block."""
     rows_html = "\n".join(f"<tr><td>{k}</td><td>{v}</td></tr>" for k, v in rows.items())
     return f"""
     <div class="stat-block">
@@ -111,7 +111,6 @@ def _render_table(section_title: str, rows: dict) -> str:
 
 def _render_comparison_table(section_title: str, before: dict, after: dict) -> str:
     """Render a before/after comparison table with delta column."""
-    print("RENDERING COMPARISON TABLE")
     rows_html = ""
     for key in after:
         val_before = before.get(key, "—")
@@ -120,33 +119,32 @@ def _render_comparison_table(section_title: str, before: dict, after: dict) -> s
         try:
             delta = float(after[key]) - float(before[key])
             delta_str = f"{delta:+.1f}"
-            delta_color = "#67150B" if delta > 0 else "#6ec30c"
         except (ValueError, TypeError):
-            print(type(after[key]), after[key])
             delta_str = "—"
-            delta_color = "#aaa"
         rows_html += f"""
         <tr>
             <td>{key}</td>
             <td>{val_before}</td>
             <td>{val_after}</td>
-            <td style="color:{delta_color}; font-weight:bold">{delta_str}</td>
+            <td style="font-weight:bold">{delta_str}</td>
         </tr>"""
 
     return f"""
     <div class="stat-block wide">
-        <h3>{section_title}</h3>
-        <table>
-            <thead>
-                <tr>
-                    <th></th>
-                    <th style="text-align: left">Before</th>
-                    <th style="text-align: left">After</th>
-                    <th style="text-align: right">Δ</th>
-                </tr>
-            </thead>
-            <tbody>{rows_html}</tbody>
-        </table>
+        <details>
+            <summary>{section_title}</summary>
+            <table>
+                <thead>
+                    <tr>
+                        <th></th>
+                        <th style="text-align: left">Before</th>
+                        <th style="text-align: left">After</th>
+                        <th style="text-align: right">Δ</th>
+                    </tr>
+                </thead>
+                <tbody>{rows_html}</tbody>
+            </table>
+        </details>
     </div>"""
 
 
@@ -164,7 +162,7 @@ def _render_html(
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
 
     tables = (
-        _render_table("Session", stats_after["session"])
+        _render_table("Session Info", stats_after["session"])
         + _render_comparison_table(
             "Fixations", stats_before["fixations"], stats_after["fixations"]
         )
@@ -177,82 +175,103 @@ def _render_html(
     )
 
     return f"""<!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <title>ET Report — {subject_id.replace("sub-", "Subject ")}</title>
-        <style>
-            body {{
-                font-family: Arial, sans-serif;
-                max-width: 1100px;
-                margin: 40px auto;
-                color: #222;
-                background: #fafafa;
-            }}
-            h1 {{ color: #2c3e50; border-bottom: 2px solid #2c3e50; padding-bottom: 6px; }}
-            h2 {{ color: #34495e; margin-top: 36px; }}
-            h3 {{ color: #555; margin-bottom: 6px; }}
-            .meta {{ color: #888; font-size: 0.9em; margin-bottom: 32px; }}
-            .stats-grid {{
-                display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-                gap: 20px;
-                margin-bottom: 40px;
-            }}
-            .stat-block {{
-                background: #fff;
-                border: 1px solid #ddd;
-                border-radius: 6px;
-                padding: 16px 20px;
-            }}
-            table {{ width: 100%; border-collapse: collapse; }}
-            td {{
-                padding: 4px 8px;
-                font-size: 0.9em;
-                border-bottom: 1px solid #f0f0f0;
-            }}
-            td:first-child {{ color: #555; }}
-            td:last-child {{ text-align: right; font-weight: bold; }}
-            .stat-block.wide {{
-                grid-column: 1 / -1;
-            }}
-            thead th {{
-                text-align: right;
-                color: #555;
-                font-size: 0.85em;
-                padding: 4px 8px;
-                border-bottom: 2px solid #ddd;
-            }}
-            thead th:first-child {{
-                text-align: left;
-            }}
-            .plot-block {{
-                background: #fff;
-                border: 1px solid #ddd;
-                border-radius: 6px;
-                padding: 20px;
-                text-align: center;
-            }}
-            img {{ max-width: 100%; height: auto; }}
-        </style>
-    </head>
-    <body>
-        <h1>Eye-Tracking Report — {subject_id.replace("sub-", "Subject ")}</h1>
-        <p class="meta">Generated: {timestamp}</p>
-        <h2>Summary Statistics</h2>
-        <div class="stats-grid">
-            {tables}
-        </div>
-        <h2>Eye Trace Merge Comparison</h2>
-        <div class="plot-block">
-            <img src="data:image/png;base64,{eye_trace_plot}" alt="Eye Trace Merge Comparison">
-        </div>
-        <h2>Summary Plot After Preprocessing</h2>
-        <div class="plot-block">
-            <img src="data:image/png;base64,{summary_plot}" alt="Summary plot">
-        </div>
-    </body>
-    </html>"""
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <title>ET Report — {subject_id.replace("sub-", "Subject ")}</title>
+            <style>
+                body {{
+                    font-family: Arial, sans-serif;
+                    max-width: 1100px;
+                    margin: 40px auto;
+                    color: #222;
+                    background: #fafafa;
+                }}
+                h1 {{ color: #2c3e50; border-bottom: 2px solid #2c3e50; padding-bottom: 6px; }}
+                h2 {{ color: #34495e; margin-top: 36px; }}
+                h3 {{ color: #555; margin-bottom: 6px; }}
+                .meta {{ color: #888; font-size: 0.9em; margin-bottom: 32px; }}
+                .stats-grid {{
+                    display: grid;
+                    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+                    gap: 20px;
+                    margin-bottom: 40px;
+                }}
+                .stat-block {{
+                    background: #fff;
+                    border: 1px solid #ddd;
+                    border-radius: 6px;
+                    padding: 16px 20px;
+                }}
+                table {{ width: 100%; border-collapse: collapse; }}
+                td {{
+                    padding: 4px 8px;
+                    font-size: 0.9em;
+                    border-bottom: 1px solid #f0f0f0;
+                }}
+                td:first-child {{ color: #555; }}
+                td:last-child {{ text-align: right; font-weight: bold; }}
+                .stat-block.wide {{
+                    grid-column: 1 / -1;
+                }}
+                thead th {{
+                    text-align: right;
+                    color: #555;
+                    font-size: 0.85em;
+                    padding: 4px 8px;
+                    border-bottom: 2px solid #ddd;
+                }}
+                thead th:first-child {{
+                    text-align: left;
+                }}
+                .plot-block {{
+                    background: #fff;
+                    border: 1px solid #ddd;
+                    border-radius: 6px;
+                    padding: 20px;
+                    text-align: center;
+                }}
+                img {{ max-width: 100%; height: auto; }}
+                details > summary {{
+                    cursor: pointer;
+                    font-size: 1em;
+                    font-weight: bold;
+                    color: #555;
+                    margin-bottom: 6px;
+                    list-style: none;
+                    user-select: none;
+                }}
+                details > summary::before {{
+                    content: "▶  ";
+                    font-size: 0.75em;
+                    color: #aaa;
+                    display: inline-block;
+                }}
+                details[open] > summary::before {{
+                    content: "▼  ";
+                }}
+                details > table {{
+                    margin-top: 8px;
+                }}
+            </style>
+        </head>
+        <body>
+            <h1>Eye-Tracking Report — {subject_id.replace("sub-", "Subject ")}</h1>
+            <p class="meta">Generated: {timestamp}</p>
+            <h2>Summary Statistics</h2>
+            <div class="stats-grid">
+                {tables}
+            </div>
+            <h2>Eye Trace Merge Comparison</h2>
+            <div class="plot-block">
+                <img src="data:image/png;base64,{eye_trace_plot}" alt="Eye Trace Merge Comparison">
+            </div>
+            <h2>Summary Plot After Preprocessing</h2>
+            <div class="plot-block">
+                <img src="data:image/png;base64,{summary_plot}" alt="Summary plot">
+            </div>
+        </body>
+        </html>"""
 
 
 # =============================================================================

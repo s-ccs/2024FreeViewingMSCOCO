@@ -13,6 +13,7 @@ Logging:
 import argparse
 import logging
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -53,11 +54,11 @@ def parse_args() -> argparse.Namespace:
 
     parser.add_argument(
         "--steps",
-        choices=["preprocessing", "visualisation", "both"],
-        default="both",
+        choices=["preprocessing", "visualisation", "all"],
+        default="all",
         help=(
             "Which pipeline steps to run. "
-            "'preprocessing' and 'visualisation'; default: binocular"
+            "'preprocessing', 'visualisation'; default: all"
         ),
     )
 
@@ -142,7 +143,7 @@ def run_preprocessing(subject_id: str, overwrite: bool) -> bool:
 
     if paths["merged_tsv"].exists() and not overwrite:
         logger.info(
-            f"Skipping preprocessing for sub-{subject_id} — merged file already exists: "
+            f"Skipping preprocessing for {subject_id} — merged file already exists: "
             f"{paths['merged_tsv'].name}. Use --overwrite to reprocess."
         )
         return True
@@ -342,15 +343,15 @@ def main():
 
     if args.subjects == ["all"]:
         subjects = os.listdir(config.DATA_ROOT)
-        subjects = [x for x in subjects if "sub-" in x]
+        subjects = [m.group(1) for x in subjects if (m := re.search(r"sub-(\d+)", x))]
     else:
         subjects = args.subjects
 
     for subject_id in subjects:
-        print(f"\n── sub-{subject_id} {'─' * (51 - len(subject_id))}")
+        print(f"\n── sub-{subject_id} {'─' * (52 - len(subject_id))}")
         ok = True
 
-        if args.steps in ("preprocessing", "both"):
+        if args.steps in ("preprocessing", "all"):
             logger.info(f"Running Preprocessing...")
             success = run_preprocessing(
                 subject_id,
@@ -358,7 +359,7 @@ def main():
             )
             ok = ok and success
 
-        if args.steps in ("visualisation", "both"):
+        if args.steps in ("visualisation", "all"):
             logger.info(f"Running Visualisation...")
             success = run_visualisation(subject_id)
             ok = ok and success
