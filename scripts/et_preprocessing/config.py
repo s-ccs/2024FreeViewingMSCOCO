@@ -24,8 +24,10 @@ from pathlib import Path
 # =============================================================================
 # Root directory of the BIDS dataset.
 # DATA_ROOT/sub-XXX/ses-001/misc/sub-XXX_ses-001_task-freeviewing_et_events.tsv
-# TBD: Adapt later to the data
-DATA_ROOT = Path(r"C:\Users\chris\Documents\ArbeitUni\VIS_S-CCS\FreeViewing\BIDS")
+# DATA_ROOT = Path("/scratch/data/2024FreeViewingMSCOCO/derivatives/et_preprocessing")
+DATA_ROOT = Path(
+    r"C:\Users\chris\Documents\ArbeitUni\VIS_S-CCS\FreeViewing\BIDS"
+)  # TBD: Delete later
 
 MISC_SUBDIR = "misc"  # raw + merged TSVs
 PLOTS_SUBDIR = "plots"  # fplots
@@ -38,10 +40,9 @@ TASK = "freeviewing"
 # 2. Subjects
 # =============================================================================
 # Default subject list processed when no --subjects argument is given.
-SUBJECTS = [
-    "005"
-]  # [ "005", "006", "007", "009", "010", "011", "013", "016", "017", "018", "021", "022", "024", "025", "029", "030", "034", "035", "038", "043", "045", "060"] TBD: add "all" condition
-
+SUBJECTS = ["005"]
+# [ "005", "006", "007", "009", "010", "011", "013", "016", "017", "018", "021", "022", "024", "025", "029", "030", "034", "035", "038", "043", "045", "060"] TBD: add "all" condition
+# all
 
 # 3. Screen / hardware specs
 # =============================================================================
@@ -64,10 +65,13 @@ A_MIN = 1.0
 # s. Hooge et al. (2022), Stage 2.: Fixations shorter than this are dropped before merging consecutive saccades.
 T_MIN_FIX = 0.06
 
+# Generate Report (boolean): creates an html report
+REPORT = True
+
 
 # 5. Visualisation — general
 # =============================================================================
-# Eye selection for all plots. Options: "all", "left", "right", "both"
+# Eye selection for all plots. Options: "all", "left", "right", "binocular"
 BY_EYE = "all"
 
 # Output figure file format. Options: "svg", "pdf", "eps"
@@ -77,16 +81,7 @@ OUT_FILE_FORMAT = "svg"
 # 6. Visualisation — main sequence
 # =============================================================================
 # Whether to exclude saccades flagged as 'near a blink'
-MS_DROP_NEAR_BLINKS = True
-
-# Whether to run outlier detection and exclude outliers from the plot
-MS_DROP_OUTLIERS = False
-
-# if MS_DROP_OUTLIERS is True
-MS_OUTLIER_MAD_THRESH = 4.3
-
-# MAD threshold used by detect_main_sequence_outliers() standalone
-MS_DETECT_MAD_THRESH = 3.0
+DROP_NEAR_BLINKS = True
 
 
 # 7. Visualisation — fixation duration
