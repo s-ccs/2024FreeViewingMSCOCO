@@ -121,7 +121,11 @@ def merge_fixation_candidates(events, a_min=A_MIN):
     t_min_sacc = (2.2 * a_min + 27) / 1000.0
 
     # Sort by eye and onset to prevent cross-eye merging
-    events = events.sort_values(["eye", "onset"])
+    events = events.sort_values(["eye", "onset"]).reset_index(drop=True)
+
+    # Identify naturally consecutive fixations (should not be merged)
+    consecutives = find_consecutive_trial_types(events, trial_type="fixation")
+    events = events.drop(index=consecutives.index)
 
     n_before = (events["trial_type"] == "saccade").sum()
     # Drop saccades that are BOTH below amplitude AND duration threshold
@@ -137,13 +141,10 @@ def merge_fixation_candidates(events, a_min=A_MIN):
         f"Dropped {n_dropped} micro-saccades (amplitude < {a_min}° and duration < {t_min_sacc*1000:.1f} ms)"
     )
 
-    # Identify naturally consecutive fixation pairs (should not be merged)
-    consecutives = find_consecutive_trial_types(events, trial_type="fixation")
-    events = events.drop(index=consecutives.index)
-
     rows_to_keep = []
     i = 0
 
+    # Merge loop: finds and merge consecutive fixations
     while i < len(events):
         current_row = events.iloc[i].copy()
 
@@ -153,7 +154,7 @@ def merge_fixation_candidates(events, a_min=A_MIN):
             and events.iloc[i + 1]["trial_type"] == "fixation"
             and events.iloc[i]["eye"] == events.iloc[i + 1]["eye"]
         ):
-            j = i + 1
+            print(f"MERGING fixations at i={i}")  # TBD delte later/ Verification
             duration_sum = current_row["duration"]
             while (
                 j < len(events)
@@ -161,7 +162,7 @@ def merge_fixation_candidates(events, a_min=A_MIN):
                 and events.iloc[j]["eye"] == current_row["eye"]
             ):
                 next_row = events.iloc[j]
-                duration_sum += next_row["duration"]  # ← accumulate here
+                duration_sum += next_row["duration"]
                 for c in ["fix_avg_x", "fix_avg_y", "fix_avg_pupil_size"]:
                     current_row[c] = (
                         current_row[c] * (duration_sum - next_row["duration"])
@@ -200,6 +201,10 @@ def merge_saccade_candidates(events, t_min_fix: float = T_MIN_FIX):
     """
     events = events.sort_values(["eye", "onset"])
 
+    # Identify naturally consecutive saccade pairs (should not be merged)
+    consecutives = find_consecutive_trial_types(events, trial_type="saccade")
+    events = events.drop(index=consecutives.index)
+
     n_before = (events["trial_type"] == "fixation").sum()
     # Drop fixations shorter than t_min_fix
     events = events[
@@ -209,10 +214,6 @@ def merge_saccade_candidates(events, t_min_fix: float = T_MIN_FIX):
     logger.info(
         f"Dropped {n_dropped} short fixations (duration < {t_min_fix*1000:.0f} ms)"
     )
-
-    # Identify naturally consecutive saccade pairs (should not be merged)
-    consecutives = find_consecutive_trial_types(events, trial_type="saccade")
-    events = events.drop(index=consecutives.index)
 
     rows_to_keep = []
     i = 0
