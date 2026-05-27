@@ -154,7 +154,7 @@ def merge_fixation_candidates(events, a_min=A_MIN):
             and events.iloc[i + 1]["trial_type"] == "fixation"
             and events.iloc[i]["eye"] == events.iloc[i + 1]["eye"]
         ):
-            print(f"MERGING fixations at i={i}")  # TBD delte later/ Verification
+            j = i + 1
             duration_sum = current_row["duration"]
             while (
                 j < len(events)
@@ -230,6 +230,7 @@ def merge_saccade_candidates(events, t_min_fix: float = T_MIN_FIX):
 
             duration_sum = current_row["duration"]
             peak_velocities = [current_row["peak_velocity"]]
+            near_blink_flags = [current_row["near_blink"]]
             j = i + 1
 
             while (
@@ -240,6 +241,7 @@ def merge_saccade_candidates(events, t_min_fix: float = T_MIN_FIX):
                 next_row = events.iloc[j]
                 duration_sum += next_row["duration"]
                 peak_velocities.append(next_row["peak_velocity"])
+                near_blink_flags.append(next_row["near_blink"])
                 j += 1
 
             current_row["sacc_end_x"] = next_row["sacc_end_x"]
@@ -251,6 +253,7 @@ def merge_saccade_candidates(events, t_min_fix: float = T_MIN_FIX):
                 next_row["sacc_end_y"],
             )
             current_row["peak_velocity"] = max(peak_velocities)
+            current_row["near_blink"] = any(near_blink_flags)
             current_row["duration"] = duration_sum
             current_row["end_time"] = next_row["end_time"]
             rows_to_keep.append(current_row)

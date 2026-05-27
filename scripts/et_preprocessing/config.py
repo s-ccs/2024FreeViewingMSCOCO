@@ -19,7 +19,6 @@ Content
 
 from pathlib import Path
 
-
 # 1. PATHS
 # =============================================================================
 # Root directory of the BIDS dataset.
@@ -72,7 +71,7 @@ REPORT = True
 # 5. Visualisation — general
 # =============================================================================
 # Eye selection for all plots. Options: "all", "left", "right", "binocular"
-BY_EYE = "all"
+BY_EYE = "right"
 
 # Output figure file format. Options: "svg", "pdf", "eps"
 OUT_FILE_FORMAT = "svg"
@@ -80,8 +79,11 @@ OUT_FILE_FORMAT = "svg"
 
 # 6. Visualisation — main sequence
 # =============================================================================
-# Whether to exclude saccades flagged as 'near a blink'
-DROP_NEAR_BLINKS = True
+# Whether to include saccades flagged as 'near a blink'.
+# TRUE = Flagged Saccades are included in the plot
+# FALSE = Flagged saccades are dropped
+# "highlight" = Flagges saccades are highlighted in the plot
+INCLUDE_NEAR_BLINK_SAC = "highlight"
 
 
 # 7. Visualisation — fixation duration
