@@ -20,7 +20,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from plotting import plot_summary, plot_eye_trace_both_eyes
+from plotting import plot_summary, plot_eye_trace_pre_post_processing
 from config import BLINK_WINDOW_MS
 
 logger = logging.getLogger(__name__)
@@ -152,7 +152,8 @@ def _render_html(
     subject_id: str,
     stats_before: dict,
     stats_after: dict,
-    eye_trace_plot: str,
+    eye_trace_plots_l: list,
+    eye_trace_plots_r: list,
     summary_plot: str,
 ) -> str:
     """
@@ -263,8 +264,48 @@ def _render_html(
                 {tables}
             </div>
             <h2>Eye Trace Merge Comparison</h2>
-            <div class="plot-block">
-                <img src="data:image/png;base64,{eye_trace_plot}" alt="Eye Trace Merge Comparison">
+            <p class="plot-caption">
+                Showing the <strong>top 3 time windows</strong> with the most merging processes
+                following the Hooge et al. (2022) merging procedure. Fixations before merging are shown in
+                <span style="color: mediumseagreen;"><strong>green</strong></span>, after merging in <span style="color: tomato;"><strong>red</strong></span>.
+                Use the arrows to browse all ranked windows.
+            </p>
+            <div class="carousel" id="carousel-left">
+                <button class="carousel-btn prev" onclick="moveCarousel('carousel-left', -1)">&#8592;</button>
+                <div class="carousel-track-wrapper">
+                    <div class="carousel-track">
+                        <div class="carousel-slide">
+                            <p class="slide-label">Rank 1 — most merges</p>
+                            <img src="data:image/png;base64,{eye_trace_plots_l[0]}" alt="Left Eye Rank 1">
+                        </div>
+                        <div class="carousel-slide">
+                            <p class="slide-label">Rank 2</p>
+                            <img src="data:image/png;base64,{eye_trace_plots_l[1]}" alt="Left Eye Rank 2">
+                        </div>
+                        <div class="carousel-slide">
+                            <p class="slide-label">Rank 3</p>
+                            <img src="data:image/png;base64,{eye_trace_plots_l[2]}" alt="Left Eye Rank 3">
+                        </div>
+                        <div class="carousel-slide">
+                            <p class="slide-label">Rank 1 — most merges</p>
+                            <img src="data:image/png;base64,{eye_trace_plots_r[0]}" alt="Left Eye Rank 1">
+                        </div>
+                        <div class="carousel-slide">
+                            <p class="slide-label">Rank 2</p>
+                            <img src="data:image/png;base64,{eye_trace_plots_r[1]}" alt="Left Eye Rank 2">
+                        </div>
+                        <div class="carousel-slide">
+                            <p class="slide-label">Rank 3</p>
+                            <img src="data:image/png;base64,{eye_trace_plots_r[2]}" alt="Left Eye Rank 3">
+                        </div>
+                    </div>
+                </div>
+                <button class="carousel-btn next" onclick="moveCarousel('carousel-left', 1)">&#8594;</button>
+                <div class="carousel-dots" id="dots-carousel-left">
+                    <span class="dot active" onclick="goToSlide('carousel-left', 0)"></span>
+                    <span class="dot" onclick="goToSlide('carousel-left', 1)"></span>
+                    <span class="dot" onclick="goToSlide('carousel-left', 2)"></span>
+                </div>
             </div>
             <h2>Summary Plot After Preprocessing</h2>
             <div class="plot-block">
@@ -287,7 +328,7 @@ def generate_report(
     fix_dur_min: float = 60,
     fix_dur_max: float = 1000,
     sac_dur_max: float = 120,
-    drop_near_blinks: bool = False,
+    include_near_blink_sac: bool | str = True,
 ):
     """
     Generate a self-contained HTML report for one subject, containing summary
@@ -302,7 +343,10 @@ def generate_report(
         fix_dur_min (float, optional): Lower bound for fixation duration (ms). Defaults to 60.
         fix_dur_max (float, optional): Upper bound for fixation duration (ms). Defaults to 1000.
         sac_dur_max (float, optional): Upper bound for saccade duration (ms). Defaults to 120.
-        drop_near_blinks (bool, optional): Exclude near-blink saccades from main sequence. Defaults to False.
+        include_near_blink_sac (bool | str):
+            - True (default): include all saccades in the main sequence panel.
+            - False: exclude near-blink saccades from the main sequence panel.
+            - 'highlight': mark near-blink saccades in orange in the main sequence panel.
     """
     logger.info(f"Computing stats...")
     stats_before = compute_stats(events_raw)
@@ -317,25 +361,35 @@ def generate_report(
         fix_dur_max=fix_dur_max,
         sac_amp_max=sac_amp_max,
         sac_dur_max=sac_dur_max,
-        drop_near_blinks=drop_near_blinks,
+        include_near_blink_sac=include_near_blink_sac,
     )
     summary_plot = _fig_to_base64(fig)
     plt.close(fig)
 
     logger.info("Generating eye trace comparison plot...")
-    fig = plot_eye_trace_both_eyes(
+    figs = plot_eye_trace_pre_post_processing(
         events_before=events_raw,
         events_after=events_merged,
         out_path=None,
         title="Eye Trace Merge Comparison",
-        time_window=(180, 200),
+        top_n=3,
     )
-    eye_trace_plot = _fig_to_base64(fig)
-    plt.close(fig)
 
+    eye_trace_plots_l = []
+    eye_trace_plots_r = []
+    for eye, fig in figs.items():
+        if "L" in eye:
+            eye_trace_plots_l.append(_fig_to_base64(fig))
+        elif "R" in eye:
+            eye_trace_plots_r.append(_fig_to_base64(fig))
     logger.info(f"[{subject_id}] Rendering HTML report...")
     html = _render_html(
-        subject_id, stats_before, stats_after, eye_trace_plot, summary_plot
+        subject_id,
+        stats_before,
+        stats_after,
+        eye_trace_plots_l,
+        eye_trace_plots_r,
+        summary_plot,
     )
 
     out_file = Path(out_path) / f"{subject_id}_report.html"

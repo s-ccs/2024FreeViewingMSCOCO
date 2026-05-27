@@ -26,7 +26,7 @@ from preprocessing import (
     merge_events,
 )
 from plotting import (
-    plot_eye_trace_both_eyes,
+    plot_eye_trace_pre_post_processing,
     plot_main_sequence,
     plot_fixation_duration,
     plot_saccade_amplitude,
@@ -181,13 +181,14 @@ def run_preprocessing(subject_id: str, overwrite: bool) -> bool:
     # 3. pre/post-merge eye trace comparison
     os.makedirs(paths["plots_dir"], exist_ok=True)
     logger.info("Plotting eye trace comparison...")
-    plot_eye_trace_both_eyes(
+    plot_eye_trace_pre_post_processing(
         events_before=events_raw,
         events_after=events_merged,
         out_path=paths["plots_dir"],
         out_file_format="svg",
         title="Eye Trace Merge Comparison",
-        time_window=(180, 200),
+        window_size=20,
+        top_n=3,
     )
 
     if config.REPORT:
@@ -202,7 +203,7 @@ def run_preprocessing(subject_id: str, overwrite: bool) -> bool:
             fix_dur_min=config.FIX_DUR_MIN_MS,
             fix_dur_max=config.FIX_DUR_MAX_MS,
             sac_dur_max=config.SACC_DUR_MAX_MS,
-            drop_near_blinks=config.DROP_NEAR_BLINKS,
+            include_near_blink_sac=config.INCLUDE_NEAR_BLINK_SAC,
         )
 
     return True
@@ -240,7 +241,7 @@ def run_visualisation(subject_id: str) -> bool:
         out_path=out_path,
         out_file_format=config.OUT_FILE_FORMAT,
         by_eye=config.BY_EYE,
-        drop_near_blinks=config.DROP_NEAR_BLINKS,
+        include_near_blink_sac=config.INCLUDE_NEAR_BLINK_SAC,
     )
 
     logger.info("Plotting fixation duration...")
@@ -300,7 +301,7 @@ def run_visualisation(subject_id: str) -> bool:
         fix_dur_max=config.FIX_DUR_MAX_MS,
         sac_amp_max=config.SACC_AMP_MAX_DEG,
         sac_dur_max=config.SACC_DUR_MAX_MS,
-        drop_near_blinks=config.DROP_NEAR_BLINKS,
+        include_near_blink_sac=config.INCLUDE_NEAR_BLINK_SAC,
     )
 
     logger.info(f"--> All figures saved to: {out_path}")

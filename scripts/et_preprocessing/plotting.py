@@ -35,14 +35,15 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 # Eye Trace Comparison (pre/post merge)
 # =============================================================================
-def plot_eye_trace_both_eyes(
+def plot_eye_trace_pre_post_processing(
     events_before: pd.DataFrame,
     events_after: pd.DataFrame,
     out_path: str = None,
     out_file_format: str = "svg",
     title: str = "Eye Trace Merge Comparison",
-    time_window: tuple = None,
-):
+    window_size: int = 20,
+    top_n: int = 3,
+) -> dict:
     """
     Horizontal eye position trace for both eyes with fixation boxes overlaid,
     comparing before and after the Hooge et al. (2022) merging procedure.
@@ -53,116 +54,115 @@ def plot_eye_trace_both_eyes(
         out_path (str): Directory to save the figure. Pass None to skip saving (default).
         out_file_format (str): File extension for saving, e.g. 'svg', 'pdf', 'png'. Defaults to 'svg'.
         title (str, optional): Defaults to 'Eye Trace Merge Comparison'.
-        time_window (tuple, optional): (start_time, end_time) in seconds to zoom into a specific range.
+        time_windows (tuple, optional): (start_time, end_time) in seconds to zoom into a specific range.
+        window_size: TBD update, in seconds
+        top_n: TBD update, top n windows
     """
-    fig, axes = plt.subplots(2, 1, figsize=(15, 8), sharex=True)
+    figs = {}
 
-    for ax_idx, eye in enumerate(["L", "R"]):
-        ax = axes[ax_idx]
-
+    for eye in ["L", "R"]:
         before = events_before[events_before["eye"] == eye].copy()
         after = events_after[events_after["eye"] == eye].copy()
 
-        if time_window:
-            before = before[
-                (before["onset"] >= time_window[0])
-                & (before["onset"] <= time_window[1])
-            ]
-            after = after[
-                (after["onset"] >= time_window[0]) & (after["onset"] <= time_window[1])
-            ]
+        before = before[before["trial_type"] == "fixation"]
+        after = after[after["trial_type"] == "fixation"]
+
+        t_start = before["onset"].min()
+        t_end = before["end_time"].max()
+        windows = np.arange(t_start, t_end, window_size)
+        change_records = []
+
+        for w_start in windows[:-1]:
+            w_end = w_start + window_size
+
+            # number of events before the merging process within the time window
+            n_before = ((before["onset"] >= w_start) & (before["onset"] < w_end)).sum()
+            # number of events after the merging process within the time window
+            n_after = ((after["onset"] >= w_start) & (after["onset"] < w_end)).sum()
+
+            change_records.append((w_start, w_end, int(n_before - n_after)))
+
+        change_records.sort(key=lambda x: x[2], reverse=True)
+        time_windows = change_records[:top_n]
+
+        fig, axes = plt.subplots(top_n, 1, figsize=(14, 3 * top_n), squeeze=False)
+        eye_label = "Left" if eye == "L" else "Right"
+        fig.suptitle(f"{title} — {eye_label} Eye", fontsize=13, fontweight="bold")
 
         pos_col = "fix_avg_x"
-        before_fix = before[before["trial_type"] == "fixation"]
-        after_fix = after[after["trial_type"] == "fixation"]
 
-        # Build trace as isolated horizontal segments per fixation
-        times = []
-        positions = []
-        for _, row in before_fix.iterrows():
-            times.extend([row["onset"], row["end_time"]])
-            positions.extend([row[pos_col], row[pos_col]])
+        for rank, (w_start, w_end, _) in enumerate(time_windows):
+            ax = axes[rank][0]
 
-        ax.plot(
-            times,
-            positions,
-            "k-",
-            linewidth=1.5,
-            alpha=0.8,
-            label="Eye trace" if ax_idx == 0 else "",
-        )
+            w_before = before[(before["onset"] >= w_start) & (before["onset"] < w_end)]
+            w_after = after[(after["onset"] >= w_start) & (after["onset"] < w_end)]
 
-        # Fixation boxes BEFORE merging
-        for idx, row in before_fix.iterrows():
-            y_center = row[pos_col]
-            box_height = 20
-            ax.add_patch(
-                plt.Rectangle(
-                    (row["onset"], y_center - box_height / 2),
-                    row["duration"],
-                    box_height,
-                    facecolor="limegreen",
-                    edgecolor="mediumorchid",
-                    alpha=0.4,
-                    linewidth=1.5,
-                    label=(
-                        "Before merging"
-                        if (ax_idx == 0 and idx == before_fix.index[0])
-                        else ""
-                    ),
+            # Eye trace as horizontal segments per fixation
+            times, positions = [], []
+            for _, row in w_before.iterrows():
+                times.extend([row["onset"], row["end_time"]])
+                positions.extend([row[pos_col], row[pos_col]])
+            if times:
+                ax.plot(
+                    times, positions, "k-", linewidth=1.5, alpha=0.7, label="Eye trace"
                 )
-            )
 
-        # Fixation boxes AFTER merging
-        for idx, row in after_fix.iterrows():
-            y_center = row[pos_col]
-            box_height = 20
-            ax.add_patch(
-                plt.Rectangle(
-                    (row["onset"], y_center - box_height / 2),
-                    row["duration"],
-                    box_height,
-                    facecolor="tomato",
-                    edgecolor="crimson",
-                    alpha=0.6,
-                    linewidth=2,
-                    label=(
-                        "After merging"
-                        if (ax_idx == 0 and idx == after_fix.index[0])
-                        else ""
-                    ),
+            # Before-merge fixation lines
+            for idx, row in w_before.iterrows():
+                ax.hlines(
+                    y=row[pos_col]
+                    + 3,  # 3 pixels offset to visualize overlapping lines
+                    xmin=row["onset"],
+                    xmax=row["onset"] + row["duration"],
+                    colors="mediumseagreen",
+                    linewidth=3,
+                    alpha=0.85,
+                    label="Before" if idx == w_before.index[0] else "",
                 )
+
+            # After-merge fixation lines
+            for idx, row in w_after.iterrows():
+                ax.hlines(
+                    y=row[pos_col]
+                    - 3,  # 3 pixels offset to visualize overlapping lines
+                    xmin=row["onset"],
+                    xmax=row["onset"] + row["duration"],
+                    colors="tomato",
+                    linewidth=3,
+                    alpha=0.85,
+                    label="After" if idx == w_after.index[0] else "",
+                )
+
+            ax.set_xlim(w_start, w_end)
+            ax.set_ylabel("Horiz. pos.", fontsize=9)
+            ax.set_title(
+                f"Eye Trace Plot pre-/post processing  |  t=[{w_start:.2f}s, {w_end:.2f}s]  |  ",
+                fontsize=9,
             )
+            ax.grid(True, alpha=0.3)
+            if rank == 0:
+                ax.legend(loc="upper right", fontsize=8)
 
-        ax.set_ylabel(f"Eye {eye}\nHorizontal position", fontsize=12, fontweight="bold")
-        ax.set_title(
-            f"Eye {eye}: n={len(before_fix)} → {len(after_fix)} fixations",
-            fontsize=11,
-            loc="right",
-            style="italic",
-        )
-        ax.grid(True, alpha=0.3)
+            axes[-1][0].set_xlabel("Time (s)", fontsize=11)
+            fig.tight_layout()
+            if top_n > 1:
+                figs[f"{rank}-{eye}"] = fig
+            else:
+                figs[eye] = fig
 
-        if ax_idx == 0:
-            ax.legend(loc="upper right", fontsize=10)
+            if out_path is not None:
+                eye_str = eye_label.lower()
+                out_file = f"{out_path}/{title.lower().replace(' ', '_')}-{eye_str}Eye_R{rank}.{out_file_format}"
+                fig.savefig(out_file, bbox_inches="tight")
+                logger.info(f"{title} ({eye_label}) plot saved to '{out_file}'")
+            else:
+                logger.warning(
+                    f"{title} ({eye_label}) plot not saved — pass `out_path` to save."
+                )
 
-    axes[-1].set_xlabel("Time (s)", fontsize=12)
-    fig.suptitle(title, fontsize=14, fontweight="bold", y=0.995)
-    fig.tight_layout()
+            plt.show()
 
-    if out_path is not None:
-        out_file = (
-            f"{out_path}/{title.lower().replace(' ', '_')}-bothEyes.{out_file_format}"
-        )
-        fig.savefig(out_file, bbox_inches="tight")
-        logger.info(f"{title} plot saved to '{out_file}'")
-    else:
-        logger.warning(f"{title} plot not saved — pass `out_path` to save.")
-
-    plt.show()
-    plt.close(fig)
-
-    return fig
+    return figs
 
 
 # =============================================================================
@@ -174,58 +174,100 @@ def plot_main_sequence(
     out_file_format: str = "svg",
     by_eye: str = "binocular",
     title: str = "Main Sequence",
-    drop_near_blinks: bool = False,
+    include_near_blink_sac: bool | str = True,
 ):
     """
     Plots main sequence: saccade amplitude vs. peak velocity (log-log).
-    Optionally drops near-blink saccades and/or main-sequence outliers. and logs them.
 
     Args:
         events_df (pd.DataFrame)
         out_path (str): Directory to save the figure. Pass None to skip saving (default).
-        out_file_format (str): File extension for saving, e.g. 'svg', 'pdf', 'svg'. Defaults to 'svg'.
+        out_file_format (str): File extension for saving, e.g. 'svg', 'pdf'. Defaults to 'svg'.
         by_eye (str): One of: 'all', 'left', 'right', 'binocular'. Defaults to 'binocular'.
-        title (str) : Defaults to  'Main Sequence', gets extended by 'by_eye'(blinked-cleaned|' ') # TBD find better description
-        drop_near_blinks (bool, optional): If True, exclude saccades flagged as near a blink. Defaults to False.
+        title (str): Defaults to 'Main Sequence'.
+        include_near_blink_sac (bool | str):
+            - True (default): include all saccades, near-blink ones treated like any other.
+            - False: exclude saccades flagged as near a blink entirely.
+            - 'highlight': include all saccades, but mark near-blink ones in a distinct color.
     """
-
     s = events_df[events_df["trial_type"] == "saccade"].copy()
+    n_total = len(s)
 
-    if drop_near_blinks:
-        s = s[s["near_blink"] == False]
+    near_blink_mask = s["near_blink"] == True
+    n_flagged = near_blink_mask.sum()
+
+    if include_near_blink_sac == False:
+        s = s[~near_blink_mask]
+        logger.info(
+            f"Excluded {n_flagged} of {n_total} saccades flagged as near-blink. "
+            "Set include_near_blink_sac=True to include or 'highlight' to mark them."
+        )
+    elif include_near_blink_sac == "highlight":
+        logger.info(
+            f"Highlighting {n_flagged} of {n_total} saccades flagged as near-blink. "
+            "Set include_near_blink_sac=True to include without marking, "
+            "or False to exclude them."
+        )
 
     if by_eye != "all":
         eye_map = {"left": "L", "right": "R", "binocular": "binocular"}
         s = s[s["eye"] == eye_map[by_eye]]
 
-    base_name = f"{title.lower().replace(' ', '_')}-{by_eye}Eyes" + (
-        "_blinkCleaned" if drop_near_blinks else ""
+    base_name = (
+        f"{title.lower().replace(' ', '_')}-{by_eye}Eyes"
+        + ("_blinkExcluded" if include_near_blink_sac == False else "")
+        + ("_blinkHighlighted" if include_near_blink_sac == "highlight" else "")
     )
 
     fig, ax = plt.subplots()
 
+    def _scatter(sub, label=None):
+        """Scatter normal vs. near-blink saccades within a subset."""
+        if include_near_blink_sac == "highlight":
+            normal = sub[sub["near_blink"] == False]
+            flagged = sub[sub["near_blink"] == True]
+            ax.scatter(
+                normal["sacc_visual_angle"], normal["peak_velocity"], s=10, label=label
+            )
+            if not flagged.empty:
+                ax.scatter(
+                    flagged["sacc_visual_angle"],
+                    flagged["peak_velocity"],
+                    s=10,
+                    color="orange",
+                    alpha=0.6,
+                    label=f"{label} (near blink)" if label else "near blink",
+                )
+        else:
+            ax.scatter(
+                sub["sacc_visual_angle"], sub["peak_velocity"], s=10, label=label
+            )
+
     if by_eye == "all":
         for eye, sub in s.groupby("eye"):
-            ax.scatter(
-                sub["sacc_visual_angle"], sub["peak_velocity"], s=10, label=str(eye)
-            )
+            _scatter(sub, label=str(eye))
         ax.legend(title="Eye")
     else:
-        ax.scatter(s["sacc_visual_angle"], s["peak_velocity"], s=10)
+        _scatter(s)
+        if include_near_blink_sac == "highlight" and n_flagged > 0:
+            ax.legend()
 
     ax.set_xscale("log")
     ax.set_yscale("log")
-    ax.set_ylim(bottom=10)
     ax.set_xlabel("Saccade amplitude (deg)")
     ax.set_ylabel("Peak velocity (deg/s)")
 
     title_map = {
-        "all": "All eyes",
-        "left": "Left eye only",
-        "right": "Right eye only",
-        "both": "Binocular only",
+        "all": "Left, Right and Binocular Gaze",
+        "left": "Left Gaze only",
+        "right": "Right Gaze only",
+        "binocular": "Binocular Gaze only",
     }
-    suffix = "(blink-cleaned)" if drop_near_blinks else ""
+    suffix_map = {
+        False: "(near-blink excluded)",
+        "highlight": "(near-blink highlighted)",
+    }
+    suffix = suffix_map.get(include_near_blink_sac, "")
     ax.set_title(f"{title} — {title_map[by_eye]}" + (f" {suffix}" if suffix else ""))
 
     fig.tight_layout()
@@ -238,7 +280,7 @@ def plot_main_sequence(
     else:
         logger.warning(f"{title} plot not saved — pass `out_path` to save.")
 
-    plt.close(fig)
+    return fig
 
 
 # =============================================================================
@@ -279,7 +321,7 @@ def plot_fixation_duration(
 
     # 2) Filter by eye
     if by_eye != "all":
-        eye_mapping = {"left": "L", "right": "R", "binocular": "both"}
+        eye_mapping = {"left": "L", "right": "R", "binocular": "binocular"}
         chosen_eye = eye_mapping[by_eye]
         fix = fix.query(f"eye == @chosen_eye").copy()
 
@@ -618,8 +660,7 @@ def plot_saccade_angles(
 
         # 5) Save & show
         if out_path is not None:
-            out_file = f"{out_path}/{title.lower().replace(' ', '_')}-{by_eye}Eyes.{out_file_format}"  # noqa: F821
-            plt.savefig(out_file, bbox_inches="tight")
+            out_file = f"{out_path}/{title.lower().replace(' ', '_')}-{by_eye}Eyes.{out_file_format}"
             logger.info(f"Cartesian {title} plot saved to '{out_file}'")
         else:
             logger.warning(
@@ -642,7 +683,7 @@ def plot_summary(
     fix_dur_max: float = 1000,
     sac_amp_max: float = 40,
     sac_dur_max: float = 120,
-    drop_near_blinks: bool = False,
+    include_near_blink_sac: bool | str = True,
 ):
     """
     summary figure combining all core plots into one panel (2×3 grid):
@@ -659,7 +700,10 @@ def plot_summary(
         fix_dur_max (float, optional): Upper bound for fixation duration (ms). Defaults to 1000.
         sac_amp_max (float, optional): Upper bound for saccade amplitude (deg). Defaults to 40.
         sac_dur_max (float, optional): Upper bound for saccade duration (ms). Defaults to 120.
-        drop_near_blinks (bool, optional): If True, exclude near-blink saccades from main sequence. Defaults to False.
+        include_near_blink_sac (bool | str):
+            - True (default): include all saccades in the main sequence panel.
+            - False: exclude near-blink saccades from the main sequence panel.
+            - 'highlight': mark near-blink saccades in orange in the main sequence panel.
     """
     eye_mapping = {"left": "L", "right": "R", "binocular": "both"}
     title_map = {
@@ -689,21 +733,29 @@ def plot_summary(
 
     # 1) Main sequence
     s_ms = sacc_df.copy()
-    if drop_near_blinks:
+    if include_near_blink_sac == False:
         s_ms = s_ms[s_ms["near_blink"] == False]
+
     if by_eye == "all":
         for eye, sub in s_ms.groupby("eye"):
-            ax_ms.scatter(
-                sub["sacc_visual_angle"], sub["peak_velocity"], s=6, label=str(eye)
-            )
+            _ms_scatter(sub, include_near_blink_sac, ax_ms, label=str(eye))
         ax_ms.legend(title="Eye", fontsize=7)
     else:
-        ax_ms.scatter(s_ms["sacc_visual_angle"], s_ms["peak_velocity"], s=6)
+        _ms_scatter(s_ms, include_near_blink_sac, ax_ms)
+        if (
+            include_near_blink_sac == "highlight"
+            and not s_ms[s_ms["near_blink"] == True].empty
+        ):
+            ax_ms.legend(fontsize=7)
+
     ax_ms.set_xscale("log")
     ax_ms.set_yscale("log")
     ax_ms.set_xlabel("Amplitude (deg)")
     ax_ms.set_ylabel("Peak velocity (deg/s)")
-    ax_ms.set_title("Main Sequence")
+    ms_suffix = {False: " (blink excl.)", "highlight": " (blink highlight.)"}.get(
+        include_near_blink_sac, ""
+    )
+    ax_ms.set_title(f"Main Sequence{ms_suffix}")
 
     # 2) Fixation duration
     dur_ms = fix_df["duration"].dropna() * 1000
@@ -782,6 +834,207 @@ def plot_summary(
         logger.warning(f"{title} plot not saved — pass `out_path` to save.")
 
     plt.show()
-    plt.close(fig)
 
     return fig
+
+
+# =============================================================================
+# Summary Plot
+# =============================================================================
+def plot_summary_comparison(
+    events_before: pd.DataFrame,
+    events_after: pd.DataFrame,
+    out_path: str = None,
+    out_file_format: str = "svg",
+    by_eye: str = "binocular",
+    title: str = "Summary",
+    fix_dur_min: float = 60,
+    fix_dur_max: float = 1000,
+    sac_amp_max: float = 40,
+    sac_dur_max: float = 120,
+    include_near_blink_sac: bool | str = True,
+):
+    """
+    summary figure combining all core plots into one panel (2×3 grid):
+        [1] Main sequence         [2] Fixation duration    [3] Fixation frequency
+        [4] Saccade amplitude     [5] Saccade duration     [6] Saccade angles (polar)
+
+    Args:
+        events_df (pd.DataFrame)
+        out_path (str): Directory to save the figure. Pass None to skip saving (default).
+        out_file_format (str): File extension for saving, e.g. 'svg', 'pdf', 'png'. Defaults to 'svg'.
+        by_eye (str): One of: 'all', 'left', 'right', 'binocular'. Defaults to 'binocular'.
+        title (str, optional): Pass None for no title. Defaults to 'Summary Plots'.
+        fix_dur_min (float, optional): Lower bound for fixation duration (ms). Defaults to 60.
+        fix_dur_max (float, optional): Upper bound for fixation duration (ms). Defaults to 1000.
+        sac_amp_max (float, optional): Upper bound for saccade amplitude (deg). Defaults to 40.
+        sac_dur_max (float, optional): Upper bound for saccade duration (ms). Defaults to 120.
+        include_near_blink_sac (bool | str):
+            - True (default): include all saccades in the main sequence panel.
+            - False: exclude near-blink saccades from the main sequence panel.
+            - 'highlight': mark near-blink saccades in orange in the main sequence panel.
+    """
+    eye_mapping = {"left": "L", "right": "R", "binocular": "both"}
+    title_map = {
+        "all": "All eyes",
+        "left": "Left eye only",
+        "right": "Right eye only",
+        "binocular": "Binocular only",
+    }
+
+    # Shared data prep
+    fix_before = events_before[events_before["trial_type"] == "fixation"].copy()
+    sacc_before = events_before[events_before["trial_type"] == "saccade"].copy()
+    fix_after = events_after[events_after["trial_type"] == "fixation"].copy()
+    sacc_after = events_after[events_after["trial_type"] == "saccade"].copy()
+
+    if by_eye != "all":
+        chosen_eye = eye_mapping[by_eye]
+        fix_before = fix_before[fix_before["eye"] == chosen_eye]
+        sacc_before = sacc_before[sacc_before["eye"] == chosen_eye]
+        fix_after = fix_after[fix_after["eye"] == chosen_eye]
+        sacc_after = sacc_after[sacc_after["eye"] == chosen_eye]
+
+    # Figure layout
+    fig = plt.figure(figsize=(16, 10))
+    ax_ms = fig.add_subplot(2, 3, 1)  # main sequence
+    ax_fdur = fig.add_subplot(2, 3, 2)  # fixation duration
+    ax_ffreq = fig.add_subplot(2, 3, 3)  # fixation frequency
+    ax_samp = fig.add_subplot(2, 3, 4)  # saccade amplitude
+    ax_sdur = fig.add_subplot(2, 3, 5)  # saccade duration
+    ax_angles = fig.add_subplot(2, 3, 6, polar=True)  # saccade directions
+
+    # TBD!!!! Everything Below!
+    # 1) Main sequence
+    s_ms = sacc_before.copy()
+    if include_near_blink_sac == False:
+        s_ms = s_ms[s_ms["near_blink"] == False]
+
+    if by_eye == "all":
+        for eye, sub in s_ms.groupby("eye"):
+            _ms_scatter(sub, include_near_blink_sac, ax_ms, label=str(eye))
+        ax_ms.legend(title="Eye", fontsize=7)
+    else:
+        _ms_scatter(s_ms, include_near_blink_sac, ax_ms)
+        if (
+            include_near_blink_sac == "highlight"
+            and not s_ms[s_ms["near_blink"] == True].empty
+        ):
+            ax_ms.legend(fontsize=7)
+
+    ax_ms.set_xscale("log")
+    ax_ms.set_yscale("log")
+    ax_ms.set_xlabel("Amplitude (deg)")
+    ax_ms.set_ylabel("Peak velocity (deg/s)")
+    ms_suffix = {False: " (blink excl.)", "highlight": " (blink highlight.)"}.get(
+        include_near_blink_sac, ""
+    )
+    ax_ms.set_title(f"Main Sequence{ms_suffix}")
+
+    # 2) Fixation duration
+    dur_ms = fix_df["duration"].dropna() * 1000
+    dur_ms = dur_ms[(dur_ms >= fix_dur_min) & (dur_ms <= fix_dur_max)]
+    if dur_ms.empty:
+        logger.warning("Summary: no fixation durations in range, skipping panel.")
+    else:
+        ax_fdur.hist(dur_ms, bins=40, edgecolor="black")
+    ax_fdur.set_xlabel("Duration (ms)")
+    ax_fdur.set_ylabel("Count")
+    ax_fdur.set_title("Fixation Duration")
+
+    # 3) Fixation frequency
+    f_freq = fix_df.copy()
+    f_freq["sec"] = f_freq["onset"].astype(float).floordiv(1).astype(int)
+    fix_per_sec = f_freq.groupby("sec").size()
+    if fix_per_sec.empty:
+        logger.warning("Summary: no fixation frequency data, skipping panel.")
+    else:
+        ax_ffreq.hist(
+            fix_per_sec.values,
+            bins=np.arange(fix_per_sec.max() + 2) - 0.3,
+            width=0.6,
+            edgecolor="black",
+        )
+    ax_ffreq.set_xlim(left=-0.3)
+    ax_ffreq.set_xlabel("Fixations per second")
+    ax_ffreq.set_ylabel("Count")
+    ax_ffreq.set_title("Fixation Frequency")
+
+    # 4) Saccade amplitude
+    all_amp = sacc_df["sacc_visual_angle"].dropna()
+    amp = all_amp[all_amp <= sac_amp_max]
+    if amp.empty:
+        logger.warning("Summary: no saccade amplitudes in range, skipping panel.")
+    else:
+        ax_samp.hist(amp, bins=40, edgecolor="black")
+    ax_samp.set_xlabel("Amplitude (deg)")
+    ax_samp.set_ylabel("Count")
+    ax_samp.set_xlim(left=0)
+    ax_samp.set_title("Saccade Amplitude")
+
+    # 5) Saccade duration
+    all_sdur = (sacc_df["duration"] * 1000).dropna()
+    sdur = all_sdur[all_sdur <= sac_dur_max]
+    if sdur.empty:
+        logger.warning("Summary: no saccade durations in range, skipping panel.")
+    else:
+        ax_sdur.hist(sdur, bins=40, edgecolor="black")
+    ax_sdur.set_xlabel("Duration (ms)")
+    ax_sdur.set_ylabel("Count")
+    ax_sdur.set_xlim(left=0)
+    ax_sdur.set_title("Saccade Duration")
+
+    # Saccade angles (polar)
+    dx = sacc_df["sacc_end_x"] - sacc_df["sacc_start_x"]
+    dy = sacc_df["sacc_end_y"] - sacc_df["sacc_start_y"]
+    angles_deg = (np.degrees(np.arctan2(dy, dx)) + 360) % 360
+    angles_rad = np.deg2rad(angles_deg)
+    ax_angles.hist(angles_rad, bins=36, edgecolor="black")
+    ax_angles.set_theta_zero_location("E")
+    ax_angles.set_theta_direction(1)
+    ax_angles.set_title("Saccade Directions")
+
+    # Title
+    if title is not None:
+        fig.suptitle(f"{title} — {title_map[by_eye]}", fontsize=14, fontweight="bold")
+    fig.tight_layout()
+
+    # Save & show
+    if out_path is not None:
+        out_file = f"{out_path}/{title.lower().replace(' ', '_')}-{by_eye}Eyes.{out_file_format}"
+        fig.savefig(out_file, bbox_inches="tight")
+        logger.info(f"{title} plot saved to '{out_file}'")
+    else:
+        logger.warning(f"{title} plot not saved — pass `out_path` to save.")
+
+    plt.show()
+
+    return fig
+
+
+def _ms_scatter(sub, include_near_blink_sac, ax_ms, label=None):
+    if include_near_blink_sac == "highlight":
+        normal = sub[sub["near_blink"] == False]
+        flagged = sub[sub["near_blink"] == True]
+        ax_ms.scatter(
+            normal["sacc_visual_angle"],
+            normal["peak_velocity"],
+            s=6,
+            label=label,
+        )
+        if not flagged.empty:
+            ax_ms.scatter(
+                flagged["sacc_visual_angle"],
+                flagged["peak_velocity"],
+                s=6,
+                color="orange",
+                alpha=0.6,
+                label=f"{label} (near blink)" if label else "near blink",
+            )
+    else:
+        ax_ms.scatter(
+            sub["sacc_visual_angle"],
+            sub["peak_velocity"],
+            s=6,
+            label=label,
+        )
