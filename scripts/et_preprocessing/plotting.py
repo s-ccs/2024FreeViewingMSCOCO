@@ -221,34 +221,12 @@ def plot_main_sequence(
 
     fig, ax = plt.subplots()
 
-    def _scatter(sub, label=None):
-        """Scatter normal vs. near-blink saccades within a subset."""
-        if include_near_blink_sac == "highlight":
-            normal = sub[sub["near_blink"] == False]
-            flagged = sub[sub["near_blink"] == True]
-            ax.scatter(
-                normal["sacc_visual_angle"], normal["peak_velocity"], s=10, label=label
-            )
-            if not flagged.empty:
-                ax.scatter(
-                    flagged["sacc_visual_angle"],
-                    flagged["peak_velocity"],
-                    s=10,
-                    color="orange",
-                    alpha=0.6,
-                    label=f"{label} (near blink)" if label else "near blink",
-                )
-        else:
-            ax.scatter(
-                sub["sacc_visual_angle"], sub["peak_velocity"], s=10, label=label
-            )
-
     if by_eye == "all":
         for eye, sub in s.groupby("eye"):
-            _scatter(sub, label=str(eye))
+            ms_scatter(sub, include_near_blink_sac, ax, label=str(eye))
         ax.legend(title="Eye")
     else:
-        _scatter(s)
+        ms_scatter(s, include_near_blink_sac, ax)
         if include_near_blink_sac == "highlight" and n_flagged > 0:
             ax.legend()
 
@@ -561,26 +539,28 @@ def plot_fixation_frequency(
     f_df["sec"] = f_df["onset"].astype(float).floordiv(1).astype(int)
     fix_per_sec = f_df.groupby("sec").size()
 
-    plt.figure()
-    plt.hist(
+    fig, ax = plt.subplots()
+    ax.hist(
         fix_per_sec.values,
         bins=np.arange(fix_per_sec.max() + 2) - 0.3,
         width=0.6,
+        edgecolor="black",
     )
-    plt.xlim(left=-0.3)
-    plt.xlabel("Fixation Frequency (per Second)")
-    plt.ylabel("Count")
-    plt.title(title)
+    ax.set_xlim(left=-0.3)
+    ax.set_xlabel("Fixation Frequency (per Second)")
+    ax.set_ylabel("Count")
+    ax.set_title(title)
+    fig.tight_layout()
 
-    # 5) Save & show
     if out_path is not None:
         out_file = f"{out_path}/{title.lower().replace(' ', '_')}-{by_eye}Eyes.{out_file_format}"
-        plt.savefig(out_file, bbox_inches="tight")
+        fig.savefig(out_file, bbox_inches="tight")
         logger.info(f"{title} plot saved to '{out_file}'")
     else:
         logger.warning(f"{title} plot not saved — pass `out_path` to save.")
 
     plt.show()
+    return fig
 
 
 # =============================================================================
@@ -733,15 +713,28 @@ def plot_summary(
 
     # 1) Main sequence
     s_ms = sacc_df.copy()
+    blink_saccade_mask = s_ms["near_blink"] == True
+    n_flagged = blink_saccade_mask.sum()
+
     if include_near_blink_sac == False:
-        s_ms = s_ms[s_ms["near_blink"] == False]
+        s_ms = s_ms[~blink_saccade_mask]
+        logger.info(
+            f"Excluded {n_flagged} of {len(s_ms)} saccades flagged as blink saccades. "
+            "Set include_near_blink_sac=True to include or 'highlight' to mark them."
+        )
+    elif include_near_blink_sac == "highlight":
+        logger.info(
+            f"Highlighting {n_flagged} of {len(s_ms)} saccades flagged as blink saccades. "
+            "Set include_near_blink_sac=True to include without marking, "
+            "or False to exclude them."
+        )
 
     if by_eye == "all":
         for eye, sub in s_ms.groupby("eye"):
-            _ms_scatter(sub, include_near_blink_sac, ax_ms, label=str(eye))
+            ms_scatter(sub, include_near_blink_sac, ax_ms, label=str(eye))
         ax_ms.legend(title="Eye", fontsize=7)
     else:
-        _ms_scatter(s_ms, include_near_blink_sac, ax_ms)
+        ms_scatter(s_ms, include_near_blink_sac, ax_ms)
         if (
             include_near_blink_sac == "highlight"
             and not s_ms[s_ms["near_blink"] == True].empty
@@ -883,17 +876,19 @@ def plot_summary_comparison(
     }
 
     # Shared data prep
+    events_before["processing_stage"] = "before"
+    events_after["processing_stage"] = "after"
     fix_before = events_before[events_before["trial_type"] == "fixation"].copy()
-    sacc_before = events_before[events_before["trial_type"] == "saccade"].copy()
     fix_after = events_after[events_after["trial_type"] == "fixation"].copy()
+    fix_df = pd.concat([fix_before, fix_after], ignore_index=True)
+    sacc_before = events_before[events_before["trial_type"] == "saccade"].copy()
     sacc_after = events_after[events_after["trial_type"] == "saccade"].copy()
+    sacc_df = pd.concat([sacc_before, sacc_after], ignore_index=True)
 
     if by_eye != "all":
         chosen_eye = eye_mapping[by_eye]
-        fix_before = fix_before[fix_before["eye"] == chosen_eye]
-        sacc_before = sacc_before[sacc_before["eye"] == chosen_eye]
-        fix_after = fix_after[fix_after["eye"] == chosen_eye]
-        sacc_after = sacc_after[sacc_after["eye"] == chosen_eye]
+        fix_df = fix_df[fix_df["eye"] == chosen_eye]
+        sacc_df = sacc_df[sacc_df["eye"] == chosen_eye]
 
     # Figure layout
     fig = plt.figure(figsize=(16, 10))
@@ -904,18 +899,30 @@ def plot_summary_comparison(
     ax_sdur = fig.add_subplot(2, 3, 5)  # saccade duration
     ax_angles = fig.add_subplot(2, 3, 6, polar=True)  # saccade directions
 
-    # TBD!!!! Everything Below!
     # 1) Main sequence
-    s_ms = sacc_before.copy()
+    s_ms = sacc_df.copy()
+    blink_saccade_mask = s_ms["near_blink"] == True
+    n_flagged = blink_saccade_mask.sum()
+
     if include_near_blink_sac == False:
-        s_ms = s_ms[s_ms["near_blink"] == False]
+        s_ms = s_ms[~blink_saccade_mask]
+        logger.info(
+            f"Excluded {n_flagged} of {len(s_ms)} saccades flagged as blink saccades. "
+            "Set include_near_blink_sac=True to include or 'highlight' to mark them."
+        )
+    elif include_near_blink_sac == "highlight":
+        logger.info(
+            f"Highlighting {n_flagged} of {len(s_ms)} saccades flagged as blink saccades. "
+            "Set include_near_blink_sac=True to include without marking, "
+            "or False to exclude them."
+        )
 
     if by_eye == "all":
         for eye, sub in s_ms.groupby("eye"):
-            _ms_scatter(sub, include_near_blink_sac, ax_ms, label=str(eye))
+            ms_scatter(sub, include_near_blink_sac, ax_ms, label=str(eye))
         ax_ms.legend(title="Eye", fontsize=7)
     else:
-        _ms_scatter(s_ms, include_near_blink_sac, ax_ms)
+        ms_scatter(s_ms, include_near_blink_sac, ax_ms)
         if (
             include_near_blink_sac == "highlight"
             and not s_ms[s_ms["near_blink"] == True].empty
@@ -932,67 +939,258 @@ def plot_summary_comparison(
     ax_ms.set_title(f"Main Sequence{ms_suffix}")
 
     # 2) Fixation duration
-    dur_ms = fix_df["duration"].dropna() * 1000
-    dur_ms = dur_ms[(dur_ms >= fix_dur_min) & (dur_ms <= fix_dur_max)]
-    if dur_ms.empty:
-        logger.warning("Summary: no fixation durations in range, skipping panel.")
-    else:
-        ax_fdur.hist(dur_ms, bins=40, edgecolor="black")
+    fix_dur_before = fix_before.dropna() * 1000
+    fix_dur_after = fix_after.dropna() * 1000
+    total_fixations_before = len(fix_dur_before)
+    total_fixations_after = len(fix_dur_after)
+    fix_dur_before = fix_dur_before[
+        (fix_dur_before >= fix_dur_min) & (fix_dur_before <= fix_dur_max)
+    ]
+    fix_dur_after = fix_dur_after[
+        (fix_dur_after >= fix_dur_min) & (fix_dur_after <= fix_dur_max)
+    ]
+    n_dropped_before = total_fixations_before - len(fix_dur_before)
+    n_dropped_after = total_fixations_after - len(fix_dur_after)
+
+    logger.info(
+        f"Total fixations: {total_fixations_before + total_fixations_after}, Fixations before preprocessing: {total_fixations_before}, Fixations after preprocessing: {total_fixations_after}"
+    )
+    logger.info(
+        f"Kept fixations in range for plotting [{fix_dur_min}, {fix_dur_max}] ms: Total {len(fix_dur_before) + len(fix_dur_after)}, Fixations before preprocessing: {len(fix_dur_before)}, Fixations after preprocessing: {len(fix_dur_after)}"
+    )
+    logger.info(
+        f"Dropped fixations outside range: Total {n_dropped_before + n_dropped_after}, Before: {n_dropped_before}, After: {n_dropped_after}"
+    )
+
+    ax_fdur.hist(
+        [fix_dur_before, fix_dur_after],
+        bins=40,
+        edgecolor="black",
+        stacked=True,
+        color=["#0072B2", "#009E73"],
+        label=["Before Preprocessing", "After Preprocessing"],
+    )
     ax_fdur.set_xlabel("Duration (ms)")
     ax_fdur.set_ylabel("Count")
-    ax_fdur.set_title("Fixation Duration")
+    ax_fdur.set_title("Fixation Duration (before vs. after)")
 
     # 3) Fixation frequency
-    f_freq = fix_df.copy()
-    f_freq["sec"] = f_freq["onset"].astype(float).floordiv(1).astype(int)
-    fix_per_sec = f_freq.groupby("sec").size()
-    if fix_per_sec.empty:
-        logger.warning("Summary: no fixation frequency data, skipping panel.")
-    else:
-        ax_ffreq.hist(
-            fix_per_sec.values,
-            bins=np.arange(fix_per_sec.max() + 2) - 0.3,
-            width=0.6,
-            edgecolor="black",
-        )
+    f_freq_before = fix_before.copy()
+    f_freq_before["sec"] = f_freq_before["onset"].astype(float).floordiv(1).astype(int)
+    fix_per_sec_before = f_freq_before.groupby("sec").size()
+
+    f_freq_after = fix_after.copy()
+    f_freq_after["sec"] = f_freq_after["onset"].astype(float).floordiv(1).astype(int)
+    fix_per_sec_after = f_freq_after.groupby("sec").size()
+
+    logger.info(
+        f"Seconds with fixations: Total {len(fix_per_sec_before) + len(fix_per_sec_after)}, "
+        f"Before preprocessing: {len(fix_per_sec_before)}, After preprocessing: {len(fix_per_sec_after)}"
+    )
+    logger.info(
+        f"Fixations counted: Total {fix_per_sec_before.sum() + fix_per_sec_after.sum()}, "
+        f"Before preprocessing: {fix_per_sec_before.sum()}, After preprocessing: {fix_per_sec_after.sum()}"
+    )
+    logger.info(
+        f"Mean fixations/s: Before preprocessing: {fix_per_sec_before.mean():.2f}, "
+        f"After preprocessing: {fix_per_sec_after.mean():.2f}"
+    )
+    logger.info(
+        f"Max fixations/s: Before preprocessing: {fix_per_sec_before.max()}, "
+        f"After preprocessing: {fix_per_sec_after.max()}"
+    )
+
+    max_val = max(fix_per_sec_before.max(), fix_per_sec_after.max())
+    ax_ffreq.hist(
+        [fix_per_sec_before.values, fix_per_sec_after.values],
+        bins=np.arange(max_val + 2) - 0.3,
+        width=0.6,
+        edgecolor="black",
+        stacked=True,
+        color=["#0072B2", "#009E73"],
+        label=["Before Preprocessing", "After Preprocessing"],
+    )
+
     ax_ffreq.set_xlim(left=-0.3)
     ax_ffreq.set_xlabel("Fixations per second")
     ax_ffreq.set_ylabel("Count")
     ax_ffreq.set_title("Fixation Frequency")
 
     # 4) Saccade amplitude
-    all_amp = sacc_df["sacc_visual_angle"].dropna()
-    amp = all_amp[all_amp <= sac_amp_max]
-    if amp.empty:
+    blink_mask_before = sacc_before["near_blink"] == True
+    blink_mask_after = sacc_after["near_blink"] == True
+    n_flagged_before = blink_mask_before.sum()
+    n_flagged_after = blink_mask_after.sum()
+
+    samp_before = sacc_before.copy()
+    samp_after = sacc_after.copy()
+
+    if include_near_blink_sac == False:
+        samp_before = samp_before[~blink_mask_before]
+        samp_after = samp_after[~blink_mask_after]
+        logger.info(
+            f"Saccade amplitude (blink saccades excluded): "
+            f"Before preprocessing: {n_flagged_before}, After preprocessing: {n_flagged_after}"
+        )
+    elif include_near_blink_sac == "highlight" or include_near_blink_sac == True:
+        logger.info(
+            f"Saccade amplitude (blink saccades included, but no visual highlight in histogram for a cleaner overview): "
+            f"Before preprocessing: {n_flagged_before}, After preprocessing: {n_flagged_after}"
+        )
+
+    all_amp_before = samp_before["sacc_visual_angle"].dropna()
+    all_amp_after = samp_after["sacc_visual_angle"].dropna()
+    amp_before = all_amp_before[all_amp_before <= sac_amp_max]
+    amp_after = all_amp_after[all_amp_after <= sac_amp_max]
+    n_dropped_before = len(all_amp_before) - len(amp_before)
+    n_dropped_after = len(all_amp_after) - len(amp_after)
+
+    logger.info(
+        f"Total saccades: Total {len(all_amp_before) + len(all_amp_after)}, "
+        f"Before preprocessing: {len(all_amp_before)}, After preprocessing: {len(all_amp_after)}"
+    )
+    logger.info(
+        f"Kept saccades for plotting (<={sac_amp_max}°): Total {len(amp_before) + len(amp_after)}, "
+        f"Before preprocessing: {len(amp_before)}, After preprocessing: {len(amp_after)}"
+    )
+    logger.info(
+        f"Dropped saccades outside range (>{sac_amp_max}°): Total {n_dropped_before + n_dropped_after}, "
+        f"Before preprocessing: {n_dropped_before}, After preprocessing: {n_dropped_after}"
+    )
+
+    if amp_before.empty and amp_after.empty:
         logger.warning("Summary: no saccade amplitudes in range, skipping panel.")
     else:
-        ax_samp.hist(amp, bins=40, edgecolor="black")
+        ax_samp.hist(
+            [amp_before.values, amp_after.values],
+            bins=40,
+            edgecolor="black",
+            stacked=True,
+            color=["#0072B2", "#009E73"],
+            label=["Before Preprocessing", "After Preprocessing"],
+        )
     ax_samp.set_xlabel("Amplitude (deg)")
     ax_samp.set_ylabel("Count")
     ax_samp.set_xlim(left=0)
-    ax_samp.set_title("Saccade Amplitude")
+    amp_suffix = {False: " (blink excl.)", "highlight": " (blink incl.)"}.get(
+        include_near_blink_sac, ""
+    )
+    ax_samp.set_title(f"Saccade Amplitude{amp_suffix}")
 
     # 5) Saccade duration
-    all_sdur = (sacc_df["duration"] * 1000).dropna()
-    sdur = all_sdur[all_sdur <= sac_dur_max]
-    if sdur.empty:
+    blink_mask_before = sacc_before["near_blink"] == True
+    blink_mask_after = sacc_after["near_blink"] == True
+    n_flagged_before = blink_mask_before.sum()
+    n_flagged_after = blink_mask_after.sum()
+
+    sdur_before_df = sacc_before.copy()
+    sdur_after_df = sacc_after.copy()
+
+    if include_near_blink_sac == False:
+        sdur_before_df = sdur_before_df[~blink_mask_before]
+        sdur_after_df = sdur_after_df[~blink_mask_after]
+        logger.info(
+            f"Saccade duration — excluded blink saccades: "
+            f"Before preprocessing: {n_flagged_before}, After preprocessing: {n_flagged_after}"
+        )
+    elif include_near_blink_sac == "highlight" or include_near_blink_sac == True:
+        logger.info(
+            f"Saccade duration (blink saccades included, but no visual highlight in histogram for a cleaner overview): "
+            f"Before preprocessing: {n_flagged_before}, After preprocessing: {n_flagged_after}"
+        )
+
+    all_sdur_before = (sdur_before_df["duration"] * 1000).dropna()
+    all_sdur_after = (sdur_after_df["duration"] * 1000).dropna()
+    sdur_before = all_sdur_before[all_sdur_before <= sac_dur_max]
+    sdur_after = all_sdur_after[all_sdur_after <= sac_dur_max]
+    n_dropped_before = len(all_sdur_before) - len(sdur_before)
+    n_dropped_after = len(all_sdur_after) - len(sdur_after)
+
+    logger.info(
+        f"Total saccades: Total {len(all_sdur_before) + len(all_sdur_after)}, "
+        f"Before preprocessing: {len(all_sdur_before)}, After preprocessing: {len(all_sdur_after)}"
+    )
+    logger.info(
+        f"Kept saccades for plotting (<={sac_dur_max} ms): Total {len(sdur_before) + len(sdur_after)}, "
+        f"Before preprocessing: {len(sdur_before)}, After preprocessing: {len(sdur_after)}"
+    )
+    logger.info(
+        f"Dropped saccades outside range (>{sac_dur_max} ms): Total {n_dropped_before + n_dropped_after}, "
+        f"Before preprocessing: {n_dropped_before}, After preprocessing: {n_dropped_after}"
+    )
+
+    if sdur_before.empty and sdur_after.empty:
         logger.warning("Summary: no saccade durations in range, skipping panel.")
     else:
-        ax_sdur.hist(sdur, bins=40, edgecolor="black")
+        ax_sdur.hist(
+            [sdur_before.values, sdur_after.values],
+            bins=40,
+            edgecolor="black",
+            stacked=True,
+            color=["#0072B2", "#009E73"],
+            label=["Before Preprocessing", "After Preprocessing"],
+        )
     ax_sdur.set_xlabel("Duration (ms)")
     ax_sdur.set_ylabel("Count")
     ax_sdur.set_xlim(left=0)
-    ax_sdur.set_title("Saccade Duration")
+    sdur_suffix = {False: " (blink excl.)", "highlight": " (blink incl.)"}.get(
+        include_near_blink_sac, ""
+    )
+    ax_sdur.set_title(f"Saccade Duration{sdur_suffix}")
 
     # Saccade angles (polar)
-    dx = sacc_df["sacc_end_x"] - sacc_df["sacc_start_x"]
-    dy = sacc_df["sacc_end_y"] - sacc_df["sacc_start_y"]
-    angles_deg = (np.degrees(np.arctan2(dy, dx)) + 360) % 360
-    angles_rad = np.deg2rad(angles_deg)
-    ax_angles.hist(angles_rad, bins=36, edgecolor="black")
+    blink_mask_before = sacc_before["near_blink"] == True
+    blink_mask_after = sacc_after["near_blink"] == True
+    n_flagged_before = blink_mask_before.sum()
+    n_flagged_after = blink_mask_after.sum()
+
+    sang_before = sacc_before.copy()
+    sang_after = sacc_after.copy()
+
+    if include_near_blink_sac == False:
+        sang_before = sang_before[~blink_mask_before]
+        sang_after = sang_after[~blink_mask_after]
+        logger.info(
+            f"Saccade directions — excluded blink saccades: "
+            f"Before preprocessing: {n_flagged_before}, After preprocessing: {n_flagged_after}"
+        )
+    elif include_near_blink_sac == "highlight" or include_near_blink_sac == True:
+        logger.info(
+            f"Saccade directions (blink saccades included, but no visual highlight in histogram for a cleaner overview): "
+            f"Before preprocessing: {n_flagged_before}, After preprocessing: {n_flagged_after}"
+        )
+
+    dx_before = sang_before["sacc_end_x"] - sang_before["sacc_start_x"]
+    dy_before = sang_before["sacc_end_y"] - sang_before["sacc_start_y"]
+    angles_rad_before = np.deg2rad(
+        (np.degrees(np.arctan2(dy_before, dx_before)) + 360) % 360
+    )
+
+    dx_after = sang_after["sacc_end_x"] - sang_after["sacc_start_x"]
+    dy_after = sang_after["sacc_end_y"] - sang_after["sacc_start_y"]
+    angles_rad_after = np.deg2rad(
+        (np.degrees(np.arctan2(dy_after, dx_after)) + 360) % 360
+    )
+
+    logger.info(
+        f"Total saccades for direction plot: Total {len(angles_rad_before) + len(angles_rad_after)}, "
+        f"Before preprocessing: {len(angles_rad_before)}, After preprocessing: {len(angles_rad_after)}"
+    )
+
+    ax_angles.hist(
+        [angles_rad_before, angles_rad_after],
+        bins=36,
+        edgecolor="black",
+        stacked=True,
+        color=["#0072B2", "#009E73"],
+        label=["Before Preprocessing", "After Preprocessing"],
+    )
     ax_angles.set_theta_zero_location("E")
     ax_angles.set_theta_direction(1)
-    ax_angles.set_title("Saccade Directions")
+    ang_suffix = {False: " (blink excl.)", "highlight": " (blink incl.)"}.get(
+        include_near_blink_sac, ""
+    )
+    ax_angles.set_title(f"Saccade Directions{ang_suffix}")
 
     # Title
     if title is not None:
@@ -1012,14 +1210,66 @@ def plot_summary_comparison(
     return fig
 
 
-def _ms_scatter(sub, include_near_blink_sac, ax_ms, label=None):
-    if include_near_blink_sac == "highlight":
+def ms_scatter(sub, include_near_blink_sac, ax_ms, label=None):
+    if "processing_stage" in sub.columns:
+        before = sub[sub["processing_stage"] == "before"]
+        after = sub[sub["processing_stage"] == "after"]
+
+        if include_near_blink_sac == "highlight":
+            ax_ms.scatter(
+                before.loc[before["near_blink"] == False, "sacc_visual_angle"],
+                before.loc[before["near_blink"] == False, "peak_velocity"],
+                s=6,
+                color="#0072B2",
+                alpha=0.6,
+                label="before preprocessing",
+            )
+            ax_ms.scatter(
+                after.loc[after["near_blink"] == False, "sacc_visual_angle"],
+                after.loc[after["near_blink"] == False, "peak_velocity"],
+                s=6,
+                color="#009E73",
+                alpha=0.6,
+                label="after preprocessing",
+            )
+            flagged = before[
+                before["near_blink"] == True
+            ]  # in beiden Stages gleich laut deiner Annahme
+            if not flagged.empty:
+                ax_ms.scatter(
+                    flagged["sacc_visual_angle"],
+                    flagged["peak_velocity"],
+                    s=6,
+                    color="#E69F00",
+                    alpha=0.6,
+                    label="blink saccade",
+                )
+        else:
+            ax_ms.scatter(
+                before["sacc_visual_angle"],
+                before["peak_velocity"],
+                s=6,
+                color="#0072B2",
+                alpha=0.6,
+                label="before preprocessing",
+            )
+            ax_ms.scatter(
+                after["sacc_visual_angle"],
+                after["peak_velocity"],
+                s=6,
+                color="#009E73",
+                alpha=0.6,
+                label="after preprocessing",
+            )
+
+    elif include_near_blink_sac == "highlight":
         normal = sub[sub["near_blink"] == False]
         flagged = sub[sub["near_blink"] == True]
         ax_ms.scatter(
             normal["sacc_visual_angle"],
             normal["peak_velocity"],
             s=6,
+            color="#0072B2",
             label=label,
         )
         if not flagged.empty:
@@ -1027,9 +1277,9 @@ def _ms_scatter(sub, include_near_blink_sac, ax_ms, label=None):
                 flagged["sacc_visual_angle"],
                 flagged["peak_velocity"],
                 s=6,
-                color="orange",
+                color="#E69F00",
                 alpha=0.6,
-                label=f"{label} (near blink)" if label else "near blink",
+                label="blink saccade",
             )
     else:
         ax_ms.scatter(

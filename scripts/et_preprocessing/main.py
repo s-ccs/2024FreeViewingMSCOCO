@@ -167,7 +167,7 @@ def run_preprocessing(subject_id: str, overwrite: bool) -> bool:
         f"t_min_fix={config.T_MIN_FIX * 1000:.0f} ms, "
         f"blink_window={config.BLINK_WINDOW_MS:.0f} ms)..."
     )
-    events_merged = merge_events(
+    events_merged, merger_doc = merge_events(
         events_raw,
         a_min=config.A_MIN,
         t_min_fix=config.T_MIN_FIX,
@@ -236,13 +236,14 @@ def run_visualisation(subject_id: str) -> bool:
     os.makedirs(out_path, exist_ok=True)
 
     logger.info("Plotting main sequence...")
-    plot_main_sequence(
+    fig = plot_main_sequence(
         events_df=events,
         out_path=out_path,
         out_file_format=config.OUT_FILE_FORMAT,
         by_eye=config.BY_EYE,
         include_near_blink_sac=config.INCLUDE_NEAR_BLINK_SAC,
     )
+    plt.close(fig)
 
     logger.info("Plotting fixation duration...")
     plot_fixation_duration(
@@ -273,12 +274,13 @@ def run_visualisation(subject_id: str) -> bool:
     )
 
     logger.info("Plotting fixation frequency...")
-    plot_fixation_frequency(
+    fig = plot_fixation_frequency(
         events_df=events,
         by_eye=config.BY_EYE,
         out_path=out_path,
         out_file_format=config.OUT_FILE_FORMAT,
     )
+    plt.close(fig)
 
     logger.info("Plotting saccade angular histogram...")
     plot_saccade_angles(
@@ -291,7 +293,7 @@ def run_visualisation(subject_id: str) -> bool:
     )
 
     logger.info("Plotting summary...")
-    plot_summary(
+    fig = plot_summary(
         events_df=events,
         out_path=out_path,
         out_file_format=config.OUT_FILE_FORMAT,
@@ -303,6 +305,7 @@ def run_visualisation(subject_id: str) -> bool:
         sac_dur_max=config.SACC_DUR_MAX_MS,
         include_near_blink_sac=config.INCLUDE_NEAR_BLINK_SAC,
     )
+    plt.close(fig)
 
     logger.info(f"--> All figures saved to: {out_path}")
     return True
