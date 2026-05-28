@@ -98,6 +98,20 @@ def merge_events(
     logger.info("Stage 2: merging saccade candidates (dropping short fixations)...")
     s2 = merge_saccade_candidates(s1, t_min_fix)
     logger.info(f"Merging complete. Events before: {len(events)}, after: {len(s2)}")
+
+    pre_fix = len(events[events["trial_type"] == "fixation"])
+    s1_fix = len(s1[s1["trial_type"] == "fixation"])
+    s2_fix = len(s2[s2["trial_type"] == "fixation"])
+    logger.info(
+        f"Fixations: before={pre_fix}, after stage 1={s1_fix}, after stage 2={s2_fix}"
+    )
+    pre_sac = len(events[events["trial_type"] == "saccade"])
+    s1_sac = len(s1[s1["trial_type"] == "saccade"])
+    s2_sac = len(s2[s2["trial_type"] == "saccade"])
+    logger.info(
+        f"Saccades: before={pre_sac}, after stage 1={s1_sac}, after stage 2={s2_sac}"
+    )
+
     return s2
 
 

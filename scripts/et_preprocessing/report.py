@@ -254,6 +254,66 @@ def _render_html(
                 details > table {{
                     margin-top: 8px;
                 }}
+                /* ── Carousel ── */
+                .carousel {{
+                    position: relative;
+                    background: #fff;
+                    border: 1px solid #ddd;
+                    border-radius: 6px;
+                    padding: 40px 60px 24px;
+                    margin-bottom: 32px;
+                }}
+                .carousel-track-wrapper {{
+                    overflow: hidden;
+                }}
+                .carousel-track {{
+                    display: flex;
+                    transition: transform 0.3s ease;
+                }}
+                .carousel-slide {{
+                    min-width: 100%;
+                    text-align: center;
+                }}
+                .carousel-btn {{
+                    position: absolute;
+                    top: 50%;
+                    transform: translateY(-50%);
+                    background: rgba(255,255,255,0.9);
+                    border: 1px solid #ccc;
+                    border-radius: 50%;
+                    width: 36px;
+                    height: 36px;
+                    cursor: pointer;
+                    font-size: 1.1em;
+                    z-index: 10;
+                }}
+                .carousel-btn.prev {{ left: 10px; }}
+                .carousel-btn.next {{ right: 10px; }}
+                .carousel-dots {{
+                    text-align: center;
+                    margin-top: 12px;
+                }}
+                .dot {{
+                    display: inline-block;
+                    width: 9px;
+                    height: 9px;
+                    border-radius: 50%;
+                    background: #ccc;
+                    margin: 0 4px;
+                    cursor: pointer;
+                    transition: background 0.2s;
+                }}
+                .dot.active {{ background: #2c3e50; }}
+                .slide-label {{
+                    font-size: 0.85em;
+                    color: #888;
+                    margin-bottom: 8px;
+                }}
+                .plot-caption {{
+                    color: #555;
+                    font-size: 0.9em;
+                    margin-bottom: 16px;
+                }}
             </style>
         </head>
         <body>
@@ -275,42 +335,66 @@ def _render_html(
                 <div class="carousel-track-wrapper">
                     <div class="carousel-track">
                         <div class="carousel-slide">
-                            <p class="slide-label">Rank 1 — most merges</p>
+                            <p class="slide-label">Left Eye — Rank 1 (most merges)</p>
                             <img src="data:image/png;base64,{eye_trace_plots_l[0]}" alt="Left Eye Rank 1">
                         </div>
                         <div class="carousel-slide">
-                            <p class="slide-label">Rank 2</p>
+                            <p class="slide-label">Left Eye — Rank 2</p>
                             <img src="data:image/png;base64,{eye_trace_plots_l[1]}" alt="Left Eye Rank 2">
                         </div>
                         <div class="carousel-slide">
-                            <p class="slide-label">Rank 3</p>
+                            <p class="slide-label">Left Eye — Rank 3</p>
                             <img src="data:image/png;base64,{eye_trace_plots_l[2]}" alt="Left Eye Rank 3">
                         </div>
                         <div class="carousel-slide">
-                            <p class="slide-label">Rank 1 — most merges</p>
-                            <img src="data:image/png;base64,{eye_trace_plots_r[0]}" alt="Left Eye Rank 1">
+                            <p class="slide-label">Right Eye — Rank 1 (most merges)</p>
+                            <img src="data:image/png;base64,{eye_trace_plots_r[0]}" alt="Right Eye Rank 1">
                         </div>
                         <div class="carousel-slide">
-                            <p class="slide-label">Rank 2</p>
-                            <img src="data:image/png;base64,{eye_trace_plots_r[1]}" alt="Left Eye Rank 2">
+                            <p class="slide-label">Right Eye — Rank 2</p>
+                            <img src="data:image/png;base64,{eye_trace_plots_r[1]}" alt="Right Eye Rank 2">
                         </div>
                         <div class="carousel-slide">
-                            <p class="slide-label">Rank 3</p>
-                            <img src="data:image/png;base64,{eye_trace_plots_r[2]}" alt="Left Eye Rank 3">
+                            <p class="slide-label">Right Eye — Rank 3</p>
+                            <img src="data:image/png;base64,{eye_trace_plots_r[2]}" alt="Right Eye Rank 3">
                         </div>
                     </div>
                 </div>
                 <button class="carousel-btn next" onclick="moveCarousel('carousel-left', 1)">&#8594;</button>
                 <div class="carousel-dots" id="dots-carousel-left">
-                    <span class="dot active" onclick="goToSlide('carousel-left', 0)"></span>
-                    <span class="dot" onclick="goToSlide('carousel-left', 1)"></span>
-                    <span class="dot" onclick="goToSlide('carousel-left', 2)"></span>
+                    <span class="dot active" onclick="goToSlide('carousel-left', 0)" title="Left Eye — Rank 1"></span>
+                    <span class="dot" onclick="goToSlide('carousel-left', 1)" title="Left Eye — Rank 2"></span>
+                    <span class="dot" onclick="goToSlide('carousel-left', 2)" title="Left Eye — Rank 3"></span>
+                    <span class="dot" onclick="goToSlide('carousel-left', 3)" title="Right Eye — Rank 1"></span>
+                    <span class="dot" onclick="goToSlide('carousel-left', 4)" title="Right Eye — Rank 2"></span>
+                    <span class="dot" onclick="goToSlide('carousel-left', 5)" title="Right Eye — Rank 3"></span>
                 </div>
             </div>
             <h2>Summary Plot After Preprocessing</h2>
             <div class="plot-block">
                 <img src="data:image/png;base64,{summary_plot}" alt="Summary plot">
             </div>
+        <script>
+            function moveCarousel(id, direction) {{
+                const carousel = document.getElementById(id);
+                const track = carousel.querySelector('.carousel-track');
+                const slides = track.querySelectorAll('.carousel-slide');
+                const dots = carousel.querySelectorAll('.dot');
+                let current = parseInt(carousel.dataset.current || 0);
+                current = (current + direction + slides.length) % slides.length;
+                carousel.dataset.current = current;
+                track.style.transform = 'translateX(-' + (current * 100) + '%)';
+                dots.forEach(function(d, i) {{ d.classList.toggle('active', i === current); }});
+            }}
+            function goToSlide(id, index) {{
+                const carousel = document.getElementById(id);
+                const track = carousel.querySelector('.carousel-track');
+                const dots = carousel.querySelectorAll('.dot');
+                carousel.dataset.current = index;
+                track.style.transform = 'translateX(-' + (index * 100) + '%)';
+                dots.forEach(function(d, i) {{ d.classList.toggle('active', i === index); }});
+            }}
+        </script>
         </body>
         </html>"""
 
