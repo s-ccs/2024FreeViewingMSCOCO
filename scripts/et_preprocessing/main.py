@@ -23,7 +23,7 @@ import pandas as pd
 import config
 from preprocessing import (
     load_subject_tsv,
-    merge_events,
+    merge_fixation_candidates,
 )
 from plotting import (
     plot_eye_trace_pre_post_processing,
@@ -167,10 +167,9 @@ def run_preprocessing(subject_id: str, overwrite: bool) -> bool:
         f"t_min_fix={config.T_MIN_FIX * 1000:.0f} ms, "
         f"blink_window={config.BLINK_WINDOW_MS:.0f} ms)..."
     )
-    events_merged, merger_doc = merge_events(
+    events_merged = merge_fixation_candidates(
         events_raw,
         a_min=config.A_MIN,
-        t_min_fix=config.T_MIN_FIX,
     )
 
     # Save
