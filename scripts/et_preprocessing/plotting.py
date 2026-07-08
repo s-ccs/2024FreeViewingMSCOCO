@@ -664,7 +664,7 @@ def plot_summary(
     sac_amp_max: float = 40,
     sac_dur_max: float = 120,
     include_near_blink_sac: bool | str = True,
-):
+):  # *kwargs?! TBD update with kwargs for individual plot options?
     """
     summary figure combining all core plots into one panel (2×3 grid):
         [1] Main sequence         [2] Fixation duration    [3] Fixation frequency
