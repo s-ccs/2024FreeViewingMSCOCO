@@ -28,8 +28,11 @@ DATA_ROOT = Path(
     r"C:\Users\chris\Documents\ArbeitUni\VIS_S-CCS\FreeViewing\BIDS"
 )  # TBD: Delete later
 
-MISC_SUBDIR = "misc"  # raw + merged TSVs
-PLOTS_SUBDIR = "plots"  # fplots
+# Name of the subdirectory containing the raw eye tracking events TSV files, usually something like "sub-XXX_ses-001_task-freeviewing_et_events.tsv
+INPUT_SUBDIR = "misc" 
+# Name of the subdirectory containing the output files (derivatives, plots, etc.)
+DERIVATIVES_SUBDIR = "misc"
+PLOTS_SUBDIR = "plots"
 
 # BIDS specs
 SESSION = "ses-001"
@@ -38,9 +41,11 @@ TASK = "freeviewing"
 
 # 2. Subjects
 # =============================================================================
-# Default subject list processed when no --subjects argument is given.
+# Default subject list processed when no --subjects argument is given: 
+# Format: list of strings, e.g. ["005", "006", "007"] or "all" for all subjects in the dataset. 
+# The subject list is used to find the input files in DATA_ROOT/sub-XXX/ses-001/misc/sub-XXX_ses-001_task-freeviewing_et_events.tsv
 SUBJECTS = ["005"]
-# [ "005", "006", "007", "009", "010", "011", "013", "016", "017", "018", "021", "022", "024", "025", "029", "030", "034", "035", "038", "043", "045", "060"] TBD: add "all" condition
+# [ "005", "006", "007", "009", "010", "011", "013", "016", "017", "018", "021", "022", "024", "025", "029", "030", "034", "035", "038", "043", "045", "060"]
 # all
 
 # 3. Screen / hardware specs
