@@ -34,6 +34,7 @@ from plotting import (
     plot_fixation_frequency,
     plot_saccade_angles,
     plot_summary,
+    plot_summary_comparison,
 )
 from report import generate_report
 
@@ -109,20 +110,25 @@ def subject_paths(subject_id: str) -> dict:
     DATA_ROOT/
     └── sub-XXX/
         └── ses-001/
-            └── misc/
+            └── INPUT_SUBDIR/
                 ├── sub-XXX_ses-001_task-freeviewing_et_events.tsv
+            └── DERIVATIVES_SUBDIR/
                 ├── sub-XXX_ses-001_task-freeviewing_et_events_merged.tsv
-                └── plots/
+                └── PLOTS_SUBDIR/
     """
-    misc_dir = (
-        config.DATA_ROOT / f"sub-{subject_id}" / config.SESSION / config.MISC_SUBDIR
+    in_dir = (
+        config.DATA_ROOT / f"sub-{subject_id}" / config.SESSION / config.INPUT_SUBDIR
+    )
+    derivatives_dir = (
+        config.DATA_ROOT / f"sub-{subject_id}" / config.SESSION / config.DERIVATIVES_SUBDIR
     )
     stem = f"sub-{subject_id}_{config.SESSION}_task-{config.TASK}"
     return {
-        "misc_dir": misc_dir,
-        "raw_tsv": misc_dir / f"{stem}_et_events.tsv",
-        "merged_tsv": misc_dir / f"{stem}_et_events_merged.tsv",
-        "plots_dir": misc_dir / config.PLOTS_SUBDIR,
+        "in_dir": in_dir,
+        "derivatives_dir": derivatives_dir,
+        "raw_tsv": in_dir / f"{stem}_et_events.tsv",
+        "merged_tsv": derivatives_dir / f"{stem}_et_events_merged.tsv",
+        "plots_dir": derivatives_dir / config.PLOTS_SUBDIR,
     }
 
 
@@ -149,10 +155,10 @@ def run_preprocessing(subject_id: str, overwrite: bool) -> bool:
         return True
 
     # 1. Load events
-    logger.info(f"Loading events TSV from dir:{paths['misc_dir']} ...")
+    logger.info(f"Loading events TSV from dir:{paths['in_dir']} ...")
     try:
         events_raw = load_subject_tsv(
-            folder_path=paths["misc_dir"],
+            folder_path=paths["in_dir"],
             subject_id=subject_id,
             window_ms=config.BLINK_WINDOW_MS,
         )
@@ -173,7 +179,7 @@ def run_preprocessing(subject_id: str, overwrite: bool) -> bool:
     )
 
     # Save
-    os.makedirs(paths["misc_dir"], exist_ok=True)
+    os.makedirs(paths["derivatives_dir"], exist_ok=True)
     events_merged.to_csv(paths["merged_tsv"], sep="\t", index=False)
     logger.info(f"--> Saved merged TSV: {paths['merged_tsv']}")
 
@@ -190,13 +196,29 @@ def run_preprocessing(subject_id: str, overwrite: bool) -> bool:
         top_n=3,
     )
 
+    # 4. before/after summary comparison (needs both raw + merged data)
+    logger.info("Plotting before/after summary comparison...")
+    fig = plot_summary_comparison(
+        events_before=events_raw,
+        events_after=events_merged,
+        out_path=str(paths["plots_dir"]),
+        out_file_format=config.OUT_FILE_FORMAT,
+        by_eye=config.BY_EYE,
+        fix_dur_min=config.FIX_DUR_MIN_MS,
+        fix_dur_max=config.FIX_DUR_MAX_MS,
+        sac_amp_max=config.SACC_AMP_MAX_DEG,
+        sac_dur_max=config.SACC_DUR_MAX_MS,
+        include_near_blink_sac=config.INCLUDE_NEAR_BLINK_SAC,
+    )
+    plt.close(fig)
+
     if config.REPORT:
         logger.info("Generating Subject Report...")
         generate_report(
             events_raw=events_raw,
             events_merged=events_merged,
             subject_id=f"sub-{subject_id}",
-            out_path=str(paths["misc_dir"]),
+            out_path=str(paths["derivatives_dir"]),
             by_eye=config.BY_EYE,
             sac_amp_max=config.SACC_AMP_MAX_DEG,
             fix_dur_min=config.FIX_DUR_MIN_MS,
@@ -228,7 +250,7 @@ def run_visualisation(subject_id: str) -> bool:
         )
         return False
 
-    logger.info(f"Loading merged events from dir: {paths['misc_dir']} ...")
+    logger.info(f"Loading merged events from dir: {paths['derivatives_dir']} ...")
     events = pd.read_csv(paths["merged_tsv"], sep="\t")
 
     out_path = str(paths["plots_dir"])
@@ -336,9 +358,8 @@ def main():
     print(f"Log level      : {args.log_level}")
     print(
         f"BIDS root      : {config.DATA_ROOT}"
-    )  # TBD make the '\' and '/' einheitlich
-    print(f"Output subdir  : .../{config.SESSION}/{config.MISC_SUBDIR}/")
-    print(f"Figures subdir : .../{config.MISC_SUBDIR}/{config.PLOTS_SUBDIR}/")
+    print(f"Output subdir  : .../{config.SESSION}/{config.DERIVATIVES_SUBDIR}/")
+    print(f"Figures subdir : .../{config.DERIVATIVES_SUBDIR}/{config.PLOTS_SUBDIR}/")
     print(f"{'=' * 60}")
 
     n_ok = 0
