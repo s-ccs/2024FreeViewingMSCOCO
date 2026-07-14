@@ -506,8 +506,8 @@ def _graph_saccade_duration(ax, sac_df, sac_after=None, sac_dur_max: float = 120
         else:
             before_nb = s_before.loc[~s_before["blink_saccade"], "duration_ms"].values
             before_bl = s_before.loc[s_before["blink_saccade"], "duration_ms"].values
-            _overlap_hist(ax, before_nb, s_after["duration_ms"].values, 40,
-                          before_blink=before_bl)
+            after_nb = s_after.loc[~s_after["blink_saccade"], "duration_ms"].values
+            _overlap_hist(ax, before_nb, after_nb, 40, before_blink=before_bl)
         ax.legend(fontsize=7)
 
     #  Labels & title
@@ -608,8 +608,8 @@ def _graph_saccade_angles(ax, sac_df, sac_after=None, include_blink_sac: bool | 
         else:
             before_nb = s_before.loc[~s_before["blink_saccade"], "angle"].values
             before_bl = s_before.loc[s_before["blink_saccade"], "angle"].values
-            _overlap_hist(ax, before_nb, s_after["angle"].values, bins,
-                          before_blink=before_bl)
+            after_nb = s_after.loc[~s_after["blink_saccade"], "angle"].values
+            _overlap_hist(ax, before_nb, after_nb, bins, before_blink=before_bl)
         anchor = (1.15, 1.12) if style == "polar" else (1.0, 1.0)
         ax.legend(fontsize=6, loc="upper right", bbox_to_anchor=anchor)
 
