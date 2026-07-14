@@ -40,13 +40,23 @@ EYE_COLORS = {
 # Dropout accounting (values dropped for plotting only)
 _DROPOUT_STATS = {}
 
-def _save_dropout(metric, total, kept, window=""):
+def _save_dropout(metric, total, kept, window="", stage="single"):
     """Record how many values were dropped for plotting (outside display range)."""
-    _DROPOUT_STATS[metric] = {
-        "metric": metric, "window": window,
+    _DROPOUT_STATS[f"{metric}|{stage}"] = {
+        "metric": metric, "stage": stage, "window": window,
         "total": total, "kept": kept, "dropped": total - kept,
         "pct": ((total - kept) / total * 100) if total else 0.0,
     }
+
+
+def reset_dropout_stats():
+    """Clear the dropout accumulator (call before the plot you want to document)."""
+    _DROPOUT_STATS.clear()
+
+
+def get_dropout_stats() -> dict:
+    """Return a copy of the recorded dropout stats (keyed by metric)."""
+    return {k: dict(v) for k, v in _DROPOUT_STATS.items()}
 
 
 # =============================================================================
@@ -151,7 +161,7 @@ def _graph_fixation_duration(ax, fix_df, fix_after=None, fix_dur_min: float = 60
         dropout_stats (boolean): whether to save the dropout statistics; only works when one dataset is passed
     """
 
-    def prep_data(f_df, dropout_stats):
+    def prep_data(f_df, dropout_stats, stage):
         # convert seconds → ms
         dur = f_df["duration"].dropna() * 1000.0
         total = len(dur)
@@ -176,7 +186,7 @@ def _graph_fixation_duration(ax, fix_df, fix_after=None, fix_dur_min: float = 60
                 )
         if dropout_stats:
             _save_dropout(metric = "Fixation duration", total = total, kept = len(dur),
-                    window=f"[{fix_dur_min:.0f} - {fix_dur_max:.0f}] ms")
+                    window=f"[{fix_dur_min:.0f} - {fix_dur_max:.0f}] ms", stage=stage)
 
         return dur
 
@@ -185,7 +195,7 @@ def _graph_fixation_duration(ax, fix_df, fix_after=None, fix_dur_min: float = 60
         logger.info("Plotting fixation duration histogram (ms) — single histogram.")
 
         # Prep the data for plotting
-        fix_dur = prep_data(fix_df, dropout_stats=dropout_stats)
+        fix_dur = prep_data(fix_df, dropout_stats=dropout_stats, stage="single")
         if fix_dur.empty:
             raise ValueError(
                 f"No fixation durations within [{fix_dur_min}, {fix_dur_max}] ms found."
@@ -198,15 +208,9 @@ def _graph_fixation_duration(ax, fix_df, fix_after=None, fix_dur_min: float = 60
     else:
         logger.info("Plotting fixation duration histogram (ms) — stacked before/after.")
 
-        # warn about unsupported options for stacked plots
-        if dropout_stats:
-            logger.warning(
-                "dropout_stats is not supported for stacked before/after plots (only for single plots). Dropout statistics will not be saved."
-            )
-
         # prep the data for plotting
-        fix_before = prep_data(fix_df, dropout_stats=False)
-        fix_after = prep_data(fix_after, dropout_stats=False)
+        fix_before = prep_data(fix_df, dropout_stats=dropout_stats, stage="before")
+        fix_after = prep_data(fix_after, dropout_stats=dropout_stats, stage="after")
         if fix_before.empty or fix_after.empty:
             raise ValueError(
                 f"No fixation durations within [{fix_dur_min}, {fix_dur_max}] ms found."
@@ -217,7 +221,8 @@ def _graph_fixation_duration(ax, fix_df, fix_after=None, fix_dur_min: float = 60
             [fix_before, fix_after],
             bins=40,
             edgecolor="black",
-            stacked=True,
+            histtype="stepfilled",
+            alpha=0.5,
             color=[BEFORE_COLOR, AFTER_COLOR],
             label=["Before Preprocessing", "After Preprocessing"],
         )
@@ -275,9 +280,9 @@ def _graph_fixation_frequency(ax, fix_df, fix_after=None):
         ax.hist(
             [fix_before.values, fix_after.values],
             bins=np.arange(max_val + 2) - 0.3,
-            width=0.6,
             edgecolor="black",
-            stacked=True,
+            histtype="stepfilled",
+            alpha=0.5,
             color=[BEFORE_COLOR, AFTER_COLOR],
             label=["Before Preprocessing", "After Preprocessing"],
         )
@@ -310,7 +315,7 @@ def _graph_saccade_amplitude(ax, sac_df, sac_after=None, sac_amp_max: float = 40
         dropout_stats (boolean): whether to save the dropout statistics; only works when one dataset is passed. Defaults to False.
     """
 
-    def prep_data(s_df, dropout_stats):
+    def prep_data(s_df, dropout_stats, stage):
         #  Optionally exclude blink saccades (only when include is False)
         if include_blink_sac is False:
             s_df, _ = _exclude_blink(s_df, include_blink_sac)
@@ -331,7 +336,7 @@ def _graph_saccade_amplitude(ax, sac_df, sac_after=None, sac_amp_max: float = 40
 
         if dropout_stats:
             _save_dropout(metric = "Saccade amplitude", total = total, kept = len(s),
-                    window=f"[0 - {sac_amp_max:.0f}] deg")
+                    window=f"[0 - {sac_amp_max:.0f}] deg", stage=stage)
         return s
 
     #  Create figure: single, highlighted, or stacked before/after
@@ -339,7 +344,7 @@ def _graph_saccade_amplitude(ax, sac_df, sac_after=None, sac_amp_max: float = 40
         logger.info("Plotting saccade amplitude histogram (deg) — single histogram.")
 
         # prep the data for plotting
-        sac_df = prep_data(sac_df, dropout_stats=dropout_stats)
+        sac_df = prep_data(sac_df, dropout_stats=dropout_stats, stage="single")
         if sac_df.empty:
             raise ValueError(f"No saccade amplitudes within 0–{sac_amp_max}° found.")
         if include_blink_sac == "highlight":
@@ -369,14 +374,10 @@ def _graph_saccade_amplitude(ax, sac_df, sac_after=None, sac_amp_max: float = 40
             logger.warning(
                 "include_blink_sac='highlight' is not supported for stacked before/after plots. Blink saccades will be included without highlighting."
             )
-        if dropout_stats:
-            logger.warning(
-                "dropout_stats is not supported for stacked before/after plots (only for single plots). Dropout statistics will not be saved."
-            )
 
         # prep the data for plotting
-        s_before = prep_data(sac_df, dropout_stats=False)
-        s_after = prep_data(sac_after, dropout_stats=False)
+        s_before = prep_data(sac_df, dropout_stats=dropout_stats, stage="before")
+        s_after = prep_data(sac_after, dropout_stats=dropout_stats, stage="after")
         if s_before.empty and s_after.empty:
             raise ValueError(f"No saccade amplitudes within 0–{sac_amp_max}° found.")
 
@@ -385,7 +386,8 @@ def _graph_saccade_amplitude(ax, sac_df, sac_after=None, sac_amp_max: float = 40
             [s_before["sacc_visual_angle"].values, s_after["sacc_visual_angle"].values],
             bins=40,
             edgecolor="black",
-            stacked=True,
+            histtype="stepfilled",
+            alpha=0.5,
             color=[BEFORE_COLOR, AFTER_COLOR],
             label=["Before Preprocessing", "After Preprocessing"],
         )
@@ -398,8 +400,10 @@ def _graph_saccade_amplitude(ax, sac_df, sac_after=None, sac_amp_max: float = 40
     title = "Saccade Amplitude"
     if include_blink_sac is False:
         title += " (blink saccades excl.)"
-    elif include_blink_sac == "highlight":
+    elif include_blink_sac == "highlight" and sac_after is None:
         title += " (blink saccades highlighted)"
+    else:
+        title += " (blink saccades incl.)"
     ax.set_title(title)
 
 
@@ -423,7 +427,7 @@ def _graph_saccade_duration(ax, sac_df, sac_after=None, sac_dur_max: float = 120
         dropout_stats (boolean): whether to save the dropout statistics; only works when one dataset is passed. Defaults to False.
     """
 
-    def prep_data(s_df, dropout_stats):
+    def prep_data(s_df, dropout_stats, stage):
         #  Optionally exclude blink saccades (only when include is False)
         if include_blink_sac is False:
             s_df, _ = _exclude_blink(s_df, include_blink_sac)
@@ -453,7 +457,7 @@ def _graph_saccade_duration(ax, sac_df, sac_after=None, sac_dur_max: float = 120
         logger.info("Plotting saccade duration histogram (ms) — single histogram.")
 
         # prep the data for plotting
-        sac_df = prep_data(sac_df, dropout_stats = dropout_stats)
+        sac_df = prep_data(sac_df, dropout_stats = dropout_stats, stage="single")
         if sac_df.empty:
             raise ValueError(f"No saccade durations within 0–{sac_dur_max}ms found.")
 
@@ -484,14 +488,10 @@ def _graph_saccade_duration(ax, sac_df, sac_after=None, sac_dur_max: float = 120
             logger.warning(
                 "include_blink_sac='highlight' is not supported for stacked before/after plots. Blink saccades will be included without highlighting."
             )
-        if dropout_stats:
-            logger.warning(
-                "dropout_stats is not supported for stacked before/after plots (only for single plots). Dropout statistics will not be saved."
-            )
 
         # prep the data for plotting
-        s_before = prep_data(sac_df, dropout_stats=False)
-        s_after = prep_data(sac_after, dropout_stats=False)
+        s_before = prep_data(sac_df, dropout_stats=dropout_stats, stage="before")
+        s_after = prep_data(sac_after, dropout_stats=dropout_stats, stage="after")
         if s_before.empty and s_after.empty:
             raise ValueError(f"No saccade durations within 0–{sac_dur_max}ms found.")
 
@@ -500,7 +500,8 @@ def _graph_saccade_duration(ax, sac_df, sac_after=None, sac_dur_max: float = 120
             [s_before["duration_ms"].values, s_after["duration_ms"].values],
             bins=40,
             edgecolor="black",
-            stacked=True,
+            histtype="stepfilled",
+            alpha=0.5,
             color=[BEFORE_COLOR, AFTER_COLOR],
             label=["Before Preprocessing", "After Preprocessing"],
         )
@@ -513,15 +514,17 @@ def _graph_saccade_duration(ax, sac_df, sac_after=None, sac_dur_max: float = 120
     title = "Saccade Duration"
     if include_blink_sac is False:
         title += " (blink saccades excl.)"
-    elif include_blink_sac == "highlight":
+    elif include_blink_sac == "highlight"  and sac_after is None:
         title += " (blink saccades highlighted)"
+    else:
+        title += " (blink saccades incl.)" 
     ax.set_title(title)
 
 
 # =============================================================================
 # Saccade angular histogram
 # =============================================================================
-def _graph_saccade_angles(ax, sac_df, sac_after=None, include_blink_sac: bool | str = False, style: str = "polar", dropout_stats: bool = False):
+def _graph_saccade_angles(ax, sac_df, sac_after=None, include_blink_sac: bool | str = False, style: str = "polar"):
     """
     Helperfunction: draw the saccade direction histogram onto `ax`.
     style='polar'     -> rose plot; ax must be a polar axis (radians, 36 bins).
@@ -541,7 +544,7 @@ def _graph_saccade_angles(ax, sac_df, sac_after=None, include_blink_sac: bool | 
     # Histogram bins depend on the plotting style
     bins = 36 if style == "polar" else np.arange(0, 361, 10)
 
-    def prep_data(s_df, dropout_stats=False):
+    def prep_data(s_df):
         #  Optionally exclude blink saccades (only when include is False)
         if include_blink_sac is False:
             s_df, _ = _exclude_blink(s_df, include_blink_sac)
@@ -564,7 +567,7 @@ def _graph_saccade_angles(ax, sac_df, sac_after=None, include_blink_sac: bool | 
         logger.info("Plotting saccade direction histogram — single histogram.")
 
         # prep the data for plotting
-        sac_df = prep_data(sac_df, dropout_stats = dropout_stats)
+        sac_df = prep_data(sac_df)
         if sac_df.empty:
             raise ValueError("No saccade directions found.")
 
@@ -597,8 +600,8 @@ def _graph_saccade_angles(ax, sac_df, sac_after=None, include_blink_sac: bool | 
             )
 
         # prep the data for plotting
-        s_before = prep_data(sac_df, dropout_stats=False)
-        s_after = prep_data(sac_after, dropout_stats=False)
+        s_before = prep_data(sac_df)
+        s_after = prep_data(sac_after)
         if s_before.empty and s_after.empty:
             raise ValueError("No saccade directions found.")
 
@@ -607,7 +610,8 @@ def _graph_saccade_angles(ax, sac_df, sac_after=None, include_blink_sac: bool | 
             [s_before["angle"].values, s_after["angle"].values],
             bins=bins,
             edgecolor="black",
-            stacked=True,
+            histtype="stepfilled",
+            alpha=0.5,
             color=[BEFORE_COLOR, AFTER_COLOR],
             label=["Before Preprocessing", "After Preprocessing"],
         )
@@ -624,8 +628,10 @@ def _graph_saccade_angles(ax, sac_df, sac_after=None, include_blink_sac: bool | 
     title = "Saccade Directions"
     if include_blink_sac is False:
         title += " (blink saccades excl.)"
-    elif include_blink_sac == "highlight":
+    elif include_blink_sac == "highlight" and sac_after is None:
         title += " (blink saccades highlighted)"
+    else:
+        title += " (blink saccades incl.)"
     ax.set_title(title)
 
 

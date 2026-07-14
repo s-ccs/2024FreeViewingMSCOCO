@@ -33,6 +33,7 @@ from plotting import (
     plot_main_sequence,
     plot_eye_trace_pre_post_processing,
 )
+from graphs import reset_dropout_stats, get_dropout_stats
 
 logger = logging.getLogger(__name__)
 
@@ -170,6 +171,29 @@ def _render_carousel(carousel_id: str, slides: list) -> str:
         <div class="carousel-dots">{dots}</div>
     </div>"""
 
+def _render_dropout_table(stats: dict) -> str:
+    """Render plotting-only dropout counts. Columns adapt to the recorded stages."""
+    by_metric = {}
+    for rec in stats.values():
+        by_metric.setdefault(rec["metric"], {})[rec.get("stage", "single")] = rec
+
+    order = ["single", "before", "after"]
+    stages = [s for s in order if any(s in d for d in by_metric.values())]
+    head = "".join(f'<th style="text-align:left">Dropped ({s})</th>' for s in stages)
+
+    rows = ""
+    for metric, d in by_metric.items():
+        window = next(iter(d.values()))["window"]
+        cells = "".join(
+            (f"<td>{d[s]['dropped']} / {d[s]['total']} ({d[s]['pct']:.1f}%)</td>" if s in d else "<td>—</td>")
+            for s in stages
+        )
+        rows += f"<tr><td>{metric}</td><td>{window}</td>{cells}</tr>"
+
+    return f"""
+    <div class="stat-block wide"><table>
+        <thead><tr><th>Metric</th><th style="text-align:left">Plotting range</th>{head}</tr></thead>
+        <tbody>{rows}</tbody></table></div>"""
 
 def _render_config() -> str:
     """Render all upper-case config.py constants as a collapsible table."""
@@ -300,6 +324,7 @@ def _render_html(
     summary_comparison_plot,
     summary_after_plot,
     merge_info,
+    dropout_html,
     config_html,
 ) -> str:
     """Assemble the full HTML report string."""
@@ -377,7 +402,7 @@ def _render_html(
             <div class="note">
                 <strong>Note:</strong> in the histograms below, values outside the plotting range
                 (e.g. implausibly long fixations or large amplitudes) are dropped <strong>for display
-                only</strong> — this is a plotting decision and does <strong>not</strong> alter the
+                only</strong>. This is a plotting decision and does <strong>not</strong> alter the
                 underlying event data.
             </div>
             <div class="plot-block">
@@ -388,6 +413,8 @@ def _render_html(
                 <h3>Summary plots: after preprocessing</h3>
                 <img src="data:image/png;base64,{summary_after_plot}" alt="Summary after merge">
             </div>
+            <h3>Values dropped for display only</h3>
+            {dropout_html}
         </section>
 
         <section id="sec-config">
@@ -482,6 +509,7 @@ def generate_report(
     plt.close(fig)
 
     logger.info("Generating summary (after merge)...")
+    reset_dropout_stats()
     fig = plot_summary(
         events_df=events_merged,
         out_path=None,
@@ -491,9 +519,11 @@ def generate_report(
         sac_amp_max=sac_amp_max,
         sac_dur_max=sac_dur_max,
         include_blink_sac=include_blink_sac,
+        dropout_stats=True,
     )
     summary_after_plot = _fig_to_base64(fig)
     plt.close(fig)
+    dropout_stats = get_dropout_stats()
 
     # --- Section 3: eye-trace carousel ---
     logger.info("Generating eye-trace comparison...")
@@ -544,6 +574,7 @@ def generate_report(
         summary_after_plot=summary_after_plot,
         merge_info=merge_info,
         config_html=_render_config(),
+        dropout_html=_render_dropout_table(dropout_stats),
     )
 
     out_file = Path(out_path) / f"{subject_id}_report.html"

@@ -124,3 +124,9 @@ ANG_HIST_MICROSAC_MIN_DEG = 1.0
 #  no. bins (default 36 = 10° per bin)
 ANG_HIST_BINS_POLAR = 36
 ANG_HIST_BIN_WIDTH_CART = 10
+
+
+# 11. Dropout statistics in Plotting
+# =============================================================================
+# If True: compute and display dropout statistics in the summary figure
+DROPOUT_STATS = True

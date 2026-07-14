@@ -129,7 +129,7 @@ def plot_eye_trace_pre_post_processing(
                     + 3,  # 3 pixels offset to visualize overlapping lines
                     xmin=row["onset"],
                     xmax=row["onset"] + row["duration"],
-                    colors=BEFORE_COLOR,
+                    colors="#0072B2",
                     linewidth=3,
                     alpha=0.85,
                     label="Before" if idx == w_before.index[0] else "",
@@ -142,7 +142,7 @@ def plot_eye_trace_pre_post_processing(
                     - 3,  # 3 pixels offset to visualize overlapping lines
                     xmin=row["onset"],
                     xmax=row["onset"] + row["duration"],
-                    colors=AFTER_COLOR,
+                    colors="#E69F00",
                     linewidth=3,
                     alpha=0.85,
                     label="After" if idx == w_after.index[0] else "",
@@ -261,6 +261,7 @@ def plot_fixation_duration(
     fix_dur_min: float = 60,
     fix_dur_max: float = 1000,
     title: str = "Fixation Durations",
+    dropout_stats: bool = False
 ):
     """
     Histogram of fixation durations (ms), outliers dropped for plotting only
@@ -287,7 +288,7 @@ def plot_fixation_duration(
 
     # plot fixation duration histogram
     fig, ax = plt.subplots()
-    _graph_fixation_duration(ax, fix, fix_dur_min=fix_dur_min, fix_dur_max=fix_dur_max)
+    _graph_fixation_duration(ax, fix, fix_dur_min=fix_dur_min, fix_dur_max=fix_dur_max, dropout_stats=dropout_stats)
 
     # Labels & title
     gaze_map = {
@@ -322,6 +323,7 @@ def plot_saccade_amplitude(
     title: str = "Saccade Amplitude",
     sac_amp_max: float = 40,
     include_blink_sac: bool | str = False,
+    dropout_stats: bool = False, 
 ):
     """
     Histogram of saccade amplitudes (degrees), outliers dropped for plotting
@@ -347,7 +349,7 @@ def plot_saccade_amplitude(
     # plot saccade amplitude histogram
     fig, ax = plt.subplots(figsize=(5, 4))
     _graph_saccade_amplitude(
-        ax, s_df, sac_amp_max=sac_amp_max, include_blink_sac=include_blink_sac
+        ax, s_df, sac_amp_max=sac_amp_max, include_blink_sac=include_blink_sac, dropout_stats=dropout_stats
     )
 
     # Title
@@ -388,6 +390,7 @@ def plot_saccade_duration(
     by_eye: str = "binocular",
     title: str = "Saccade Duration",
     sac_dur_max: int = 120,
+    dropout_stats: bool = False
 ):
     """
     Histogram of saccade durations (ms), outliers dropped for plotting only
@@ -410,7 +413,7 @@ def plot_saccade_duration(
     # plot saccade duration histogram
     fig, ax = plt.subplots(figsize=(5, 4))
     _graph_saccade_duration(
-        ax, s_df, sac_dur_max=sac_dur_max, include_blink_sac=True
+        ax, s_df, sac_dur_max=sac_dur_max, include_blink_sac=True, dropout_stats=dropout_stats
     )
 
     # suffix to the graph title: which gaze data is shown
@@ -555,6 +558,7 @@ def plot_summary(
     sac_amp_max: float = 40,
     sac_dur_max: float = 120,
     include_blink_sac: bool | str = True,
+    dropout_stats: bool = False
 ):
     """
     Summary figure combining all core plots into one graphic (2×3 grid):
@@ -604,17 +608,17 @@ def plot_summary(
 
     _graph_main_sequence(ax_ms, sac_df, include_blink_sac, by_eye)
     _graph_fixation_duration(
-        ax_fdur, fix_df, fix_dur_min=fix_dur_min, fix_dur_max=fix_dur_max
+        ax_fdur, fix_df, fix_dur_min=fix_dur_min, fix_dur_max=fix_dur_max, dropout_stats=dropout_stats
     )
     _graph_fixation_frequency(ax_ffreq, fix_df)
     _graph_saccade_amplitude(
-        ax_samp, sac_df, sac_amp_max=sac_amp_max, include_blink_sac=include_blink_sac
+        ax_samp, sac_df, sac_amp_max=sac_amp_max, include_blink_sac=include_blink_sac, dropout_stats=dropout_stats
     )
     _graph_saccade_duration(
-        ax_sdur, sac_df, sac_dur_max=sac_dur_max, include_blink_sac=include_blink_sac
+        ax_sdur, sac_df, sac_dur_max=sac_dur_max, include_blink_sac=include_blink_sac, dropout_stats=dropout_stats
     )
     _graph_saccade_angles(
-        ax_angles, sac_df, include_blink_sac=include_blink_sac
+        ax_angles, sac_df, include_blink_sac=include_blink_sac, style="polar"
     )
 
     if title is not None:
@@ -648,6 +652,7 @@ def plot_summary_comparison(
     sac_amp_max: float = 40,
     sac_dur_max: float = 120,
     include_blink_sac: bool | str = True,
+    dropout_stats: bool = False,
 ):
     """
     Before/after summary figure — same 2×3 grid as plot_summary, but each graph
@@ -711,7 +716,12 @@ def plot_summary_comparison(
 
     _graph_main_sequence(ax_ms, sac_both, include_blink_sac, by_eye)
     _graph_fixation_duration(
-        ax_fdur, fix_before, fix_after, fix_dur_min=fix_dur_min, fix_dur_max=fix_dur_max
+        ax_fdur, 
+        fix_before, 
+        fix_after, 
+        fix_dur_min=fix_dur_min, 
+        fix_dur_max=fix_dur_max, 
+        dropout_stats=dropout_stats
     )
     _graph_fixation_frequency(ax_ffreq, fix_before, fix_after)
     _graph_saccade_amplitude(
@@ -720,6 +730,7 @@ def plot_summary_comparison(
         sac_after,
         sac_amp_max=sac_amp_max,
         include_blink_sac=include_blink_sac,
+        dropout_stats=dropout_stats,
     )
     _graph_saccade_duration(
         ax_sdur,
@@ -727,6 +738,7 @@ def plot_summary_comparison(
         sac_after,
         sac_dur_max=sac_dur_max,
         include_blink_sac=include_blink_sac,
+        dropout_stats=dropout_stats
     )
     _graph_saccade_angles(
         ax_angles, sac_before, sac_after, include_blink_sac=include_blink_sac
