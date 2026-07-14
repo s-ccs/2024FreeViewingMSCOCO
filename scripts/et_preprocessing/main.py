@@ -246,6 +246,7 @@ def run_visualisation(subject_id: str) -> bool:
 
     logger.info(f"Loading merged events from dir: {paths['derivatives_dir']} ...")
     events = pd.read_csv(paths["merged_tsv"], sep="\t")
+    events_raw = pd.read_csv(paths["raw_tsv"], sep="\t")
 
     out_path = str(paths["plots_dir"])
     os.makedirs(out_path, exist_ok=True)
@@ -319,6 +320,22 @@ def run_visualisation(subject_id: str) -> bool:
         sac_amp_max=config.SAC_AMP_MAX_DEG,
         sac_dur_max=config.SAC_DUR_MAX_MS,
         include_blink_sac=config.INCLUDE_BLINK_SAC,
+        dropout_stats=config.DROPOUT_STATS,
+    )
+    plt.close(fig)
+    
+    logger.info("Plotting summary comparison...")
+    fig = plot_summary_comparison(
+        events_before=events_raw,
+        events_after=events,
+        out_path=None,
+        by_eye=config.BY_EYE,
+        fix_dur_min=config.FIX_DUR_MIN_MS,
+        fix_dur_max=config.FIX_DUR_MAX_MS,
+        sac_amp_max=config.SAC_AMP_MAX_DEG,
+        sac_dur_max=config.SAC_DUR_MAX_MS,
+        include_blink_sac=config.INCLUDE_BLINK_SAC,
+        dropout_stats=config.DROPOUT_STATS,
     )
     plt.close(fig)
 
