@@ -399,8 +399,8 @@ def _graph_saccade_amplitude(ax, sac_df, sac_after=None, sac_amp_max: float = 40
         else:
             before_nb = s_before.loc[~s_before["blink_saccade"], "sacc_visual_angle"].values
             before_bl = s_before.loc[s_before["blink_saccade"], "sacc_visual_angle"].values
-            _overlap_hist(ax, before_nb, s_after["sacc_visual_angle"].values, 40,
-                          before_blink=before_bl)
+            after_nb = s_after.loc[~s_after["blink_saccade"], "sacc_visual_angle"].values
+            _overlap_hist(ax, before_nb, after_nb, 40, before_blink=before_bl)
         ax.legend(fontsize=7)
 
     #  Labels & title
