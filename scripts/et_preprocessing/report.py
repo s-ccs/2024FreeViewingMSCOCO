@@ -339,7 +339,7 @@ def _render_html(
                 around a blink event are flagged as <strong>blink saccades</strong>
                 (they are often lid-movement artefacts). Flagged: <strong>{merge_info['blink_flagged']}</strong>.
                 Whether they are kept, dropped or highlighted is controlled by
-                <code>INCLUDE_BLINK_SAC</code> in the config.
+                <code>INCLUDE_BLINK_SAC</code> in the config or in the parameters of the plotting function.
             </p>
             <div class="plot-block">
                 <h3>Main Sequence (blink saccades highlighted)</h3>
@@ -381,11 +381,11 @@ def _render_html(
                 underlying event data.
             </div>
             <div class="plot-block">
-                <h3>2×3 comparison — before vs. after preprocessing</h3>
+                <h3>Summary plots: before vs. after preprocessing</h3>
                 <img src="data:image/png;base64,{summary_comparison_plot}" alt="Summary comparison before/after">
             </div>
             <div class="plot-block">
-                <h3>2×3 summary — after merge</h3>
+                <h3>Summary plots: after preprocessing</h3>
                 <img src="data:image/png;base64,{summary_after_plot}" alt="Summary after merge">
             </div>
         </section>
