@@ -29,8 +29,9 @@ logger = logging.getLogger(__name__)
 
 # colours
 BEFORE_COLOR = "#0072B2"  # blue   — before preprocessing / saccades
-AFTER_COLOR = "#009E73"   # green  — after preprocessing / blink saccades (single eye)
+AFTER_COLOR = "#D55E00"   # orange — after preprocessing / blink saccades (single eye)
 BLINK_COLOR = "#E69F00"   # orange — blink saccades (histograms)
+BLINK_MS_COLOR = "#009E73"  # green  — blink saccades (main sequence)
 # Fixed colour per eye, when plotting multiple eyes in one graph (by_eye='all')
 EYE_COLORS = {
     "L": "#0072B2",          # blue
@@ -84,6 +85,34 @@ def _exclude_blink(sac, include_blink_sac):
 # =============================================================================
 # Main sequence (amplitude vs. peak-velocity, log-log)
 # =============================================================================
+def _overlap_hist(ax, before, after, bins, before_blink=None):
+    """
+    Helperfunction: draw an overlapping before/after histogram onto `ax`.
+    'after' is filled (semi-transparent); 'before' is drawn as an outline on top,
+    so the part of 'before' sticking out above the fill is what preprocessing removed.
+    If `before_blink` is given, 'before' is drawn as two stacked outlines:
+    non-blink (blue) at the bottom and blink saccades (green) stacked on top, so the
+    blue->green band marks the blink saccades removed before the merge.
+
+    Args:
+        ax: Matplotlib axis to draw on (works for cartesian and polar axes).
+        before: values of the before distribution (non-blink part if `before_blink` is given).
+        after: values of the post-processing (after) distribution.
+        bins: bin edges (or bin count) shared by both histograms.
+        before_blink: optional blink-saccade values of the before stage; if given, 'before'
+            is rendered as stacked blue (non-blink) + green (blink) outlines.
+    """
+    if before_blink is None:
+        ax.hist(before, bins=bins, histtype="step", color=BEFORE_COLOR, linewidth=1.8,
+                zorder=3, label="Before Preprocessing")
+    else:
+        ax.hist([before, before_blink], bins=bins, histtype="step", stacked=True,
+                color=[BEFORE_COLOR, BLINK_MS_COLOR], linewidth=1.8, zorder=3,
+                label=["Before (pre-merge)", "Blink saccades"])
+    ax.hist(after, bins=bins, histtype="stepfilled", color=AFTER_COLOR, alpha=0.45,
+            edgecolor="black", zorder=2, label="After Preprocessing")
+
+
 def _graph_main_sequence(ax, sac_df, include_blink_sac: bool | str = False, by_eye: str = "binocular"):
     """
     Helperfunction: draw the main-sequence scatter (amplitude vs. peak velocity,
@@ -128,7 +157,7 @@ def _graph_main_sequence(ax, sac_df, include_blink_sac: bool | str = False, by_e
         # plot single eye: saccades in blue, blink saccades in green
         ms_scatter(
             s_ms, include_blink_sac, ax,
-            sac_color=BEFORE_COLOR, blink_color=AFTER_COLOR,
+            sac_color=BEFORE_COLOR, blink_color=BLINK_MS_COLOR,
         )
         if comparison or include_blink_sac == "highlight":
             ax.legend(fontsize=7)
@@ -138,7 +167,7 @@ def _graph_main_sequence(ax, sac_df, include_blink_sac: bool | str = False, by_e
     ax.set_yscale("log")
     ax.set_xlabel("Amplitude (deg)")
     ax.set_ylabel("Peak velocity (deg/s)")
-    suffix = {False: " (blink excl.)", "highlight": " (blink highlight.)"}.get(
+    suffix = {False: " (blink saccades excl.)", "highlight": " (blink highlight.)", True: " (blink saccades incl.)"}.get(
         include_blink_sac, ""
     )
     ax.set_title(f"Main Sequence{suffix}")
@@ -217,15 +246,7 @@ def _graph_fixation_duration(ax, fix_df, fix_after=None, fix_dur_min: float = 60
             )
 
         # plot
-        ax.hist(
-            [fix_before, fix_after],
-            bins=40,
-            edgecolor="black",
-            histtype="stepfilled",
-            alpha=0.5,
-            color=[BEFORE_COLOR, AFTER_COLOR],
-            label=["Before Preprocessing", "After Preprocessing"],
-        )
+        _overlap_hist(ax, fix_before, fix_after, 40)
         ax.legend(fontsize=7)
 
     #  Labels & title
@@ -259,7 +280,7 @@ def _graph_fixation_frequency(ax, fix_df, fix_after=None):
         ax.hist(
             fix_per_sec.values,
             bins=np.arange(fix_per_sec.max() + 2) - 0.3,
-            width=0.6,
+            rwidth=0.6,
             edgecolor="black",
         )
     # stacked figure: before vs. after preprocessing
@@ -276,16 +297,12 @@ def _graph_fixation_frequency(ax, fix_df, fix_after=None):
 
         # maximum value across both datasets for consistent binning
         max_val = max(fix_before.max(), fix_after.max())
-        # plot
-        ax.hist(
-            [fix_before.values, fix_after.values],
-            bins=np.arange(max_val + 2) - 0.3,
-            edgecolor="black",
-            histtype="stepfilled",
-            alpha=0.5,
-            color=[BEFORE_COLOR, AFTER_COLOR],
-            label=["Before Preprocessing", "After Preprocessing"],
-        )
+        # plot: bar-type overlap with rwidth (same bar width as the single after-processing plot)
+        bins = np.arange(max_val + 2) - 0.3
+        ax.hist(fix_after.values, bins=bins, rwidth=0.6, color=AFTER_COLOR, alpha=0.45,
+                edgecolor="black", zorder=2, label="After Preprocessing")
+        ax.hist(fix_before.values, bins=bins, rwidth=0.6, facecolor="none",
+                edgecolor=BEFORE_COLOR, linewidth=1.8, zorder=3, label="Before Preprocessing")
         ax.legend(fontsize=7)
 
     # Labels & title
@@ -369,28 +386,21 @@ def _graph_saccade_amplitude(ax, sac_df, sac_after=None, sac_amp_max: float = 40
     else:
         logger.info("Plotting saccade amplitude histogram (deg) — stacked before/after.")
 
-        # warn about unsupported options for stacked plots
-        if include_blink_sac == "highlight":
-            logger.warning(
-                "include_blink_sac='highlight' is not supported for stacked before/after plots. Blink saccades will be included without highlighting."
-            )
-
         # prep the data for plotting
         s_before = prep_data(sac_df, dropout_stats=dropout_stats, stage="before")
         s_after = prep_data(sac_after, dropout_stats=dropout_stats, stage="after")
         if s_before.empty and s_after.empty:
             raise ValueError(f"No saccade amplitudes within 0–{sac_amp_max}° found.")
 
-        # plot
-        ax.hist(
-            [s_before["sacc_visual_angle"].values, s_after["sacc_visual_angle"].values],
-            bins=40,
-            edgecolor="black",
-            histtype="stepfilled",
-            alpha=0.5,
-            color=[BEFORE_COLOR, AFTER_COLOR],
-            label=["Before Preprocessing", "After Preprocessing"],
-        )
+        # plot: after filled behind, before as outline on top; highlight blink saccades (green)
+        if include_blink_sac is False:
+            _overlap_hist(ax, s_before["sacc_visual_angle"].values,
+                          s_after["sacc_visual_angle"].values, 40)
+        else:
+            before_nb = s_before.loc[~s_before["blink_saccade"], "sacc_visual_angle"].values
+            before_bl = s_before.loc[s_before["blink_saccade"], "sacc_visual_angle"].values
+            _overlap_hist(ax, before_nb, s_after["sacc_visual_angle"].values, 40,
+                          before_blink=before_bl)
         ax.legend(fontsize=7)
 
     #  Labels & title
@@ -400,7 +410,7 @@ def _graph_saccade_amplitude(ax, sac_df, sac_after=None, sac_amp_max: float = 40
     title = "Saccade Amplitude"
     if include_blink_sac is False:
         title += " (blink saccades excl.)"
-    elif include_blink_sac == "highlight" and sac_after is None:
+    elif include_blink_sac == "highlight":
         title += " (blink saccades highlighted)"
     else:
         title += " (blink saccades incl.)"
@@ -483,28 +493,21 @@ def _graph_saccade_duration(ax, sac_df, sac_after=None, sac_dur_max: float = 120
     else:
         logger.info("Plotting saccade duration histogram (ms) — stacked before/after.")
 
-        # warn about unsupported options for stacked plots
-        if include_blink_sac == "highlight":
-            logger.warning(
-                "include_blink_sac='highlight' is not supported for stacked before/after plots. Blink saccades will be included without highlighting."
-            )
-
         # prep the data for plotting
         s_before = prep_data(sac_df, dropout_stats=dropout_stats, stage="before")
         s_after = prep_data(sac_after, dropout_stats=dropout_stats, stage="after")
         if s_before.empty and s_after.empty:
             raise ValueError(f"No saccade durations within 0–{sac_dur_max}ms found.")
 
-        # plot
-        ax.hist(
-            [s_before["duration_ms"].values, s_after["duration_ms"].values],
-            bins=40,
-            edgecolor="black",
-            histtype="stepfilled",
-            alpha=0.5,
-            color=[BEFORE_COLOR, AFTER_COLOR],
-            label=["Before Preprocessing", "After Preprocessing"],
-        )
+        # plot: after filled behind, before as outline on top; highlight blink saccades (green)
+        if include_blink_sac is False:
+            _overlap_hist(ax, s_before["duration_ms"].values,
+                          s_after["duration_ms"].values, 40)
+        else:
+            before_nb = s_before.loc[~s_before["blink_saccade"], "duration_ms"].values
+            before_bl = s_before.loc[s_before["blink_saccade"], "duration_ms"].values
+            _overlap_hist(ax, before_nb, s_after["duration_ms"].values, 40,
+                          before_blink=before_bl)
         ax.legend(fontsize=7)
 
     #  Labels & title
@@ -514,10 +517,10 @@ def _graph_saccade_duration(ax, sac_df, sac_after=None, sac_dur_max: float = 120
     title = "Saccade Duration"
     if include_blink_sac is False:
         title += " (blink saccades excl.)"
-    elif include_blink_sac == "highlight"  and sac_after is None:
+    elif include_blink_sac == "highlight":
         title += " (blink saccades highlighted)"
     else:
-        title += " (blink saccades incl.)" 
+        title += " (blink saccades incl.)"
     ax.set_title(title)
 
 
@@ -593,29 +596,21 @@ def _graph_saccade_angles(ax, sac_df, sac_after=None, include_blink_sac: bool | 
     else:
         logger.info("Plotting saccade direction histogram — stacked before/after.")
 
-        # warn about unsupported options for stacked plots
-        if include_blink_sac == "highlight":
-            logger.warning(
-                "include_blink_sac='highlight' is not supported for stacked before/after plots. Blink saccades will be included without highlighting."
-            )
-
         # prep the data for plotting
         s_before = prep_data(sac_df)
         s_after = prep_data(sac_after)
         if s_before.empty and s_after.empty:
             raise ValueError("No saccade directions found.")
 
-        # plot
-        ax.hist(
-            [s_before["angle"].values, s_after["angle"].values],
-            bins=bins,
-            edgecolor="black",
-            histtype="stepfilled",
-            alpha=0.5,
-            color=[BEFORE_COLOR, AFTER_COLOR],
-            label=["Before Preprocessing", "After Preprocessing"],
-        )
-        anchor = (1.15, 1.1 if style == "polar" else (1.0, 1.0))
+        # plot: after filled behind, before as outline on top; highlight blink saccades (green)
+        if include_blink_sac is False:
+            _overlap_hist(ax, s_before["angle"].values, s_after["angle"].values, bins)
+        else:
+            before_nb = s_before.loc[~s_before["blink_saccade"], "angle"].values
+            before_bl = s_before.loc[s_before["blink_saccade"], "angle"].values
+            _overlap_hist(ax, before_nb, s_after["angle"].values, bins,
+                          before_blink=before_bl)
+        anchor = (1.15, 1.12) if style == "polar" else (1.0, 1.0)
         ax.legend(fontsize=6, loc="upper right", bbox_to_anchor=anchor)
 
     #  Labels & title
@@ -628,7 +623,7 @@ def _graph_saccade_angles(ax, sac_df, sac_after=None, include_blink_sac: bool | 
     title = "Saccade Directions"
     if include_blink_sac is False:
         title += " (blink saccades excl.)"
-    elif include_blink_sac == "highlight" and sac_after is None:
+    elif include_blink_sac == "highlight":
         title += " (blink saccades highlighted)"
     else:
         title += " (blink saccades incl.)"
@@ -683,7 +678,7 @@ def ms_scatter(sub, include_blink_sac, ax_ms, label=None, sac_color=None, blink_
                     flagged["sacc_visual_angle"],
                     flagged["peak_velocity"],
                     s=6,
-                    color=BLINK_COLOR,
+                    color=BLINK_MS_COLOR,
                     alpha=0.6,
                     label="blink saccade",
                 )

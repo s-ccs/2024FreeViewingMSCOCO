@@ -367,8 +367,8 @@ def _render_html(
                 <code>INCLUDE_BLINK_SAC</code> in the config or in the parameters of the plotting function.
             </p>
             <div class="plot-block">
-                <h3>Main Sequence (blink saccades highlighted)</h3>
-                <img src="data:image/png;base64,{ms_highlight_plot}" alt="Main sequence with highlighted blink saccades">
+                <h3>Main Sequence before processing (blink saccades highlighted)</h3>
+                <img src="data:image/png;base64,{ms_highlight_plot}" alt="Main sequence before processing with highlighted blink saccades">
             </div>
         </section>
 
@@ -484,7 +484,7 @@ def generate_report(
     # --- Section 2: main sequence with highlighted blink saccades ---
     logger.info("Generating main sequence (highlighted blinks)...")
     fig = plot_main_sequence(
-        events_df=events_merged,
+        events_df=events_raw,
         out_path=None,
         by_eye=by_eye,
         include_blink_sac="highlight",
@@ -518,7 +518,7 @@ def generate_report(
         fix_dur_max=fix_dur_max,
         sac_amp_max=sac_amp_max,
         sac_dur_max=sac_dur_max,
-        include_blink_sac=include_blink_sac,
+        include_blink_sac=False,
         dropout_stats=True,
     )
     summary_after_plot = _fig_to_base64(fig)

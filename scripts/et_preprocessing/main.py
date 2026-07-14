@@ -246,7 +246,13 @@ def run_visualisation(subject_id: str) -> bool:
 
     logger.info(f"Loading merged events from dir: {paths['derivatives_dir']} ...")
     events = pd.read_csv(paths["merged_tsv"], sep="\t")
-    events_raw = pd.read_csv(paths["raw_tsv"], sep="\t")
+    # Load raw via load_subject_tsv (not plain read_csv) so blink saccades get annotated;
+    # the before/after comparison needs the 'blink_saccade' column to highlight them.
+    events_raw = load_subject_tsv(
+        folder_path=paths["in_dir"],
+        subject_id=subject_id,
+        window_ms=config.BLINK_WINDOW_MS,
+    )
 
     out_path = str(paths["plots_dir"])
     os.makedirs(out_path, exist_ok=True)
