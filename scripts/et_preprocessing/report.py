@@ -173,10 +173,11 @@ def _render_carousel(carousel_id: str, slides: list) -> str:
 
 def _render_config() -> str:
     """Render all upper-case config.py constants as a collapsible table."""
+    EXCLUDE = {"DATA_ROOT"}  # add more names here to hide them
     items = {
         k: getattr(config, k)
         for k in dir(config)
-        if k.isupper() and not k.startswith("_")
+        if k.isupper() and not k.startswith("_") and k not in EXCLUDE
     }
     rows = "\n".join(
         f"<tr><td>{k}</td><td>{v}</td></tr>" for k, v in sorted(items.items())
@@ -351,7 +352,7 @@ def _render_html(
             <p class="plot-caption">
                 Two-step procedure following Hooge et al. (2022): first, implausibly small
                 <em>and</em> short saccades ("micro-saccades") are dropped; then consecutive
-                fixations of the same eye — now no longer separated by a real saccade — are merged.
+                fixations of the same eye that are now no longer separated by a so called blink saccade are merged.
             </p>
             <div class="formula">
                 drop saccade &nbsp;if&nbsp; amplitude &lt; a_min ({merge_info['a_min']}°)
