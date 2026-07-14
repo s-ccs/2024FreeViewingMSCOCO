@@ -10,7 +10,7 @@ Preprocessing:
         merge_fixation_candidates()
 Helpers:
     find_consecutive_trial_types()
-    annotate_blink_saccades_in_df()
+    annotate_saccades_near_blinks_in_df()
 
 TBD maybe refactored for events.tsv ?!
     compute_saccade_amplitude()
@@ -44,7 +44,7 @@ def load_subject_tsv(
     Args:
         folder_path (Path): Directory containing the subject's TSV file
         subject_id (str): subject number, e.g. "005"
-        window_ms (float, optional): Window in ms around each blink for blink saccade annotation. Defaults to BLINK_WINDOW_MS.
+        window_ms (float, optional): Window in ms around each blink for near-blink annotation. Defaults to BLINK_WINDOW_MS.
 
     Raises:
         FileNotFoundError: _description_
@@ -62,9 +62,9 @@ def load_subject_tsv(
 
     df = pd.read_csv(filepath, sep="\t")
     logger.debug(
-        f"Loaded {len(df)} events. Annotating blink saccades (window={window_ms} ms)..."
+        f"Loaded {len(df)} events. Annotating near-blink saccades (window={window_ms} ms)..."
     )
-    df = annotate_blink_saccades_in_df(df, window_ms)
+    df = annotate_saccades_near_blinks_in_df(df, window_ms)
 
     return df
 
@@ -88,7 +88,7 @@ def merge_fixation_candidates(events, a_min=A_MIN):
         Events DataFrame after merging stage.
     """
     # Compute minimum saccade duration from the paper's formula
-    t_min_sac= (2.2 * a_min + 27) / 1000.0
+    t_min_sacc = (2.2 * a_min + 27) / 1000.0
 
     # Sort by eye and onset to prevent cross-eye merging
     events = events.sort_values(["eye", "onset"]).reset_index(drop=True)
@@ -103,12 +103,12 @@ def merge_fixation_candidates(events, a_min=A_MIN):
         ~(
             (events["trial_type"] == "saccade")
             & (events["sacc_visual_angle"] < a_min)
-            & (events["duration"] < t_min_sac)
+            & (events["duration"] < t_min_sacc)
         )
     ].reset_index(drop=True)
     n_dropped = n_before - (events["trial_type"] == "saccade").sum()
     logger.info(
-        f"Dropped {n_dropped} micro-saccades (amplitude < {a_min}° and duration < {t_min_sac*1000:.1f} ms)"
+        f"Dropped {n_dropped} micro-saccades (amplitude < {a_min}° and duration < {t_min_sacc*1000:.1f} ms)"
     )
 
     rows_to_keep = []
@@ -197,14 +197,14 @@ def find_consecutive_trial_types(events, trial_type: str) -> pd.DataFrame:
 
     return result
 
-def annotate_blink_saccades_in_df(
+def annotate_saccades_near_blinks_in_df(
     events_df: pd.DataFrame, window_ms: float
 ) -> pd.DataFrame:
     """
     Flag saccades as near a blink if the blink START or END falls within
     the saccade interval expanded by ±window_ms.
     Adds:
-      - blink_saccade (bool) column to saccade rows; False for all other event types.
+      - near_blink (bool) column to saccade rows; False for all other event types.
     """
     events = events_df.copy()
     w = window_ms / 1000.0  # convert to seconds
@@ -217,7 +217,7 @@ def annotate_blink_saccades_in_df(
 
     S = events.loc[saccades_mask, ["onset", "end_time"]].to_numpy(float)
 
-    blink_saccades = []
+    near_blinks = []
     for sac_start, sac_end in S:
         win_start = sac_start - w
         win_end = sac_end + w
@@ -230,14 +230,14 @@ def annotate_blink_saccades_in_df(
             ):
                 near = True
                 break
-        blink_saccades.append(near)
+        near_blinks.append(near)
 
-    events["blink_saccade"] = False
-    events.loc[saccades_mask, "blink_saccade"] = blink_saccades
+    events["near_blink"] = False
+    events.loc[saccades_mask, "near_blink"] = near_blinks
 
-    n_flagged = sum(blink_saccades)
+    n_flagged = sum(near_blinks)
     logger.info(
-        f"Blink saccade annotation: {n_flagged}/{len(blink_saccades)} saccades flagged (window=±{window_ms} ms)"
+        f"Near-blink annotation: {n_flagged}/{len(near_blinks)} saccades flagged (window=±{window_ms} ms)"
     )
 
     return events
