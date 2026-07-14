@@ -58,7 +58,7 @@ SCREEN_DIST_M = 0.729  # in metres
 
 # 4. Preprocessing
 # =============================================================================
-# Half-window in ms around each blink event for flagging saccades as "blink saccade" in annotate_blink_saccades_in_df().
+# Half-window in ms around each blink event for flagging saccades as "near blink" in annotate_saccades_near_blinks_in_df().
 BLINK_WINDOW_MS = 150.0
 
 # Minimum saccade amplitude threshold (degrees)
@@ -88,7 +88,7 @@ OUT_FILE_FORMAT = "svg"
 # TRUE = Flagged Saccades are included in the plot
 # FALSE = Flagged saccades are dropped
 # "highlight" = Flagges saccades are highlighted in the plot
-INCLUDE_BLINK_SAC = "highlight"
+INCLUDE_NEAR_BLINK_SAC = "highlight"
 
 
 # 7. Visualisation — fixation duration
@@ -106,20 +106,20 @@ FIX_DUR_BIN_W = 20
 # 8. Visualisation — saccade amplitude
 # =============================================================================
 # Max amplitude (deg)
-SAC_AMP_MAX_DEG = 40
+SACC_AMP_MAX_DEG = 40
 
 
 # 9. Visualisation — saccade duration
 # =============================================================================
 # Max duration (ms); none = disable clipping
-SAC_DUR_MAX_MS = 120
+SACC_DUR_MAX_MS = 120
 
 
 # 10. Visualisation — angular histogram
 # =============================================================================
-# If True: weight bins by saccade amplitude & exclude microssacades < ANG_HIST_MICROSAC_MIN_DEG
+# If True: weight bins by saccade amplitude & exclude microssacades < ANG_HIST_MICROSACC_MIN_DEG
 ANG_HIST_REFINEMENT = False
-ANG_HIST_MICROSAC_MIN_DEG = 1.0
+ANG_HIST_MICROSACC_MIN_DEG = 1.0
 
 #  no. bins (default 36 = 10° per bin)
 ANG_HIST_BINS_POLAR = 36

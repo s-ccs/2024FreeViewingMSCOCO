@@ -1,10 +1,10 @@
 """
-plotting.py: eye-tracking visualisation
+plotting.py: eye-tracking visualisation — public plotting API.
 
-Each public plot_* function creates a figure: it selects events (by event type, measure and eye), 
-calls another drawing helper function (`_graph_*`) and shows & saves the figure. 
-
-plot_summary / plot_summary_comparison combine all six graphs in a 2×3 grid.
+Each public plot_* function composes one figure: it selects events (by trial
+type and eye), delegates the actual drawing to a `_graph_*` helper in graphs.py,
+then titles and saves the figure. plot_summary / plot_summary_comparison arrange
+all six core graphs in a 2×3 grid.
 
 Preprocessing comparison:
     plot_eye_trace_pre_post_processing()  -> horizontal eye trace before vs. after merge
@@ -22,8 +22,7 @@ Saccades:
     plot_saccade_angles()
 
 Summaries:
-    plot_summary() 
-    plot_summary_comparison()
+    plot_summary(), plot_summary_comparison()
 """
 
 import logging
@@ -186,7 +185,7 @@ def plot_main_sequence(
     out_file_format: str = "svg",
     by_eye: str = "binocular",
     title: str = "Main Sequence",
-    include_blink_sac: bool | str = True,
+    include_near_blink_sac: bool | str = True,
 ):
     """
     Plots main sequence: saccade amplitude vs. peak velocity (log-log).
@@ -197,7 +196,7 @@ def plot_main_sequence(
         out_file_format (str): File extension for saving, e.g. 'svg', 'pdf'. Defaults to 'svg'.
         by_eye (str): One of: 'all', 'left', 'right', 'binocular'. Defaults to 'binocular'.
         title (str): Defaults to 'Main Sequence'.
-        include_blink_sac (bool | str):
+        include_near_blink_sac (bool | str):
             - True (default): include all saccades; blink saccades treated like any other.
             - False: exclude blink saccades entirely.
             - 'highlight': include all saccades, but mark blink saccades in a distinct colour.
@@ -211,13 +210,13 @@ def plot_main_sequence(
 
     base_name = (
         f"{title.lower().replace(' ', '_')}-{by_eye}Eyes"
-        + ("_blinkExcluded" if include_blink_sac is False else "")
-        + ("_blinkHighlighted" if include_blink_sac == "highlight" else "")
+        + ("_blinkExcluded" if include_near_blink_sac is False else "")
+        + ("_blinkHighlighted" if include_near_blink_sac == "highlight" else "")
     )
 
     # plot the main sequence
     fig, ax = plt.subplots()
-    _graph_main_sequence(ax, s, include_blink_sac, by_eye)
+    _graph_main_sequence(ax, s, include_near_blink_sac, by_eye)
 
     # Labels & title
     gaze_map = {
@@ -230,7 +229,7 @@ def plot_main_sequence(
         False: "(blink saccades excluded)",
         "highlight": "(blink saccades highlighted)",
     }
-    suffix = blink_decision_map.get(include_blink_sac, "")
+    suffix = blink_decision_map.get(include_near_blink_sac, "")
     ax.set_title(f"{title} — {gaze_map[by_eye]}" + (f" {suffix}" if suffix else ""))
 
     fig.tight_layout()
@@ -318,7 +317,7 @@ def plot_saccade_amplitude(
     by_eye: str = "binocular",
     title: str = "Saccade Amplitude",
     sac_amp_max: float = 40,
-    include_blink_sac: bool | str = False,
+    include_near_blink_sac: bool | str = False,
 ):
     """
     Histogram of saccade amplitudes (degrees), outliers dropped for plotting
@@ -331,7 +330,7 @@ def plot_saccade_amplitude(
         by_eye (str): One of: 'all', 'left', 'right', 'binocular'. Defaults to 'binocular'.
         title (str, optional): Defaults to 'Saccade Amplitude'.
         sac_amp_max (float, optional): Upper bound (deg). Defaults to 40.
-        include_blink_sac (bool | str): False excludes blink saccades,
+        include_near_blink_sac (bool | str): False excludes blink saccades,
             'highlight' marks them, True includes them. Defaults to False.
     """
     # filter out saccades and optionally by eye
@@ -344,7 +343,7 @@ def plot_saccade_amplitude(
     # plot saccade amplitude histogram
     fig, ax = plt.subplots(figsize=(5, 4))
     _graph_saccade_amplitude(
-        ax, s_df, sac_amp_max=sac_amp_max, include_blink_sac=include_blink_sac
+        ax, s_df, sac_amp_max=sac_amp_max, include_near_blink_sac=include_near_blink_sac
     )
 
     # Title
@@ -358,7 +357,7 @@ def plot_saccade_amplitude(
         False: "(blink saccades excluded)",
         "highlight": "(blink saccades highlighted)",
     }
-    suffix = blink_decision_map.get(include_blink_sac, "")
+    suffix = blink_decision_map.get(include_near_blink_sac, "")
     ax.set_title(f"{title} — {gaze_map[by_eye]}" + (f" {suffix}" if suffix else ""))
 
     fig.tight_layout()
@@ -407,7 +406,7 @@ def plot_saccade_duration(
     # plot saccade duration histogram
     fig, ax = plt.subplots(figsize=(5, 4))
     _graph_saccade_duration(
-        ax, s_df, sac_dur_max=sac_dur_max, include_blink_sac=True
+        ax, s_df, sac_dur_max=sac_dur_max, include_near_blink_sac=True
     )
 
     # suffix to the graph title: which gaze data is shown
@@ -465,7 +464,6 @@ def plot_fixation_frequency(
     ax.set_title(title)
     fig.tight_layout()
 
-    # show & save
     if out_path is not None:
         out_file = f"{out_path}/{title.lower().replace(' ', '_')}-{by_eye}Eyes.{out_file_format}"
         fig.savefig(out_file, bbox_inches="tight")
@@ -511,7 +509,7 @@ def plot_saccade_angles(
     if style in ["polar", None]:
         fig = plt.figure(figsize=(5, 5))
         ax = fig.add_subplot(111, polar=True)
-        _graph_saccade_angles(ax, s_df, include_blink_sac=True, style="polar")
+        _graph_saccade_angles(ax, s_df, include_near_blink_sac=True, style="polar")
         ax.set_title(f"Polar {title}")
         fig.tight_layout()
         if out_path is not None:
@@ -524,7 +522,7 @@ def plot_saccade_angles(
 
     if style in ["cartesian", None]:
         fig2, ax2 = plt.subplots()
-        _graph_saccade_angles(ax2, s_df, include_blink_sac=True, style="cartesian")
+        _graph_saccade_angles(ax2, s_df, include_near_blink_sac=True, style="cartesian")
         ax2.set_title(f"Cartesian {title}")
         fig2.tight_layout()
         if out_path is not None:
@@ -551,7 +549,7 @@ def plot_summary(
     fix_dur_max: float = 1000,
     sac_amp_max: float = 40,
     sac_dur_max: float = 120,
-    include_blink_sac: bool | str = True,
+    include_near_blink_sac: bool | str = True,
 ):
     """
     Summary figure combining all core plots into one graphic (2×3 grid):
@@ -568,7 +566,7 @@ def plot_summary(
         fix_dur_max (float, optional): Upper bound for fixation duration (ms). Defaults to 1000.
         sac_amp_max (float, optional): Upper bound for saccade amplitude (deg). Defaults to 40.
         sac_dur_max (float, optional): Upper bound for saccade duration (ms). Defaults to 120.
-        include_blink_sac (bool | str):
+        include_near_blink_sac (bool | str):
             - True (default): include all saccades in the main sequence graph.
             - False: exclude blink saccades.
             - 'highlight': mark blink saccades in the main sequence graph.
@@ -583,12 +581,12 @@ def plot_summary(
 
     # Shared data prep
     fix_df = events_df[events_df["trial_type"] == "fixation"].copy()
-    sac_df = events_df[events_df["trial_type"] == "saccade"].copy()
+    sacc_df = events_df[events_df["trial_type"] == "saccade"].copy()
 
     if by_eye != "all":
         chosen_eye = eye_mapping[by_eye]
         fix_df = fix_df[fix_df["eye"] == chosen_eye]
-        sac_df = sac_df[sac_df["eye"] == chosen_eye]
+        sacc_df = sacc_df[sacc_df["eye"] == chosen_eye]
 
     # Figure layout
     fig = plt.figure(figsize=(16, 10))
@@ -599,19 +597,19 @@ def plot_summary(
     ax_sdur = fig.add_subplot(2, 3, 5)
     ax_angles = fig.add_subplot(2, 3, 6, polar=True)
 
-    _graph_main_sequence(ax_ms, sac_df, include_blink_sac, by_eye)
+    _graph_main_sequence(ax_ms, sacc_df, include_near_blink_sac, by_eye)
     _graph_fixation_duration(
         ax_fdur, fix_df, fix_dur_min=fix_dur_min, fix_dur_max=fix_dur_max
     )
     _graph_fixation_frequency(ax_ffreq, fix_df)
     _graph_saccade_amplitude(
-        ax_samp, sac_df, sac_amp_max=sac_amp_max, include_blink_sac=include_blink_sac
+        ax_samp, sacc_df, sac_amp_max=sac_amp_max, include_near_blink_sac=include_near_blink_sac
     )
     _graph_saccade_duration(
-        ax_sdur, sac_df, sac_dur_max=sac_dur_max, include_blink_sac=include_blink_sac
+        ax_sdur, sacc_df, sac_dur_max=sac_dur_max, include_near_blink_sac=include_near_blink_sac
     )
     _graph_saccade_angles(
-        ax_angles, sac_df, include_blink_sac=include_blink_sac
+        ax_angles, sacc_df, include_near_blink_sac=include_near_blink_sac
     )
 
     if title is not None:
@@ -644,7 +642,7 @@ def plot_summary_comparison(
     fix_dur_max: float = 1000,
     sac_amp_max: float = 40,
     sac_dur_max: float = 120,
-    include_blink_sac: bool | str = True,
+    include_near_blink_sac: bool | str = True,
 ):
     """
     Before/after summary figure — same 2×3 grid as plot_summary, but each graph
@@ -663,7 +661,7 @@ def plot_summary_comparison(
         fix_dur_max (float, optional): Upper bound for fixation duration (ms). Defaults to 1000.
         sac_amp_max (float, optional): Upper bound for saccade amplitude (deg). Defaults to 40.
         sac_dur_max (float, optional): Upper bound for saccade duration (ms). Defaults to 120.
-        include_blink_sac (bool | str):
+        include_near_blink_sac (bool | str):
             - True (default): include all saccades in the main sequence graph.
             - False: exclude blink saccades.
             - 'highlight': mark blink saccades in the main sequence graph.
@@ -684,18 +682,18 @@ def plot_summary_comparison(
 
     fix_before = events_before[events_before["trial_type"] == "fixation"].copy()
     fix_after = events_after[events_after["trial_type"] == "fixation"].copy()
-    sac_before = events_before[events_before["trial_type"] == "saccade"].copy()
-    sac_after = events_after[events_after["trial_type"] == "saccade"].copy()
+    sacc_before = events_before[events_before["trial_type"] == "saccade"].copy()
+    sacc_after = events_after[events_after["trial_type"] == "saccade"].copy()
 
     if by_eye != "all":
         chosen_eye = eye_mapping[by_eye]
         fix_before = fix_before[fix_before["eye"] == chosen_eye]
         fix_after = fix_after[fix_after["eye"] == chosen_eye]
-        sac_before = sac_before[sac_before["eye"] == chosen_eye]
-        sac_after = sac_after[sac_after["eye"] == chosen_eye]
+        sacc_before = sacc_before[sacc_before["eye"] == chosen_eye]
+        sacc_after = sacc_after[sacc_after["eye"] == chosen_eye]
 
     # Main sequence needs one frame carrying 'processing_stage' for ms_scatter.
-    sac_both = pd.concat([sac_before, sac_after], ignore_index=True)
+    sacc_both = pd.concat([sacc_before, sacc_after], ignore_index=True)
 
     # Figure layout
     fig = plt.figure(figsize=(16, 10))
@@ -706,27 +704,27 @@ def plot_summary_comparison(
     ax_sdur = fig.add_subplot(2, 3, 5)
     ax_angles = fig.add_subplot(2, 3, 6, polar=True)
 
-    _graph_main_sequence(ax_ms, sac_both, include_blink_sac, by_eye)
+    _graph_main_sequence(ax_ms, sacc_both, include_near_blink_sac, by_eye)
     _graph_fixation_duration(
         ax_fdur, fix_before, fix_after, fix_dur_min=fix_dur_min, fix_dur_max=fix_dur_max
     )
     _graph_fixation_frequency(ax_ffreq, fix_before, fix_after)
     _graph_saccade_amplitude(
         ax_samp,
-        sac_before,
-        sac_after,
+        sacc_before,
+        sacc_after,
         sac_amp_max=sac_amp_max,
-        include_blink_sac=include_blink_sac,
+        include_near_blink_sac=include_near_blink_sac,
     )
     _graph_saccade_duration(
         ax_sdur,
-        sac_before,
-        sac_after,
+        sacc_before,
+        sacc_after,
         sac_dur_max=sac_dur_max,
-        include_blink_sac=include_blink_sac,
+        include_near_blink_sac=include_near_blink_sac,
     )
     _graph_saccade_angles(
-        ax_angles, sac_before, sac_after, include_blink_sac=include_blink_sac
+        ax_angles, sacc_before, sacc_after, include_near_blink_sac=include_near_blink_sac
     )
 
     if title is not None:

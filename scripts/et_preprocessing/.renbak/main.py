@@ -200,9 +200,9 @@ def run_preprocessing(subject_id: str, overwrite: bool) -> bool:
         by_eye=config.BY_EYE,
         fix_dur_min=config.FIX_DUR_MIN_MS,
         fix_dur_max=config.FIX_DUR_MAX_MS,
-        sac_amp_max=config.SAC_AMP_MAX_DEG,
-        sac_dur_max=config.SAC_DUR_MAX_MS,
-        include_blink_sac=config.INCLUDE_BLINK_SAC,
+        sac_amp_max=config.SACC_AMP_MAX_DEG,
+        sac_dur_max=config.SACC_DUR_MAX_MS,
+        include_near_blink_sac=config.INCLUDE_NEAR_BLINK_SAC,
     )
     plt.close(fig)
 
@@ -214,11 +214,11 @@ def run_preprocessing(subject_id: str, overwrite: bool) -> bool:
             subject_id=f"sub-{subject_id}",
             out_path=str(paths["derivatives_dir"]),
             by_eye=config.BY_EYE,
-            sac_amp_max=config.SAC_AMP_MAX_DEG,
+            sac_amp_max=config.SACC_AMP_MAX_DEG,
             fix_dur_min=config.FIX_DUR_MIN_MS,
             fix_dur_max=config.FIX_DUR_MAX_MS,
-            sac_dur_max=config.SAC_DUR_MAX_MS,
-            include_blink_sac=config.INCLUDE_BLINK_SAC,
+            sac_dur_max=config.SACC_DUR_MAX_MS,
+            include_near_blink_sac=config.INCLUDE_NEAR_BLINK_SAC,
         )
 
     return True
@@ -256,7 +256,7 @@ def run_visualisation(subject_id: str) -> bool:
         out_path=out_path,
         out_file_format=config.OUT_FILE_FORMAT,
         by_eye=config.BY_EYE,
-        include_blink_sac=config.INCLUDE_BLINK_SAC,
+        include_near_blink_sac=config.INCLUDE_NEAR_BLINK_SAC,
     )
     plt.close(fig)
 
@@ -276,7 +276,7 @@ def run_visualisation(subject_id: str) -> bool:
         by_eye=config.BY_EYE,
         out_path=out_path,
         out_file_format=config.OUT_FILE_FORMAT,
-        sac_amp_max=config.SAC_AMP_MAX_DEG,
+        sac_amp_max=config.SACC_AMP_MAX_DEG,
     )
 
     logger.info("Plotting saccade duration...")
@@ -285,7 +285,7 @@ def run_visualisation(subject_id: str) -> bool:
         by_eye=config.BY_EYE,
         out_path=out_path,
         out_file_format=config.OUT_FILE_FORMAT,
-        sac_dur_max=config.SAC_DUR_MAX_MS,
+        sac_dur_max=config.SACC_DUR_MAX_MS,
     )
 
     logger.info("Plotting fixation frequency...")
@@ -316,9 +316,9 @@ def run_visualisation(subject_id: str) -> bool:
         title="Summary",
         fix_dur_min=config.FIX_DUR_MIN_MS,
         fix_dur_max=config.FIX_DUR_MAX_MS,
-        sac_amp_max=config.SAC_AMP_MAX_DEG,
-        sac_dur_max=config.SAC_DUR_MAX_MS,
-        include_blink_sac=config.INCLUDE_BLINK_SAC,
+        sac_amp_max=config.SACC_AMP_MAX_DEG,
+        sac_dur_max=config.SACC_DUR_MAX_MS,
+        include_near_blink_sac=config.INCLUDE_NEAR_BLINK_SAC,
     )
     plt.close(fig)
 
@@ -350,7 +350,8 @@ def main():
     print(f"Overwrite      : {args.overwrite}")
     print(f"Show plots     : {args.show_plots}")
     print(f"Log level      : {args.log_level}")
-    print(f"BIDS root      : {config.DATA_ROOT}")
+    print(
+        f"BIDS root      : {config.DATA_ROOT}"
     print(f"Output subdir  : .../{config.SESSION}/{config.DERIVATIVES_SUBDIR}/")
     print(f"Figures subdir : .../{config.DERIVATIVES_SUBDIR}/{config.PLOTS_SUBDIR}/")
     print(f"{'=' * 60}")
@@ -391,8 +392,4 @@ def main():
     print(f"Completed : {n_ok}/{len(subjects)} subject(s)")
     if n_fail:
         print(f"Failed    : {n_fail}/{len(subjects)} subject(s)")
-    print(f"{'=' * 60}\n")
-
-
-if __name__ == "__main__":
-    main()
+    print(f"{'=' * 60
