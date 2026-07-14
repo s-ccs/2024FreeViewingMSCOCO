@@ -60,6 +60,8 @@ def plot_eye_trace_pre_post_processing(
     """
     Horizontal eye position trace for both eyes with fixation boxes overlaid,
     comparing before and after the Hooge et al. (2022) merging procedure.
+    The black eye trace shows the post-merge fixations; before-merge fixations
+    are overlaid in BEFORE_COLOR, after-merge fixations in AFTER_COLOR.
 
     Args:
         events_before (pd.DataFrame): Original (pre-merge) events dataframe.
@@ -109,14 +111,15 @@ def plot_eye_trace_pre_post_processing(
             w_before = before[(before["onset"] >= w_start) & (before["onset"] < w_end)]
             w_after = after[(after["onset"] >= w_start) & (after["onset"] < w_end)]
 
-            # Eye trace as horizontal segments per fixation
+            # Eye trace as horizontal segments per fixation (AFTER merge)
             times, positions = [], []
-            for _, row in w_before.iterrows():
+            for _, row in w_after.iterrows():
                 times.extend([row["onset"], row["end_time"]])
                 positions.extend([row[pos_col], row[pos_col]])
             if times:
                 ax.plot(
-                    times, positions, "k-", linewidth=1.5, alpha=0.7, label="Eye trace"
+                    times, positions, "k-", linewidth=1.5, alpha=0.7,
+                    label="Eye trace (after merge)",
                 )
 
             # Before-merge fixation lines
@@ -126,7 +129,7 @@ def plot_eye_trace_pre_post_processing(
                     + 3,  # 3 pixels offset to visualize overlapping lines
                     xmin=row["onset"],
                     xmax=row["onset"] + row["duration"],
-                    colors="mediumseagreen",
+                    colors=BEFORE_COLOR,
                     linewidth=3,
                     alpha=0.85,
                     label="Before" if idx == w_before.index[0] else "",
@@ -139,7 +142,7 @@ def plot_eye_trace_pre_post_processing(
                     - 3,  # 3 pixels offset to visualize overlapping lines
                     xmin=row["onset"],
                     xmax=row["onset"] + row["duration"],
-                    colors="tomato",
+                    colors=AFTER_COLOR,
                     linewidth=3,
                     alpha=0.85,
                     label="After" if idx == w_after.index[0] else "",

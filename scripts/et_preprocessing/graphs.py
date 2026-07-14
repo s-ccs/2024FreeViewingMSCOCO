@@ -199,20 +199,22 @@ def _graph_fixation_duration(ax, fix_df, fix_after=None, fix_dur_min: float = 60
 def _graph_fixation_frequency(ax, fix_df, fix_after=None):
     """
     Helperfunction: draw the fixation-frequency histogram (fixations per second)
-    onto `ax`. Single histogramm when fix_after is None; stacked before/after
-    otherwise.
+    onto `ax`. Single histogram when fix_after is None; stacked before/after otherwise.
 
     Args:
         ax: Matplotlib axis to draw on.
         fix_df (pd.DataFrame): fixation events (single, or the 'before' stage).
         fix_after (pd.DataFrame, optional): fixation events for the 'after' stage. Defaults to None.
     """
-    # Get the data to plot: single figure
-    if fix_after is None:
-        # convert onset from seconds → ms, then group by second and count fixations
-        fix_df["sec"] = fix_df["onset"].astype(float).floordiv(1000.0).astype(int)
-        fix_per_sec = fix_df.groupby("sec").size()
 
+    def per_sec(df):
+        # onset is in SECONDS -> floor to the integer second, then count fixations per second
+        sec = df["onset"].astype(float).floordiv(1).astype(int)
+        return sec.value_counts().sort_index()
+
+    # single figure
+    if fix_after is None:
+        fix_per_sec = per_sec(fix_df)
         ax.hist(
             fix_per_sec.values,
             bins=np.arange(fix_per_sec.max() + 2) - 0.3,
@@ -221,20 +223,18 @@ def _graph_fixation_frequency(ax, fix_df, fix_after=None):
         )
     # stacked figure: before vs. after preprocessing
     else:
-        # convert onset from seconds → ms, then group by second and count fixations
-        fix_df["sec"] = fix_df["onset"].astype(float).floordiv(1000.0).astype(int)
-        fix_before = fix_df.groupby("sec").size()
-        fix_after["sec"] = fix_after["onset"].astype(float).floordiv(1000.0).astype(int)
-        fix_after = fix_after.groupby("sec").size()
+        fix_before = per_sec(fix_df)
+        fix_after = per_sec(fix_after)
 
         logger.info(
             f"Fixation frequency — mean/s: before {fix_before.mean():.2f}, "
             f"after {fix_after.mean():.2f}."
         )
 
+        max_val = max(fix_before.max(), fix_after.max())
         ax.hist(
             [fix_before.values, fix_after.values],
-            bins=np.arange(max(fix_before.max(), fix_after.max()) + 1 - 0.3),
+            bins=np.arange(max_val + 2) - 0.3,
             width=0.6,
             edgecolor="black",
             stacked=True,
@@ -243,7 +243,7 @@ def _graph_fixation_frequency(ax, fix_df, fix_after=None):
         )
         ax.legend(fontsize=7)
 
-    #  Labels & title
+    # Labels & title
     ax.set_xlim(left=-0.3)
     ax.set_xlabel("Fixations per second")
     ax.set_ylabel("Count")
@@ -467,8 +467,8 @@ def _graph_saccade_angles(ax, sac_df, sac_after=None, include_blink_sac: bool | 
 
         #  Compute saccade direction: radians for polar, degrees [0, 360) for cartesian
         s = s_df.copy()
-        dx = s["sac_end_x"] - s["sac_start_x"]
-        dy = s["sac_end_y"] - s["sac_start_y"]
+        dx = s["sacc_end_x"] - s["sacc_start_x"]
+        dy = s["sacc_end_y"] - s["sacc_start_y"]
         if style == "polar":
             s["angle"] = np.arctan2(dy, dx) % (2 * np.pi)
         else:
