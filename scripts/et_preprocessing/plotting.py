@@ -99,14 +99,12 @@ def plot_eye_trace_pre_post_processing(
         change_records.sort(key=lambda x: x[2], reverse=True)
         time_windows = change_records[:top_n]
 
-        fig, axes = plt.subplots(top_n, 1, figsize=(14, 3 * top_n), squeeze=False)
         eye_label = "Left" if eye == "L" else "Right"
-        fig.suptitle(f"{title} — {eye_label} Eye", fontsize=13, fontweight="bold")
-
         pos_col = "fix_avg_x"
 
         for rank, (w_start, w_end, _) in enumerate(time_windows):
-            ax = axes[rank][0]
+            # one standalone single-panel figure per window (per eye)
+            fig, ax = plt.subplots(1, 1, figsize=(14, 3))
 
             w_before = before[(before["onset"] >= w_start) & (before["onset"] < w_end)]
             w_after = after[(after["onset"] >= w_start) & (after["onset"] < w_end)]
@@ -163,16 +161,16 @@ def plot_eye_trace_pre_post_processing(
                 )
 
             ax.set_xlim(w_start, w_end)
+            ax.set_xlabel("Time (s)", fontsize=11)
             ax.set_ylabel("Horiz. pos.", fontsize=9)
             ax.set_title(
-                f"Eye Trace Plot pre-/post processing  |  t=[{w_start:.2f}s, {w_end:.2f}s]  |  ",
-                fontsize=9,
+                f"{eye_label} Eye — Eye Trace pre-/post processing  |  "
+                f"t=[{w_start:.2f}s, {w_end:.2f}s]",
+                fontsize=10,
             )
             ax.grid(True, alpha=0.3)
-            if rank == 0:
-                ax.legend(loc="upper right", fontsize=8)
+            ax.legend(loc="upper right", fontsize=8)
 
-            axes[-1][0].set_xlabel("Time (s)", fontsize=11)
             fig.tight_layout()
             if top_n > 1:
                 figs[f"{rank}-{eye}"] = fig

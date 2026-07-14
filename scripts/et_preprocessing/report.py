@@ -399,12 +399,6 @@ def _render_html(
 
         <section id="sec-summary">
             <h2><span class="sec-num">4</span> · Summary Plots</h2>
-            <div class="note">
-                <strong>Note:</strong> in the histograms below, values outside the plotting range
-                (e.g. implausibly long fixations or large amplitudes) are dropped <strong>for display
-                only</strong>. This is a plotting decision and does <strong>not</strong> alter the
-                underlying event data.
-            </div>
             <div class="plot-block">
                 <h3>Summary plots: before vs. after preprocessing</h3>
                 <img src="data:image/png;base64,{summary_comparison_plot}" alt="Summary comparison before/after">
@@ -414,6 +408,12 @@ def _render_html(
                 <img src="data:image/png;base64,{summary_after_plot}" alt="Summary after merge">
             </div>
             <h3>Values dropped for display only</h3>
+            <div class="note">
+                <strong>Note:</strong> in the plots above, values outside the plotting range
+                (e.g. implausibly long fixations or large amplitudes) are dropped <strong>for display
+                only</strong>. This is a plotting design decision and does <strong>not</strong> alter the
+                underlying event data.
+            </div>
             {dropout_html}
         </section>
 

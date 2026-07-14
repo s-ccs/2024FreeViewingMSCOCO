@@ -42,11 +42,12 @@ TASK = "freeviewing"
 # 2. Subjects
 # =============================================================================
 # Default subject list processed when no --subjects argument is given: 
-# Format: list of strings, e.g. ["005", "006", "007"] or "all" for all subjects in the dataset. 
+# Format: list of strings, e.g. ["005", "006", "007"] or ["all"] for all subjects in the dataset. 
 # The subject list is used to find the input files in DATA_ROOT/sub-XXX/ses-001/misc/sub-XXX_ses-001_task-freeviewing_et_events.tsv
-SUBJECTS = ["005"]
+SUBJECTS = ["all"]
+# ["005"]
 # [ "005", "006", "007", "009", "010", "011", "013", "016", "017", "018", "021", "022", "024", "025", "029", "030", "034", "035", "038", "043", "045", "060"]
-# all
+# ["all"]
 
 # 3. Screen / hardware specs
 # =============================================================================
