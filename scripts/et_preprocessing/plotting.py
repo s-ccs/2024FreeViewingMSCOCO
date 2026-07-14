@@ -111,14 +111,28 @@ def plot_eye_trace_pre_post_processing(
             w_before = before[(before["onset"] >= w_start) & (before["onset"] < w_end)]
             w_after = after[(after["onset"] >= w_start) & (after["onset"] < w_end)]
 
-            # Eye trace as horizontal segments per fixation (AFTER merge)
+            # Eye trace as horizontal segments per fixation (BEFORE merge) —
+            # very light grey, drawn underneath so the merge changes stay traceable
+            times_before, positions_before = [], []
+            for _, row in w_before.iterrows():
+                times_before.extend([row["onset"], row["end_time"]])
+                positions_before.extend([row[pos_col], row[pos_col]])
+            if times_before:
+                ax.plot(
+                    times_before, positions_before, "-", color="#D9D9D9",
+                    linewidth=1.5, alpha=0.9, zorder=1,
+                    label="Eye trace (before merge)",
+                )
+
+            # Eye trace as horizontal segments per fixation (AFTER merge) —
+            # black, drawn on top of the light-grey before-merge trace
             times, positions = [], []
             for _, row in w_after.iterrows():
                 times.extend([row["onset"], row["end_time"]])
                 positions.extend([row[pos_col], row[pos_col]])
             if times:
                 ax.plot(
-                    times, positions, "k-", linewidth=1.5, alpha=0.7,
+                    times, positions, "k-", linewidth=1.5, alpha=0.7, zorder=2,
                     label="Eye trace (after merge)",
                 )
 
