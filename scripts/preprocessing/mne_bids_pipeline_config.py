@@ -1,3 +1,16 @@
+import sys
+import os
+
+# Get the directory of the current script
+config_script_dir = os.path.dirname(os.path.abspath(__file__))
+
+# Add it to sys.path
+if config_script_dir not in sys.path:
+    sys.path.append(config_script_dir)
+
+# Has to be in the same directory as the config file
+from custom_config_functions import add_start_and_stop_experiment
+
 #zapline_fline =  50
 #zapline_iter = True
 
@@ -30,13 +43,18 @@ sync_plot_samps = 200#500
 #     PathLike,
 # )
 
+find_breaks = True
+break_start_regex = ".*-trigger=05 Break start.*"
+break_end_regex = ".*-trigger=06 Break end.*"
+modify_break_regex_func = add_start_and_stop_experiment
+
 # %%
 # # General settings
 bids_root = "data"
-# deriv_root = "data/derivatives/test-bad-channel-detection" # not automatically in bids_root
+deriv_root = "data/derivatives/pipeline-with-manual-preprocessing" # not automatically in bids_root
 pyprep_bad_chans = True
 pyprep_by_correlation = True
-pyprep_all_bads = False
+pyprep_all_bads = True
 pyprep_by_SNR = True
 pyprep_by_deviation = False
 # deriv_root: Optional[PathLike] = None
@@ -51,7 +69,7 @@ pyprep_by_deviation = False
 task = "freeviewing"
 
 #subjects = "all"
-subjects = ["005", "006"]#, "007", "022", "029"]
+subjects = ["007"]#, "007", "022", "029"]
 #subjects = ["005", "013", "016", "025"]
 #subjects = ['005', '006', '007', '009', '010', '011', '013', '017', '021', '022', '029', '030', '034', '038', '039', '043', '048', '049', '050', '051', '053', '055', '056', '059', '060', '061', '062', '063', '064', '065'] # no missing data in segments and <35% missing in general
 #subjects = ["005", "006", "007", "009", "010", "017", "021", "022", "029", "030", "038", "039", "043"] # Subject 11 has more than one eeg file (2 runs), but 1 ET file -> Number of sync events not equal, ICA for sub-013 did not return for more than 12 hours, sub-018 seems to have nans but why?!,  sub-024 ZeroDevisionError in _04_frequency_filter, sub-035, sub-045 have nan values too, sub-034: EEG recording was started late therefore sync events do not have same length
@@ -742,7 +760,7 @@ reject = {"eeg": 300e-6}
 # These options control how the pipeline is executed but should not affect
 # what outputs get produced.
 
-n_jobs: int = 64
+n_jobs: int = 1
 # """
 # Specifies how many subjects you want to process in parallel. If `1`, disables
 # parallel processing.
@@ -780,7 +798,7 @@ n_jobs: int = 64
 # The maximum amount of RAM per Dask worker.
 # """
 
-mne_log_level = "info"
+#mne_log_level = "info"
 # log_level: Literal["info", "error"] = "info"
 # """
 # Set the pipeline logging verbosity.
@@ -791,7 +809,7 @@ mne_log_level = "info"
 # Set the MNE-Python logging verbosity.
 # """
 
-on_error = "debug"
+#on_error = "debug"
 # on_error: Literal["continue", "abort", "debug"] = "abort"
 # """
 # Whether to abort processing as soon as an error occurs, continue with all other

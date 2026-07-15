@@ -7,14 +7,17 @@ requires-python = ">=3.12"
 dependencies = [
     "datalad-dataverse>=1.0.3",
     "git-annex",
+    "jupyter>=1.1.1",
     "mne-bids-pipeline",
     "mne<1.11",
-    "onnxruntime"
+    "onnxruntime",
+    "pyprep>=0.6.0",
 ]
 
 [tool.uv.workspace]
 members = [
     "mne-bids-eyetracking-pipeline",
+    "lib/mne-bids-pipeline",
 ]
 
 [tool.uv.sources]
