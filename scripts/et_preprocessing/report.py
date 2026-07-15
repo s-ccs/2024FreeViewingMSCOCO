@@ -177,7 +177,7 @@ def _render_dropout_table(stats: dict) -> str:
     for rec in stats.values():
         by_metric.setdefault(rec["metric"], {})[rec.get("stage", "single")] = rec
 
-    order = ["single", "before", "after"]
+    order = ["before", "after"]
     stages = [s for s in order if any(s in d for d in by_metric.values())]
     head = "".join(f'<th style="text-align:left">Dropped ({s})</th>' for s in stages)
 
