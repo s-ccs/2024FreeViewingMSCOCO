@@ -104,13 +104,13 @@ def _overlap_hist(ax, before, after, bins, before_blink=None):
     """
     if before_blink is None:
         ax.hist(before, bins=bins, histtype="step", color=BEFORE_COLOR, linewidth=1.8,
-                zorder=3, label="Before Preprocessing")
+                zorder=3, label="before preprocessing")
     else:
         ax.hist([before, before_blink], bins=bins, histtype="step", stacked=True,
                 color=[BEFORE_COLOR, BLINK_MS_COLOR], linewidth=1.8, zorder=3,
-                label=["Before (pre-merge)", "Blink saccades"])
+                label=["before", "blink saccades"])
     ax.hist(after, bins=bins, histtype="stepfilled", color=AFTER_COLOR, alpha=0.45,
-            edgecolor="black", zorder=2, label="After Preprocessing")
+            edgecolor="black", zorder=2, label="after preprocessing")
 
 
 def _graph_main_sequence(ax, sac_df, include_blink_sac: bool | str = False, by_eye: str = "binocular"):
@@ -300,9 +300,9 @@ def _graph_fixation_frequency(ax, fix_df, fix_after=None):
         # plot: bar-type overlap with rwidth (same bar width as the single after-processing plot)
         bins = np.arange(max_val + 2) - 0.3
         ax.hist(fix_after.values, bins=bins, rwidth=0.6, color=AFTER_COLOR, alpha=0.45,
-                edgecolor="black", zorder=2, label="After Preprocessing")
+                edgecolor="black", zorder=2, label="after preprocessing")
         ax.hist(fix_before.values, bins=bins, rwidth=0.6, facecolor="none",
-                edgecolor=BEFORE_COLOR, linewidth=1.8, zorder=3, label="Before Preprocessing")
+                edgecolor=BEFORE_COLOR, linewidth=1.8, zorder=3, label="before preprocessing")
         ax.legend(fontsize=7)
 
     # Labels & title
