@@ -133,7 +133,7 @@ def _render_comparison_table(section_title: str, before: dict, after: dict) -> s
 
     return f"""
     <div class="stat-block wide">
-        <details open>
+        <details>
             <summary>{section_title}</summary>
             <table>
                 <thead><tr><th></th><th style="text-align:left">Before</th>
@@ -197,7 +197,7 @@ def _render_dropout_table(stats: dict) -> str:
 
 def _render_config() -> str:
     """Render all upper-case config.py constants as a collapsible table."""
-    EXCLUDE = {"DATA_ROOT"}  # add more names here to hide them
+    EXCLUDE = {"DATA_ROOT"}  # hide data root path for privacy
     items = {
         k: getattr(config, k)
         for k in dir(config)
