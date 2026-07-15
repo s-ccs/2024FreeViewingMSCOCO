@@ -299,10 +299,10 @@ def _graph_fixation_frequency(ax, fix_df, fix_after=None):
         max_val = max(fix_before.max(), fix_after.max())
         # plot: bar-type overlap with rwidth (same bar width as the single after-processing plot)
         bins = np.arange(max_val + 2) - 0.3
-        ax.hist(fix_after.values, bins=bins, rwidth=0.6, color=AFTER_COLOR, alpha=0.45,
-                edgecolor="black", zorder=2, label="after preprocessing")
         ax.hist(fix_before.values, bins=bins, rwidth=0.6, facecolor="none",
                 edgecolor=BEFORE_COLOR, linewidth=1.8, zorder=3, label="before preprocessing")
+        ax.hist(fix_after.values, bins=bins, rwidth=0.6, color=AFTER_COLOR, alpha=0.45,
+                edgecolor="black", zorder=2, label="after preprocessing")
         ax.legend(fontsize=7)
 
     # Labels & title
