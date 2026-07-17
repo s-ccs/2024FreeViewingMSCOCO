@@ -1,0 +1,24 @@
+[project]
+name = "freeviewingmscoco"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "datalad-dataverse>=1.0.3",
+    "git-annex",
+    "jupyter>=1.1.1",
+    "mne-bids-pipeline",
+    "mne<1.11",
+    "onnxruntime",
+    "pyprep>=0.6.0",
+]
+
+[tool.uv.workspace]
+members = [
+    "mne-bids-eyetracking-pipeline",
+    "lib/mne-bids-pipeline",
+]
+
+[tool.uv.sources]
+mne-bids-pipeline = { workspace = true, editable = true }
