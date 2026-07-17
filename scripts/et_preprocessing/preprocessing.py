@@ -38,7 +38,7 @@ logger = logging.getLogger(__name__)
 # Load Input file(s)
 # =============================================================================
 def load_subject_tsv(
-    folder_path: Path, subject_id: str, window_ms: float = BLINK_WINDOW_MS
+    filepath: Path, subject_id: str, window_ms: float = BLINK_WINDOW_MS
 ) -> pd.DataFrame:
     """
     Args:
@@ -52,10 +52,10 @@ def load_subject_tsv(
     Returns:
         pd.DataFrame: Events DataFrame
     """
-    filename = f"sub-{subject_id}_{SESSION}_task-{TASK}_et_events.tsv"
-    filepath = os.path.join(folder_path, filename)
+    #filename = f"sub-{subject_id}_{SESSION}_task-{TASK}_et_events.tsv"
+    #filepath = os.path.join(folder_path, filename)
 
-    logger.info(f"Loading events TSV: {filename}")
+    logger.info(f"Loading events TSV: {filepath}")
 
     if not os.path.exists(filepath):
         raise FileNotFoundError(f"File not found: {filepath}")

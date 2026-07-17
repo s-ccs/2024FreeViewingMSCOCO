@@ -99,30 +99,40 @@ def subject_paths(subject_id: str) -> dict:
     """
     Return all relevant paths for one subject, derived from DATA_ROOT.
 
-    Template
+    EXAMPLE
     ------
     DATA_ROOT/
-    └── sub-XXX/
-        └── ses-001/
-            └── INPUT_SUBDIR/
-                ├── sub-XXX_ses-001_task-freeviewing_et_events.tsv
-            └── DERIVATIVES_SUBDIR/
-                ├── sub-XXX_ses-001_task-freeviewing_et_events_merged.tsv
-                └── PLOTS_SUBDIR/
+    └── derivatives/
+        └── INPUT_DERIVATIVE/
+            └── sub-XXX/
+                └── ses-001/
+                    └── INPUT_SUBDIR/
+                        ├── sub-XXX_ses-001_task-freeviewing_run-1_{INPUT_SUFFIX}.tsv
+        └── OUTPUT_DERIVATIVE/
+            └── sub-XXX/
+                └── ses-001/
+                    └── OUTPUT_SUBDIR/
+                        ├── sub-XXX_ses-001_task-freeviewing_run-1_{OUTPUT_SUFFIX}.tsv
+                        └── PLOTS_SUBDIR/
     """
-    in_dir = (
-        config.DATA_ROOT / f"sub-{subject_id}" / config.SESSION / config.INPUT_SUBDIR
-    )
-    derivatives_dir = (
-        config.DATA_ROOT / f"sub-{subject_id}" / config.SESSION / config.DERIVATIVES_SUBDIR
-    )
-    stem = f"sub-{subject_id}_{config.SESSION}_task-{config.TASK}"
+    if not config.INPUT_DERIVATIVE:
+        in_dir = os.path.join(config.DATA_ROOT, f"sub-{subject_id}", config.SESSION, config.INPUT_SUBDIR)
+    else:
+        in_dir = os.path.join(config.DATA_ROOT, "derivatives", config.INPUT_DERIVATIVE, f"sub-{subject_id}", config.SESSION, config.INPUT_SUBDIR)
+
+    out_dir = os.path.join(config.DATA_ROOT, "derivatives", config.OUTPUT_DERIVATIVE, f"sub-{subject_id}", config.SESSION, config.OUTPUT_SUBDIR)
+
+    if config.RUN:
+        stem = f"sub-{subject_id}_{config.SESSION}_task-{config.TASK}_run-{config.RUN}"
+    else:
+        stem = f"sub-{subject_id}_{config.SESSION}_task-{config.TASK}"
+
     return {
         "in_dir": in_dir,
-        "derivatives_dir": derivatives_dir,
-        "raw_tsv": in_dir / f"{stem}_et_events.tsv",
-        "merged_tsv": derivatives_dir / f"{stem}_et_events_merged.tsv",
-        "plots_dir": derivatives_dir / config.PLOTS_SUBDIR,
+        "out_dir": out_dir,
+        "in_tsv": os.path.join(in_dir, f"{stem}_{config.INPUT_SUFFIX}.tsv"),
+        "out_tsv": os.path.join(out_dir, f"{stem}_{config.OUTPUT_SUFFIX}.tsv"),
+        "plots_dir": os.path.join(out_dir,config.PLOTS_SUBDIR),
     }
 
 
@@ -141,10 +151,10 @@ def run_preprocessing(subject_id: str, overwrite: bool) -> bool:
     """
     paths = subject_paths(subject_id)
 
-    if paths["merged_tsv"].exists() and not overwrite:
+    if os.path.exists(paths["out_tsv"]) and not overwrite:
         logger.info(
             f"Skipping preprocessing for {subject_id} — merged file already exists: "
-            f"{paths['merged_tsv'].name}. Use --overwrite to reprocess."
+            f"{paths['out_tsv']}. Use --overwrite to reprocess."
         )
         return True
 
@@ -152,7 +162,7 @@ def run_preprocessing(subject_id: str, overwrite: bool) -> bool:
     logger.info(f"Loading events TSV from dir:{paths['in_dir']} ...")
     try:
         events_raw = load_subject_tsv(
-            folder_path=paths["in_dir"],
+            filepath=paths["in_tsv"],
             subject_id=subject_id,
             window_ms=config.BLINK_WINDOW_MS,
         )
@@ -173,9 +183,9 @@ def run_preprocessing(subject_id: str, overwrite: bool) -> bool:
     )
 
     # Save
-    os.makedirs(paths["derivatives_dir"], exist_ok=True)
-    events_merged.to_csv(paths["merged_tsv"], sep="\t", index=False)
-    logger.info(f"--> Saved merged TSV: {paths['merged_tsv']}")
+    os.makedirs(paths["out_dir"], exist_ok=True)
+    events_merged.to_csv(paths["out_tsv"], sep="\t", index=False)
+    logger.info(f"--> Saved merged TSV: {paths['out_tsv']}")
 
     # 3. pre/post-merge eye trace comparison
     os.makedirs(paths["plots_dir"], exist_ok=True)
@@ -212,7 +222,7 @@ def run_preprocessing(subject_id: str, overwrite: bool) -> bool:
             events_raw=events_raw,
             events_merged=events_merged,
             subject_id=f"sub-{subject_id}",
-            out_path=str(paths["derivatives_dir"]),
+            out_path=str(paths["out_dir"]),
             by_eye=config.BY_EYE,
             sac_amp_max=config.SAC_AMP_MAX_DEG,
             fix_dur_min=config.FIX_DUR_MIN_MS,
@@ -237,19 +247,19 @@ def run_visualisation(subject_id: str) -> bool:
     """
     paths = subject_paths(subject_id)
 
-    if not paths["merged_tsv"].exists():
+    if not os.path.exists(paths["out_tsv"]):
         logger.warning(
-            f"No merged file found for {subject_id}: {paths['merged_tsv'].name}. "
+            f"No merged file found for {subject_id}: {paths['out_tsv'].name}. "
             f"Run --steps preprocessing first."
         )
         return False
 
-    logger.info(f"Loading merged events from dir: {paths['derivatives_dir']} ...")
-    events = pd.read_csv(paths["merged_tsv"], sep="\t")
+    logger.info(f"Loading merged events from dir: {paths['out_dir']} ...")
+    events = pd.read_csv(paths["out_tsv"], sep="\t")
     # Load raw via load_subject_tsv (not plain read_csv) so blink saccades get annotated;
     # the before/after comparison needs the 'blink_saccade' column to highlight them.
     events_raw = load_subject_tsv(
-        folder_path=paths["in_dir"],
+        filepath=paths["in_tsv"],
         subject_id=subject_id,
         window_ms=config.BLINK_WINDOW_MS,
     )
@@ -374,8 +384,8 @@ def main():
     print(f"Show plots     : {args.show_plots}")
     print(f"Log level      : {args.log_level}")
     print(f"BIDS root      : {config.DATA_ROOT}")
-    print(f"Output subdir  : .../{config.SESSION}/{config.DERIVATIVES_SUBDIR}/")
-    print(f"Figures subdir : .../{config.DERIVATIVES_SUBDIR}/{config.PLOTS_SUBDIR}/")
+    #print(f"Output subdir  : .../{config.SESSION}/{config.DERIVATIVES_SUBDIR}/")
+    #print(f"Figures subdir : .../{config.DERIVATIVES_SUBDIR}/{config.PLOTS_SUBDIR}/")
     print(f"{'=' * 60}")
 
     n_ok = 0
