@@ -94,8 +94,7 @@ def merge_fixation_candidates(events, a_min=A_MIN):
     events = events.sort_values(["eye", "onset"]).reset_index(drop=True)
 
     # Identify naturally consecutive fixations (should not be merged)
-    consecutives = find_consecutive_trial_types(events, trial_type="fixation")
-    events = events.drop(index=consecutives.index)
+    events = find_consecutive_trial_types(events, trial_type="fixation")
 
     n_before = (events["trial_type"] == "saccade").sum()
     # Drop saccades that are BOTH below amplitude AND duration threshold
@@ -108,7 +107,7 @@ def merge_fixation_candidates(events, a_min=A_MIN):
     ].reset_index(drop=True)
     n_dropped = n_before - (events["trial_type"] == "saccade").sum()
     logger.info(
-        f"Dropped {n_dropped} micro-saccades (amplitude < {a_min}° and duration < {t_min_sac*1000:.1f} ms)"
+        f"Dropped {n_dropped} saccades (amplitude < {a_min}° and duration < {t_min_sac*1000:.1f} ms)"
     )
 
     rows_to_keep = []
@@ -123,6 +122,7 @@ def merge_fixation_candidates(events, a_min=A_MIN):
             and events.iloc[i]["trial_type"] == "fixation"
             and events.iloc[i + 1]["trial_type"] == "fixation"
             and events.iloc[i]["eye"] == events.iloc[i + 1]["eye"]
+            and not (events.iloc[i]["consecutive_block"] == events.iloc[i]["consecutive_block"])
         ):
             j = i + 1
             duration_sum = current_row["duration"]
@@ -130,6 +130,7 @@ def merge_fixation_candidates(events, a_min=A_MIN):
                 j < len(events)
                 and events.iloc[j]["trial_type"] == "fixation"
                 and events.iloc[j]["eye"] == current_row["eye"]
+                and not (events.iloc[j]["consecutive_block"] == events.iloc[j-1]["consecutive_block"])
             ):
                 next_row = events.iloc[j]
                 duration_sum += next_row["duration"]
@@ -149,7 +150,6 @@ def merge_fixation_candidates(events, a_min=A_MIN):
             i += 1
 
     merged_events = pd.DataFrame(rows_to_keep)
-    merged_events = pd.concat([merged_events, consecutives])
     merged_events = merged_events.sort_values(["onset"]).reset_index(drop=True)
 
     return merged_events
@@ -169,31 +169,46 @@ def find_consecutive_trial_types(events, trial_type: str) -> pd.DataFrame:
 
     Returns:
     pd.DataFrame
-        Rows from the original DataFrame where a consecutive pair was found.
+        Copy of the original dataframe with an additional column 'consecutive_block'
+        which indicates which series of consecutive events an event belongs to or
+        is nan in the case that the event is not part of a consecutive series.
     """
     if trial_type not in ("fixation", "saccade"):
         raise ValueError("trial_type must be 'fixation' or 'saccade'")
 
-    events_sorted = events.sort_values(["eye", "onset"]).reset_index(drop=True)
-    consecutives = set()
+    events_sorted = events.sort_values(["eye", "onset"]).reset_index() # keep the original index as a column
 
+    block = 0
     i = 0
     while i < len(events_sorted) - 1:
-        current_row = events_sorted.iloc[i]
-        next_row = events_sorted.iloc[i + 1]
 
         if (
-            current_row["trial_type"] == trial_type
-            and next_row["trial_type"] == trial_type
-            and current_row["eye"] == next_row["eye"]
+            events_sorted.loc[i,"trial_type"] == trial_type
+            and events_sorted.loc[i+1,"trial_type"] == trial_type
+            and events_sorted.loc[i,"eye"] == events_sorted.loc[i+1,"eye"]
         ):
-            consecutives.add(i)
-            consecutives.add(i + 1)
+            events_sorted.loc[i,"consecutive_block"] = block
 
-        i += 1
+            # Keep adding events to a consecutive block as long as they are of the same event type
+            j = 1
+            while (
+                events_sorted.loc[i+j,"trial_type"] == trial_type
+                and events_sorted.loc[i+j,"eye"] == events_sorted.loc[i,"eye"]
+            ):
+                events_sorted.loc[i+j, "consecutive_block"] = block
+                j += 1
 
-    result = events_sorted.loc[sorted(consecutives)].copy()
-    logger.debug(f"Found {len(consecutives) // 2} consecutive {trial_type} pairs.")
+            i = i+j
+            block += 1
+        else: 
+            i += 1
+
+
+    #result = events_sorted.loc[sorted(consecutives)].copy()
+    result = events_sorted.sort_values("index").reset_index(drop=True) # sort according to the original index
+    result.drop("index", axis=1, inplace=True)
+
+    logger.debug(f"Found {block} blocks of consecutive events of type {trial_type}.")
 
     return result
 
