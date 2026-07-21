@@ -170,7 +170,10 @@ def run_preprocessing(subject_id: str, overwrite: bool) -> bool:
         logger.error(e)
         return False
 
-    # 2. Hooge et al. (2022) merger
+    # 2a. Hooge et al. (2022), Stage 1
+    # Saccades which are below a certain amplitude and duration are dropped
+    # and the surrounding fixations are merged
+
     logger.info(
         f"Merging events  "
         f"(a_min={config.A_MIN}°, "
@@ -181,6 +184,12 @@ def run_preprocessing(subject_id: str, overwrite: bool) -> bool:
         events_raw,
         a_min=config.A_MIN,
     )
+
+    # 2b. Hooge et al. (2022), Stage 2
+    # Fixations shorter than the specified threshold are dropped from the events dataframe.
+    idx_drop_fix = events_merged.query("(trial_type == 'fixation') & (duration < @config.T_MIN_FIX)").index
+    events_merged.drop(idx_drop_fix, inplace=True)
+    logger.info(f"Dropped {len(idx_drop_fix)} fixations (sum for both eyes) with a duration below {config.T_MIN_FIX * 1000:.0f} ms.")
 
     # Save
     os.makedirs(paths["out_dir"], exist_ok=True)
