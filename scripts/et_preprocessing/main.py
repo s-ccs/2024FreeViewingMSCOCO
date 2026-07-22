@@ -180,9 +180,15 @@ def run_preprocessing(subject_id: str, overwrite: bool) -> bool:
         f"t_min_fix={config.T_MIN_FIX * 1000:.0f} ms, "
         f"blink_window={config.BLINK_WINDOW_MS:.0f} ms)..."
     )
+    if config.MERGE_THRESHOLD:
+        merge_threshold = config.MERGE_THRESHOLD
+    else:
+        merge_threshold = 100
+        
     events_merged = merge_fixation_candidates(
         events_raw,
         a_min=config.A_MIN,
+        merge_threshold=merge_threshold
     )
 
     # 2b. Hooge et al. (2022), Stage 2
