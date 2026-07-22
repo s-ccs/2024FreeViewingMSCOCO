@@ -71,7 +71,7 @@ def load_subject_tsv(
 
 # Preprocessing
 # =============================================================================
-def merge_fixation_candidates(events, a_min=A_MIN):
+def merge_fixation_candidates(events, a_min=A_MIN, merge_threshold=100):
     """
     Saccades are dropped when they are *both* smaller than `a_min` (deg) *and* shorter than the minimum saccade duration T_min, computed as:
         T_min (ms) = 2.2 * a_min + 27
@@ -82,6 +82,8 @@ def merge_fixation_candidates(events, a_min=A_MIN):
         DataFrame with eye-tracking events
     a_min : float
         Minimum saccade amplitude threshold in degrees (default: 1.0).
+    merge_threshold : float
+        Fixations will only be merged if the time between them is below `merge_threshold` (in ms)
 
     Returns:
     pandas.DataFrame
@@ -90,11 +92,11 @@ def merge_fixation_candidates(events, a_min=A_MIN):
     # Compute minimum saccade duration from the paper's formula
     t_min_sac= (2.2 * a_min + 27) / 1000.0
 
+    # Convert merge threshold to seconds
+    merge_threshold /= 1000.0
+
     # Sort by eye and onset to prevent cross-eye merging
     events = events.sort_values(["eye", "onset"]).reset_index(drop=True)
-
-    # Identify naturally consecutive fixations (should not be merged)
-    events = find_consecutive_trial_types(events, trial_type="fixation")
 
     n_before = (events["trial_type"] == "saccade").sum()
     # Drop saccades that are BOTH below amplitude AND duration threshold
@@ -122,7 +124,7 @@ def merge_fixation_candidates(events, a_min=A_MIN):
             and events.iloc[i]["trial_type"] == "fixation"
             and events.iloc[i + 1]["trial_type"] == "fixation"
             and events.iloc[i]["eye"] == events.iloc[i + 1]["eye"]
-            and not (events.iloc[i]["consecutive_block"] == events.iloc[i]["consecutive_block"])
+            and events.iloc[i+1]["onset"]-events.iloc[i]["end_time"] < merge_threshold
         ):
             j = i + 1
             duration_sum = current_row["duration"]
@@ -130,7 +132,7 @@ def merge_fixation_candidates(events, a_min=A_MIN):
                 j < len(events)
                 and events.iloc[j]["trial_type"] == "fixation"
                 and events.iloc[j]["eye"] == current_row["eye"]
-                and not (events.iloc[j]["consecutive_block"] == events.iloc[j-1]["consecutive_block"])
+                and events.iloc[j]["onset"]-events.iloc[j-1]["end_time"] < merge_threshold
             ):
                 next_row = events.iloc[j]
                 duration_sum += next_row["duration"]
