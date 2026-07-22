@@ -52,8 +52,8 @@ RUN = 1 # optional
 # Default subject list processed when no --subjects argument is given: 
 # Format: list of strings, e.g. ["005", "006", "007"] or ["all"] for all subjects in the dataset. 
 # The subject list is used to find the input files in DATA_ROOT/sub-XXX/ses-001/misc/sub-XXX_ses-001_task-freeviewing_et_events.tsv
-#SUBJECTS = ["all"]
-SUBJECTS = ["007"]
+SUBJECTS = ["all"]
+#SUBJECTS = ["007","029","061"]
 # ["005"]
 # [ "005", "006", "007", "009", "010", "011", "013", "016", "017", "018", "021", "022", "024", "025", "029", "030", "034", "035", "038", "043", "045", "060"]
 # ["all"]
@@ -69,14 +69,15 @@ SCREEN_DIST_M = 0.729  # in metres
 # 4. Preprocessing
 # =============================================================================
 # Half-window in ms around each blink event for flagging saccades as "blink saccade" in annotate_blink_saccades_in_df().
-BLINK_WINDOW_MS = 150.0
+BLINK_WINDOW_MS = 50.0
 
 # Minimum saccade amplitude threshold (degrees)
-# s. Hooge et al. (2022), Stage 1.: Saccades smaller than this AND shorter than T_min are dropped.
-A_MIN = 1.0
+# s. Hooge et al. (2022), Stage 1.
+A_MIN = 1.0 # Saccades smaller than this AND shorter than T_min are dropped.
+MERGE_THRESHOLD = 100 # (in ms); only fixations with a time difference < MERGE_THRESHOLD will be merged
 
 # Minimum fixation duration (seconds)
-# s. Hooge et al. (2022), Stage 2.: Fixations shorter than this are dropped before merging consecutive saccades.
+# s. Hooge et al. (2022), Stage 2.: Fixations shorter than this are dropped from the events dataframe.
 T_MIN_FIX = 0.06
 
 # Generate Report (boolean): creates an html report
@@ -104,10 +105,12 @@ INCLUDE_BLINK_SAC = "highlight"
 # 7. Visualisation — fixation duration
 # =============================================================================
 # drop implausibly short fixations
-FIX_DUR_MIN_MS = 60
+# FIX_DUR_MIN_MS = 60
+FIX_DUR_MIN_MS = 0
 
 # drop implausibly long fixations
-FIX_DUR_MAX_MS = 1000
+# FIX_DUR_MAX_MS = 1000
+FIX_DUR_MAX_MS = 10000
 
 # Histogram bin width in ms
 FIX_DUR_BIN_W = 20
@@ -116,18 +119,20 @@ FIX_DUR_BIN_W = 20
 # 8. Visualisation — saccade amplitude
 # =============================================================================
 # Max amplitude (deg)
-SAC_AMP_MAX_DEG = 40
+# SAC_AMP_MAX_DEG = 40
+SAC_AMP_MAX_DEG = 100
 
 
 # 9. Visualisation — saccade duration
 # =============================================================================
 # Max duration (ms); none = disable clipping
-SAC_DUR_MAX_MS = 120
+# SAC_DUR_MAX_MS = 120
+SAC_DUR_MAX_MS = 500
 
 
 # 10. Visualisation — angular histogram
 # =============================================================================
-# If True: weight bins by saccade amplitude & exclude microssacades < ANG_HIST_MICROSAC_MIN_DEG
+# If True: weight bins by saccade amplitude & exclude saccades with amplitudes < ANG_HIST_MICROSAC_MIN_DEG
 ANG_HIST_REFINEMENT = False
 ANG_HIST_MICROSAC_MIN_DEG = 1.0
 
