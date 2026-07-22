@@ -388,7 +388,7 @@ def _render_html(
                 saccades {merge_info['n_sac_before']} → {merge_info['n_sac_after']}
                 ({merge_info['d_sac']:+d}),
                 fixations {merge_info['n_fix_before']} → {merge_info['n_fix_after']}
-                ({merge_info['d_fix']:+d}). Dropping micro-saccades removes saccades;
+                ({merge_info['d_fix']:+d}). Dropping saccades below threshold removes saccades;
                 merging then reduces the fixation count (fewer, longer fixations).</p>
             <h3>Eye-trace: before vs. after merge</h3>
             <p class="plot-caption">Top-3 time windows per eye with the most merges. Fixations before
