@@ -556,6 +556,9 @@ def _graph_saccade_angles(ax, sac_df, sac_after=None, include_blink_sac: bool | 
         s = s_df.copy()
         dx = s["sacc_end_x"] - s["sacc_start_x"]
         dy = s["sacc_end_y"] - s["sacc_start_y"]
+        # Flip the sign because ET coordinate system has its origin in the top left
+        # (instead of bottom left) and the y-axis needs to be flipped for the angle computation
+        dy = -dy 
         if style == "polar":
             s["angle"] = np.arctan2(dy, dx) % (2 * np.pi)
         else:
