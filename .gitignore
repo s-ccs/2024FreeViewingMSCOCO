@@ -32,3 +32,7 @@ experiment/2024FreeViewingMSCOCO_exit_questions.tsv
 
 # for data
 data/
+
+__pycache__/
+*.renbak
+.renbak/
