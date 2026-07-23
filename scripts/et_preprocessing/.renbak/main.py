@@ -99,40 +99,30 @@ def subject_paths(subject_id: str) -> dict:
     """
     Return all relevant paths for one subject, derived from DATA_ROOT.
 
-    EXAMPLE
+    Template
     ------
     DATA_ROOT/
-    └── derivatives/
-        └── INPUT_DERIVATIVE/
-            └── sub-XXX/
-                └── ses-001/
-                    └── INPUT_SUBDIR/
-                        ├── sub-XXX_ses-001_task-freeviewing_run-1_{INPUT_SUFFIX}.tsv
-        └── OUTPUT_DERIVATIVE/
-            └── sub-XXX/
-                └── ses-001/
-                    └── OUTPUT_SUBDIR/
-                        ├── sub-XXX_ses-001_task-freeviewing_run-1_{OUTPUT_SUFFIX}.tsv
-                        └── PLOTS_SUBDIR/
+    └── sub-XXX/
+        └── ses-001/
+            └── INPUT_SUBDIR/
+                ├── sub-XXX_ses-001_task-freeviewing_et_events.tsv
+            └── DERIVATIVES_SUBDIR/
+                ├── sub-XXX_ses-001_task-freeviewing_et_events_merged.tsv
+                └── PLOTS_SUBDIR/
     """
-    if not config.INPUT_DERIVATIVE:
-        in_dir = os.path.join(config.DATA_ROOT, f"sub-{subject_id}", config.SESSION, config.INPUT_SUBDIR)
-    else:
-        in_dir = os.path.join(config.DATA_ROOT, "derivatives", config.INPUT_DERIVATIVE, f"sub-{subject_id}", config.SESSION, config.INPUT_SUBDIR)
-
-    out_dir = os.path.join(config.DATA_ROOT, "derivatives", config.OUTPUT_DERIVATIVE, f"sub-{subject_id}", config.SESSION, config.OUTPUT_SUBDIR)
-
-    if config.RUN:
-        stem = f"sub-{subject_id}_{config.SESSION}_task-{config.TASK}_run-{config.RUN}"
-    else:
-        stem = f"sub-{subject_id}_{config.SESSION}_task-{config.TASK}"
-
+    in_dir = (
+        config.DATA_ROOT / f"sub-{subject_id}" / config.SESSION / config.INPUT_SUBDIR
+    )
+    derivatives_dir = (
+        config.DATA_ROOT / f"sub-{subject_id}" / config.SESSION / config.DERIVATIVES_SUBDIR
+    )
+    stem = f"sub-{subject_id}_{config.SESSION}_task-{config.TASK}"
     return {
         "in_dir": in_dir,
-        "out_dir": out_dir,
-        "in_tsv": os.path.join(in_dir, f"{stem}_{config.INPUT_SUFFIX}.tsv"),
-        "out_tsv": os.path.join(out_dir, f"{stem}_{config.OUTPUT_SUFFIX}.tsv"),
-        "plots_dir": os.path.join(out_dir,config.PLOTS_SUBDIR),
+        "derivatives_dir": derivatives_dir,
+        "raw_tsv": in_dir / f"{stem}_et_events.tsv",
+        "merged_tsv": derivatives_dir / f"{stem}_et_events_merged.tsv",
+        "plots_dir": derivatives_dir / config.PLOTS_SUBDIR,
     }
 
 
@@ -151,10 +141,10 @@ def run_preprocessing(subject_id: str, overwrite: bool) -> bool:
     """
     paths = subject_paths(subject_id)
 
-    if os.path.exists(paths["out_tsv"]) and not overwrite:
+    if paths["merged_tsv"].exists() and not overwrite:
         logger.info(
             f"Skipping preprocessing for {subject_id} — merged file already exists: "
-            f"{paths['out_tsv']}. Use --overwrite to reprocess."
+            f"{paths['merged_tsv'].name}. Use --overwrite to reprocess."
         )
         return True
 
@@ -162,7 +152,7 @@ def run_preprocessing(subject_id: str, overwrite: bool) -> bool:
     logger.info(f"Loading events TSV from dir:{paths['in_dir']} ...")
     try:
         events_raw = load_subject_tsv(
-            filepath=paths["in_tsv"],
+            folder_path=paths["in_dir"],
             subject_id=subject_id,
             window_ms=config.BLINK_WINDOW_MS,
         )
@@ -170,36 +160,22 @@ def run_preprocessing(subject_id: str, overwrite: bool) -> bool:
         logger.error(e)
         return False
 
-    # 2a. Hooge et al. (2022), Stage 1
-    # Saccades which are below a certain amplitude and duration are dropped
-    # and the surrounding fixations are merged
-
+    # 2. Hooge et al. (2022) merger
     logger.info(
         f"Merging events  "
         f"(a_min={config.A_MIN}°, "
         f"t_min_fix={config.T_MIN_FIX * 1000:.0f} ms, "
+        f"blink_window={config.BLINK_WINDOW_MS:.0f} ms)..."
     )
-    if config.MERGE_THRESHOLD:
-        merge_threshold = config.MERGE_THRESHOLD
-    else:
-        merge_threshold = 100
-        
     events_merged = merge_fixation_candidates(
         events_raw,
         a_min=config.A_MIN,
-        merge_threshold=merge_threshold
     )
 
-    # 2b. Hooge et al. (2022), Stage 2
-    # Fixations shorter than the specified threshold are dropped from the events dataframe.
-    idx_drop_fix = events_merged.query("(trial_type == 'fixation') & (duration < @config.T_MIN_FIX)").index
-    events_merged.drop(idx_drop_fix, inplace=True)
-    logger.info(f"Dropped {len(idx_drop_fix)} fixations (sum for both eyes) with a duration below {config.T_MIN_FIX * 1000:.0f} ms.")
-
     # Save
-    os.makedirs(paths["out_dir"], exist_ok=True)
-    events_merged.to_csv(paths["out_tsv"], sep="\t", index=False)
-    logger.info(f"--> Saved merged TSV: {paths['out_tsv']}")
+    os.makedirs(paths["derivatives_dir"], exist_ok=True)
+    events_merged.to_csv(paths["merged_tsv"], sep="\t", index=False)
+    logger.info(f"--> Saved merged TSV: {paths['merged_tsv']}")
 
     # 3. pre/post-merge eye trace comparison
     os.makedirs(paths["plots_dir"], exist_ok=True)
@@ -224,9 +200,9 @@ def run_preprocessing(subject_id: str, overwrite: bool) -> bool:
         by_eye=config.BY_EYE,
         fix_dur_min=config.FIX_DUR_MIN_MS,
         fix_dur_max=config.FIX_DUR_MAX_MS,
-        sac_amp_max=config.SAC_AMP_MAX_DEG,
-        sac_dur_max=config.SAC_DUR_MAX_MS,
-        include_blink_sac=config.INCLUDE_BLINK_SAC,
+        sac_amp_max=config.SACC_AMP_MAX_DEG,
+        sac_dur_max=config.SACC_DUR_MAX_MS,
+        include_near_blink_sac=config.INCLUDE_NEAR_BLINK_SAC,
     )
     plt.close(fig)
 
@@ -236,13 +212,13 @@ def run_preprocessing(subject_id: str, overwrite: bool) -> bool:
             events_raw=events_raw,
             events_merged=events_merged,
             subject_id=f"sub-{subject_id}",
-            out_path=str(paths["out_dir"]),
+            out_path=str(paths["derivatives_dir"]),
             by_eye=config.BY_EYE,
-            sac_amp_max=config.SAC_AMP_MAX_DEG,
+            sac_amp_max=config.SACC_AMP_MAX_DEG,
             fix_dur_min=config.FIX_DUR_MIN_MS,
             fix_dur_max=config.FIX_DUR_MAX_MS,
-            sac_dur_max=config.SAC_DUR_MAX_MS,
-            include_blink_sac=config.INCLUDE_BLINK_SAC,
+            sac_dur_max=config.SACC_DUR_MAX_MS,
+            include_near_blink_sac=config.INCLUDE_NEAR_BLINK_SAC,
         )
 
     return True
@@ -261,22 +237,15 @@ def run_visualisation(subject_id: str) -> bool:
     """
     paths = subject_paths(subject_id)
 
-    if not os.path.exists(paths["out_tsv"]):
+    if not paths["merged_tsv"].exists():
         logger.warning(
-            f"No merged file found for {subject_id}: {paths['out_tsv'].name}. "
+            f"No merged file found for {subject_id}: {paths['merged_tsv'].name}. "
             f"Run --steps preprocessing first."
         )
         return False
 
-    logger.info(f"Loading merged events from dir: {paths['out_dir']} ...")
-    events = pd.read_csv(paths["out_tsv"], sep="\t")
-    # Load raw via load_subject_tsv (not plain read_csv) so blink saccades get annotated;
-    # the before/after comparison needs the 'blink_saccade' column to highlight them.
-    events_raw = load_subject_tsv(
-        filepath=paths["in_tsv"],
-        subject_id=subject_id,
-        window_ms=config.BLINK_WINDOW_MS,
-    )
+    logger.info(f"Loading merged events from dir: {paths['derivatives_dir']} ...")
+    events = pd.read_csv(paths["merged_tsv"], sep="\t")
 
     out_path = str(paths["plots_dir"])
     os.makedirs(out_path, exist_ok=True)
@@ -287,7 +256,7 @@ def run_visualisation(subject_id: str) -> bool:
         out_path=out_path,
         out_file_format=config.OUT_FILE_FORMAT,
         by_eye=config.BY_EYE,
-        include_blink_sac=config.INCLUDE_BLINK_SAC,
+        include_near_blink_sac=config.INCLUDE_NEAR_BLINK_SAC,
     )
     plt.close(fig)
 
@@ -307,7 +276,7 @@ def run_visualisation(subject_id: str) -> bool:
         by_eye=config.BY_EYE,
         out_path=out_path,
         out_file_format=config.OUT_FILE_FORMAT,
-        sac_amp_max=config.SAC_AMP_MAX_DEG,
+        sac_amp_max=config.SACC_AMP_MAX_DEG,
     )
 
     logger.info("Plotting saccade duration...")
@@ -316,7 +285,7 @@ def run_visualisation(subject_id: str) -> bool:
         by_eye=config.BY_EYE,
         out_path=out_path,
         out_file_format=config.OUT_FILE_FORMAT,
-        sac_dur_max=config.SAC_DUR_MAX_MS,
+        sac_dur_max=config.SACC_DUR_MAX_MS,
     )
 
     logger.info("Plotting fixation frequency...")
@@ -336,7 +305,6 @@ def run_visualisation(subject_id: str) -> bool:
         by_eye=config.BY_EYE,
         title="Saccade Direction Histogram",
         style=None,
-        include_blink_sac=config.INCLUDE_BLINK_SAC,
     )
 
     logger.info("Plotting summary...")
@@ -348,25 +316,9 @@ def run_visualisation(subject_id: str) -> bool:
         title="Summary",
         fix_dur_min=config.FIX_DUR_MIN_MS,
         fix_dur_max=config.FIX_DUR_MAX_MS,
-        sac_amp_max=config.SAC_AMP_MAX_DEG,
-        sac_dur_max=config.SAC_DUR_MAX_MS,
-        include_blink_sac=config.INCLUDE_BLINK_SAC,
-        dropout_stats=config.DROPOUT_STATS,
-    )
-    plt.close(fig)
-    
-    logger.info("Plotting summary comparison...")
-    fig = plot_summary_comparison(
-        events_before=events_raw,
-        events_after=events,
-        out_path=None,
-        by_eye=config.BY_EYE,
-        fix_dur_min=config.FIX_DUR_MIN_MS,
-        fix_dur_max=config.FIX_DUR_MAX_MS,
-        sac_amp_max=config.SAC_AMP_MAX_DEG,
-        sac_dur_max=config.SAC_DUR_MAX_MS,
-        include_blink_sac=config.INCLUDE_BLINK_SAC,
-        dropout_stats=config.DROPOUT_STATS,
+        sac_amp_max=config.SACC_AMP_MAX_DEG,
+        sac_dur_max=config.SACC_DUR_MAX_MS,
+        include_near_blink_sac=config.INCLUDE_NEAR_BLINK_SAC,
     )
     plt.close(fig)
 
@@ -398,9 +350,10 @@ def main():
     print(f"Overwrite      : {args.overwrite}")
     print(f"Show plots     : {args.show_plots}")
     print(f"Log level      : {args.log_level}")
-    print(f"BIDS root      : {config.DATA_ROOT}")
-    #print(f"Output subdir  : .../{config.SESSION}/{config.DERIVATIVES_SUBDIR}/")
-    #print(f"Figures subdir : .../{config.DERIVATIVES_SUBDIR}/{config.PLOTS_SUBDIR}/")
+    print(
+        f"BIDS root      : {config.DATA_ROOT}"
+    print(f"Output subdir  : .../{config.SESSION}/{config.DERIVATIVES_SUBDIR}/")
+    print(f"Figures subdir : .../{config.DERIVATIVES_SUBDIR}/{config.PLOTS_SUBDIR}/")
     print(f"{'=' * 60}")
 
     n_ok = 0
@@ -439,8 +392,4 @@ def main():
     print(f"Completed : {n_ok}/{len(subjects)} subject(s)")
     if n_fail:
         print(f"Failed    : {n_fail}/{len(subjects)} subject(s)")
-    print(f"{'=' * 60}\n")
-
-
-if __name__ == "__main__":
-    main()
+    print(f"{'=' * 60

@@ -1,5 +1,5 @@
 """
-graphs.py: drawing helpers for the visualisationscript plotting.py
+graphs.py: drawing helpers for the visualisation script plotting.py
 
 Each `_graph_*` function draws exactly one graph type onto a given Matplotlib
 axis. The public plot_* / plot_summary functions in plotting.py compose these
@@ -65,7 +65,7 @@ def get_dropout_stats() -> dict:
 # =============================================================================
 def _exclude_blink(sac, include_blink_sac):
     """
-    Helperfunction: count and optionally drop blink saccades.
+    Helper function: count and optionally drop blink saccades.
 
     Args:
         sac (pd.DataFrame): saccade events (must contain a 'blink_saccade' column).
@@ -82,9 +82,6 @@ def _exclude_blink(sac, include_blink_sac):
     return sac, n_flagged
 
 
-# =============================================================================
-# Main sequence (amplitude vs. peak-velocity, log-log)
-# =============================================================================
 def _overlap_hist(ax, before, after, bins, before_blink=None):
     """
     Helperfunction: draw an overlapping before/after histogram onto `ax`.
@@ -112,7 +109,33 @@ def _overlap_hist(ax, before, after, bins, before_blink=None):
     ax.hist(after, bins=bins, histtype="stepfilled", color=AFTER_COLOR, alpha=0.45,
             edgecolor="black", zorder=2, label="after preprocessing")
 
+    def compute_saccade_directions(s_df, style):
+        """Add a saccade direction angle to the dataframe.
 
+        Args:
+            s_df (pd.DataFrame): Saccades with sacc_start/end_x/y columns.
+            style (str): "polar" for radians [0, 2π), else "degrees" [0, 360).
+
+        Returns:
+            pd.DataFrame: Copy of s_df with an added "angle" column.
+        """
+        
+        #  Compute saccade direction: radians for polar, degrees [0, 360) for cartesian
+        s = s_df.copy()
+        dx = s["sacc_end_x"] - s["sacc_start_x"]
+        dy = s["sacc_end_y"] - s["sacc_start_y"]
+        # Flip the sign because ET coordinate system has its origin in the top left
+        # (instead of bottom left) and the y-axis needs to be flipped for the angle computation
+        dy = -dy 
+        if style == "polar":
+            s["angle"] = np.arctan2(dy, dx) % (2 * np.pi)
+        else:
+            s["angle"] = (np.degrees(np.arctan2(dy, dx)) + 360) % 360
+        return s
+
+# =============================================================================
+# Main sequence
+# =============================================================================
 def _graph_main_sequence(ax, sac_df, include_blink_sac: bool | str = False, by_eye: str = "binocular"):
     """
     Helperfunction: draw the main-sequence scatter (amplitude vs. peak velocity,
@@ -279,7 +302,7 @@ def _graph_fixation_frequency(ax, fix_df, fix_after=None):
         fix_per_sec = per_sec(fix_df)
         ax.hist(
             fix_per_sec.values,
-            bins=np.arange(fix_per_sec.max() + 2) - 0.3,
+            bins=np.arange(fix_per_sec.max() + 2) - 0.5, # center bins on integer values
             rwidth=0.6,
             edgecolor="black",
         )
@@ -553,16 +576,7 @@ def _graph_saccade_angles(ax, sac_df, sac_after=None, include_blink_sac: bool | 
             s_df, _ = _exclude_blink(s_df, include_blink_sac)
 
         #  Compute saccade direction: radians for polar, degrees [0, 360) for cartesian
-        s = s_df.copy()
-        dx = s["sacc_end_x"] - s["sacc_start_x"]
-        dy = s["sacc_end_y"] - s["sacc_start_y"]
-        # Flip the sign because ET coordinate system has its origin in the top left
-        # (instead of bottom left) and the y-axis needs to be flipped for the angle computation
-        dy = -dy 
-        if style == "polar":
-            s["angle"] = np.arctan2(dy, dx) % (2 * np.pi)
-        else:
-            s["angle"] = (np.degrees(np.arctan2(dy, dx)) + 360) % 360
+        s = compute_saccade_directions(s_df, style)
 
         #  Log the number of saccades
         logger.info(f"Total saccades: {len(s)}")
