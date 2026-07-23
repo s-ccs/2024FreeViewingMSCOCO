@@ -342,7 +342,7 @@ def _render_html(
         <nav>
             <a href="#sec-overview">1 · Overview</a>
             <a href="#sec-blink">2 · Blink</a>
-            <a href="#sec-merger">3 · Fixation Merger</a>
+            <a href="#sec-merger">3 · Eye-movement selection</a>
             <a href="#sec-summary">4 · Summary Plots</a>
             <a href="#sec-config">5 · Config</a>
         </nav>"""
@@ -376,8 +376,9 @@ def _render_html(
             <h2><span class="sec-num">3</span> · Fixation Merger</h2>
             <p class="plot-caption">
                 Two-step procedure following Hooge et al. (2022): first, implausibly small
-                <em>and</em> short saccades ("micro-saccades") are dropped; then consecutive
-                fixations of the same eye that are now no longer separated by a so called blink saccade are merged.
+                <em>and</em> short saccades are dropped; then consecutive
+                fixations of the same eye that are now no longer separated by such a saccade are merged.
+                In the second step, fixations with a duration below a certain threshold e.g. 60 ms are dropped.
             </p>
             <div class="formula">
                 drop saccade &nbsp;if&nbsp; amplitude &lt; a_min ({merge_info['a_min']}°)
@@ -392,8 +393,8 @@ def _render_html(
                 merging then reduces the fixation count (fewer, longer fixations).</p>
             <h3>Eye-trace: before vs. after merge</h3>
             <p class="plot-caption">Top-3 time windows per eye with the most merges. Fixations before
-                merging in <span style="color:mediumseagreen"><strong>green</strong></span>,
-                after merging in <span style="color:tomato"><strong>red</strong></span>.</p>
+                merging in <span style="color:blue"><strong>blue</strong></span>,
+                after merging in <span style="color:orange"><strong>orange</strong></span>.</p>
             {carousel}
         </section>
 
@@ -492,6 +493,25 @@ def generate_report(
     ms_highlight_plot = _fig_to_base64(fig)
     plt.close(fig)
 
+    # --- Section 3: eye-trace carousel ---
+    logger.info("Generating eye-trace comparison...")
+    figs = plot_eye_trace_pre_post_processing(
+        events_before=events_raw,
+        events_after=events_merged,
+        out_path=None,
+        title="Eye Trace Merge Comparison",
+        top_n=3,
+    )
+    eye_trace_slides = []
+    for key, fig in figs.items():
+        rank, eye = key.split("-")
+        eye_name = "Left" if eye == "L" else "Right"
+        suffix = " (most merges)" if rank == "0" else ""
+        eye_trace_slides.append(
+            (f"{eye_name} Eye — Rank {int(rank) + 1}{suffix}", _fig_to_base64(fig))
+        )
+        plt.close(fig)
+
     # --- Section 4: before/after comparison + after-merge summary ---
     logger.info("Generating summary comparison...")
     fig = plot_summary_comparison(
@@ -524,25 +544,6 @@ def generate_report(
     summary_after_plot = _fig_to_base64(fig)
     plt.close(fig)
     dropout_stats = get_dropout_stats()
-
-    # --- Section 3: eye-trace carousel ---
-    logger.info("Generating eye-trace comparison...")
-    figs = plot_eye_trace_pre_post_processing(
-        events_before=events_raw,
-        events_after=events_merged,
-        out_path=None,
-        title="Eye Trace Merge Comparison",
-        top_n=3,
-    )
-    eye_trace_slides = []
-    for key, fig in figs.items():
-        rank, eye = key.split("-")
-        eye_name = "Left" if eye == "L" else "Right"
-        suffix = " (most merges)" if rank == "0" else ""
-        eye_trace_slides.append(
-            (f"{eye_name} Eye — Rank {int(rank) + 1}{suffix}", _fig_to_base64(fig))
-        )
-        plt.close(fig)
 
     # --- prose numbers ---
     n_fix_before = int(stats_before["fixations"]["Count"])
