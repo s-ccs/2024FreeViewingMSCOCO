@@ -104,7 +104,7 @@ def plot_eye_trace_pre_post_processing(
 
         for rank, (w_start, w_end, _) in enumerate(time_windows):
             # one standalone single-panel figure per window (per eye)
-            fig, ax = plt.subplots(1, 1, figsize=(14, 3))
+            fig, ax = plt.subplots(1, 1, figsize=(14, 5))
 
             w_before = before[(before["onset"] >= w_start) & (before["onset"] < w_end)]
             w_after = after[(after["onset"] >= w_start) & (after["onset"] < w_end)]
@@ -286,7 +286,8 @@ def plot_fixation_duration(
         by_eye (str): One of: 'all', 'left', 'right', 'binocular'. Defaults to 'binocular'.
         fix_dur_min (float, optional): lower bound (ms). Defaults to 60.
         fix_dur_max (float, optional): upper bound (ms). Defaults to 1000.
-        title (str, optional): Defaults to 'Fixation Durations'.
+        title (str, optional): Defaults to 'Fixation Durations'
+        dropout_stats (bool, optional): If True, compute and display dropout statistics in the summary figure. Defaults to False.
     """
     if by_eye not in {"all", "left", "right", "binocular"}:
         raise ValueError("by_eye must be one of: 'all', 'left', 'right', 'binocular'")
@@ -349,7 +350,8 @@ def plot_saccade_amplitude(
         title (str, optional): Defaults to 'Saccade Amplitude'.
         sac_amp_max (float, optional): Upper bound (deg). Defaults to 40.
         include_blink_sac (bool | str): False excludes blink saccades,
-            'highlight' marks them, True includes them. Defaults to False.
+            'highlight' marks them, True includes them. Defaults to False
+        dropout_stats (bool, optional): If True, compute and display dropout statistics in the summary figure. Defaults to False.
     """
     # filter out saccades and optionally by eye
     s_df = events_df[events_df["trial_type"] == "saccade"].copy()
@@ -415,6 +417,7 @@ def plot_saccade_duration(
         by_eye (str, optional): One of: 'all', 'left', 'right', 'binocular'. Defaults to 'binocular'.
         title (str, optional): Defaults to 'Saccade Duration'.
         sac_dur_max (int, optional): Maximum duration of a saccade (ms). Defaults to 120.
+        dropout_stats (bool, optional): If True, compute and display dropout statistics in the summary figure. Defaults to False.
     """
     s_df = events_df[events_df["trial_type"] == "saccade"].copy()
 
@@ -505,6 +508,7 @@ def plot_saccade_angles(
     by_eye: str = "binocular",
     title: str = "Saccade Direction Histogram",
     style: str = None,
+    include_blink_sac: bool = False,
 ):
     """
     Histogram of saccade directions (degrees), shown as a polar rose plot, a
@@ -517,6 +521,7 @@ def plot_saccade_angles(
         by_eye (str): One of: 'all', 'left', 'right', 'binocular'. Defaults to 'binocular'.
         title (str, optional): Defaults to 'Saccade Direction Histogram'.
         style (str, optional): One of: 'polar', 'cartesian', or None (produces both). Defaults to None.
+        include_blink_sac (bool, optional): If True, include blink saccades in the histogram. Defaults to False.
     """
     s_df = events_df[events_df["trial_type"] == "saccade"].copy()
 
@@ -529,7 +534,7 @@ def plot_saccade_angles(
     if style in ["polar", None]:
         fig = plt.figure(figsize=(5, 5))
         ax = fig.add_subplot(111, polar=True)
-        _graph_saccade_angles(ax, s_df, include_blink_sac=True, style="polar")
+        _graph_saccade_angles(ax, s_df, include_blink_sac=include_blink_sac, style="polar")
         ax.set_title(f"Polar {title}")
         fig.tight_layout()
         if out_path is not None:
