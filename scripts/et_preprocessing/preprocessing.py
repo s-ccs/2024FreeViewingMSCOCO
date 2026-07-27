@@ -9,7 +9,6 @@ Preprocessing:
     merge_events() calls:
         merge_fixation_candidates()
 Helpers:
-    find_consecutive_trial_types()
     annotate_blink_saccades_in_df()
 
 TBD maybe refactored for events.tsv ?!
@@ -71,8 +70,9 @@ def load_subject_tsv(
 
 # Preprocessing
 # =============================================================================
-def merge_fixation_candidates(events, a_min=A_MIN, merge_threshold=100):
+def merge_fixation_candidates(events, a_min=A_MIN, merge_threshold=None):
     """
+    # TBD: from Hooge et al. (2022)
     Saccades are dropped when they are *both* smaller than `a_min` (deg) *and* shorter than the minimum saccade duration T_min, computed as:
         T_min (ms) = 2.2 * a_min + 27
     Consecutive fixations from the same eye are then merged.
@@ -92,8 +92,10 @@ def merge_fixation_candidates(events, a_min=A_MIN, merge_threshold=100):
     # Compute minimum saccade duration from the paper's formula
     t_min_sac= (2.2 * a_min + 27) / 1000.0
 
-    # Convert merge threshold to seconds
-    merge_threshold /= 1000.0
+    if merge_threshold is None:
+        merge_threshold = t_min_sac
+    else:
+        merge_threshold /= 1000.0  
 
     # Sort by eye and onset to prevent cross-eye merging
     events = events.sort_values(["eye", "onset"]).reset_index(drop=True)
@@ -124,7 +126,8 @@ def merge_fixation_candidates(events, a_min=A_MIN, merge_threshold=100):
             and events.iloc[i]["trial_type"] == "fixation"
             and events.iloc[i + 1]["trial_type"] == "fixation"
             and events.iloc[i]["eye"] == events.iloc[i + 1]["eye"]
-            and events.iloc[i+1]["onset"]-events.iloc[i]["end_time"] < merge_threshold
+            and events.iloc[i+1]["onset"]-events.iloc[i]["end_time"] < merge_threshold # QUESTION:avoid merges of implausible long fixations (e.g. across two different valid fixations)
+            and np.hypot(events.iloc[i+1]["fix_avg_x"], events.iloc[i+1]["fix_avg_y"]) < a_min  # QUESTION: "only Fixations that are close to each other in time and space are combined."? # TBD: explore
         ):
             j = i + 1
             duration_sum = current_row["duration"]
@@ -157,63 +160,7 @@ def merge_fixation_candidates(events, a_min=A_MIN, merge_threshold=100):
     return merged_events
 
 # Helpers
-# =============================================================================
-def find_consecutive_trial_types(events, trial_type: str) -> pd.DataFrame:
-    """
-    Find consecutive events of the same trial_type from the same eye
-    with no intervening event of a different type between them.
-
-    Parameters:
-    events : pd.DataFrame
-        Raw events DataFrame (unsorted is fine, sorted internally).
-    trial_type : str
-        Event type to check: 'fixation' or 'saccade'.
-
-    Returns:
-    pd.DataFrame
-        Copy of the original dataframe with an additional column 'consecutive_block'
-        which indicates which series of consecutive events an event belongs to or
-        is nan in the case that the event is not part of a consecutive series.
-    """
-    if trial_type not in ("fixation", "saccade"):
-        raise ValueError("trial_type must be 'fixation' or 'saccade'")
-
-    events_sorted = events.sort_values(["eye", "onset"]).reset_index() # keep the original index as a column
-
-    block = 0
-    i = 0
-    while i < len(events_sorted) - 1:
-
-        if (
-            events_sorted.loc[i,"trial_type"] == trial_type
-            and events_sorted.loc[i+1,"trial_type"] == trial_type
-            and events_sorted.loc[i,"eye"] == events_sorted.loc[i+1,"eye"]
-        ):
-            events_sorted.loc[i,"consecutive_block"] = block
-
-            # Keep adding events to a consecutive block as long as they are of the same event type
-            j = 1
-            while (
-                events_sorted.loc[i+j,"trial_type"] == trial_type
-                and events_sorted.loc[i+j,"eye"] == events_sorted.loc[i,"eye"]
-            ):
-                events_sorted.loc[i+j, "consecutive_block"] = block
-                j += 1
-
-            i = i+j
-            block += 1
-        else: 
-            i += 1
-
-
-    #result = events_sorted.loc[sorted(consecutives)].copy()
-    result = events_sorted.sort_values("index").reset_index(drop=True) # sort according to the original index
-    result.drop("index", axis=1, inplace=True)
-
-    logger.debug(f"Found {block} blocks of consecutive events of type {trial_type}.")
-
-    return result
-
+# ============================================================================
 def annotate_blink_saccades_in_df(
     events_df: pd.DataFrame, window_ms: float
 ) -> pd.DataFrame:
@@ -229,6 +176,7 @@ def annotate_blink_saccades_in_df(
     saccades_mask = events["trial_type"] == "saccade"
     blinks = events[events["trial_type"] == "blink"]
 
+    # sort by onset time
     b = blinks[["onset", "end_time"]].to_numpy(float)
     b = b[np.argsort(b[:, 0])]
 

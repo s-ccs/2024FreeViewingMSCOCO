@@ -109,29 +109,29 @@ def _overlap_hist(ax, before, after, bins, before_blink=None):
     ax.hist(after, bins=bins, histtype="stepfilled", color=AFTER_COLOR, alpha=0.45,
             edgecolor="black", zorder=2, label="after preprocessing")
 
-    def compute_saccade_directions(s_df, style):
-        """Add a saccade direction angle to the dataframe.
+def compute_saccade_directions(s_df, style):
+    """Add a saccade direction angle to the dataframe.
 
-        Args:
-            s_df (pd.DataFrame): Saccades with sacc_start/end_x/y columns.
-            style (str): "polar" for radians [0, 2π), else "degrees" [0, 360).
+    Args:
+        s_df (pd.DataFrame): Saccades with sacc_start/end_x/y columns.
+        style (str): "polar" for radians [0, 2π), else "degrees" [0, 360).
 
-        Returns:
-            pd.DataFrame: Copy of s_df with an added "angle" column.
-        """
-        
-        #  Compute saccade direction: radians for polar, degrees [0, 360) for cartesian
-        s = s_df.copy()
-        dx = s["sacc_end_x"] - s["sacc_start_x"]
-        dy = s["sacc_end_y"] - s["sacc_start_y"]
-        # Flip the sign because ET coordinate system has its origin in the top left
-        # (instead of bottom left) and the y-axis needs to be flipped for the angle computation
-        dy = -dy 
-        if style == "polar":
-            s["angle"] = np.arctan2(dy, dx) % (2 * np.pi)
-        else:
-            s["angle"] = (np.degrees(np.arctan2(dy, dx)) + 360) % 360
-        return s
+    Returns:
+        pd.DataFrame: Copy of s_df with an added "angle" column.
+    """
+    
+    #  Compute saccade direction: radians for polar, degrees [0, 360) for cartesian
+    s = s_df.copy()
+    dx = s["sacc_end_x"] - s["sacc_start_x"]
+    dy = s["sacc_end_y"] - s["sacc_start_y"]
+    # Flip the sign because ET coordinate system has its origin in the top left
+    # (instead of bottom left) and the y-axis needs to be flipped for the angle computation
+    dy = -dy 
+    if style == "polar":
+        s["angle"] = np.arctan2(dy, dx) % (2 * np.pi)
+    else:
+        s["angle"] = (np.degrees(np.arctan2(dy, dx)) + 360) % 360
+    return s
 
 # =============================================================================
 # Main sequence
@@ -294,7 +294,7 @@ def _graph_fixation_frequency(ax, fix_df, fix_after=None):
 
     def per_sec(df):
         # onset is in SECONDS -> floor to the integer second, then count fixations per second
-        sec = df["onset"].astype(float).floordiv(1).astype(int)
+        sec = df["onset"].floordiv(1).astype(int) # TBD: check if this is the right way to do it (floor to the second, then count fixations per second)
         return sec.value_counts().sort_index()
 
     # single figure

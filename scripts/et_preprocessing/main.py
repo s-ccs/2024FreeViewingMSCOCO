@@ -116,11 +116,11 @@ def subject_paths(subject_id: str) -> dict:
                         └── PLOTS_SUBDIR/
     """
     if not config.INPUT_DERIVATIVE:
-        in_dir = os.path.join(config.DATA_ROOT, f"sub-{subject_id}", config.SESSION, config.INPUT_SUBDIR)
+        in_dir = Path(config.DATA_ROOT)/f"sub-{subject_id}"/config.SESSION/config.INPUT_SUBDIR
     else:
-        in_dir = os.path.join(config.DATA_ROOT, "derivatives", config.INPUT_DERIVATIVE, f"sub-{subject_id}", config.SESSION, config.INPUT_SUBDIR)
+        in_dir = Path(config.DATA_ROOT)/"derivatives"/config.INPUT_DERIVATIVE/f"sub-{subject_id}"/config.SESSION/config.INPUT_SUBDIR
 
-    out_dir = os.path.join(config.DATA_ROOT, "derivatives", config.OUTPUT_DERIVATIVE, f"sub-{subject_id}", config.SESSION, config.OUTPUT_SUBDIR)
+    out_dir = Path(config.DATA_ROOT)/"derivatives"/config.OUTPUT_DERIVATIVE/f"sub-{subject_id}"/config.SESSION/config.OUTPUT_SUBDIR
 
     if config.RUN:
         stem = f"sub-{subject_id}_{config.SESSION}_task-{config.TASK}_run-{config.RUN}"
@@ -130,9 +130,9 @@ def subject_paths(subject_id: str) -> dict:
     return {
         "in_dir": in_dir,
         "out_dir": out_dir,
-        "in_tsv": os.path.join(in_dir, f"{stem}_{config.INPUT_SUFFIX}.tsv"),
-        "out_tsv": os.path.join(out_dir, f"{stem}_{config.OUTPUT_SUFFIX}.tsv"),
-        "plots_dir": os.path.join(out_dir,config.PLOTS_SUBDIR),
+        "in_tsv": in_dir / f"{stem}_{config.INPUT_SUFFIX}.tsv",
+        "out_tsv": out_dir / f"{stem}_{config.OUTPUT_SUFFIX}.tsv",
+        "plots_dir": out_dir / config.PLOTS_SUBDIR
     }
 
 
@@ -182,7 +182,7 @@ def run_preprocessing(subject_id: str, overwrite: bool) -> bool:
     if config.MERGE_THRESHOLD:
         merge_threshold = config.MERGE_THRESHOLD
     else:
-        merge_threshold = 100
+        merge_threshold = None
         
     events_merged = merge_fixation_candidates(
         events_raw,
