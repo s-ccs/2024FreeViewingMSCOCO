@@ -22,18 +22,19 @@ from pathlib import Path
 # 1. PATHS
 # =============================================================================
 # Root directory of the BIDS dataset.
-DATA_ROOT = Path("/scratch/data/2024FreeViewingMSCOCO")
-# DATA_ROOT = Path(
-#     r"C:\Users\chris\Documents\ArbeitUni\VIS_S-CCS\FreeViewing\BIDS"
-# )  # TBD: Delete later
+# DATA_ROOT = Path("/scratch/data/2024FreeViewingMSCOCO")
+DATA_ROOT = Path(
+     r"C:\Users\chris\Documents\ArbeitUni\VIS_S-CCS\FreeViewing\BIDS")  # TBD: Delete later
 
 # If the ET (or EEG+ET) events input file is within a derivative folder, specify which one
 # If raw data should be used set it to None
-INPUT_DERIVATIVE = "custom-preprocessing"
+# INPUT_DERIVATIVE = "custom-preprocessing"
+INPUT_DERIVATIVE = "in"
 # Name of the subdirectory containing the events.tsv file: eeg vs misc
-INPUT_SUBDIR = "eeg"
-# Alternatives: et_events
-INPUT_SUFFIX = "events"
+# INPUT_SUBDIR = "eeg"
+INPUT_SUBDIR = "misc"
+INPUT_SUFFIX = "et_events"
+# INPUT_SUFFIX = "events"
 
 OUTPUT_DERIVATIVE = "et-preprocessing"
 OUTPUT_SUBDIR = "eeg"
@@ -44,7 +45,7 @@ PLOTS_SUBDIR = "plots"
 # BIDS specs
 SESSION = "ses-001"
 TASK = "freeviewing"
-RUN = 1 # optional
+RUN = None # optional: 'None' if 'run'-specs are NOT in the filename
 
 
 # 2. Subjects
@@ -95,7 +96,7 @@ OUT_FILE_FORMAT = "svg"
 
 # 6. Visualisation — main sequence
 # =============================================================================
-# Whether to include saccades flagged as 'near a blink'.
+# Whether to include saccades flagged as 'near a blink' in the plotting.
 # TRUE = Flagged Saccades are included in the plot
 # FALSE = Flagged saccades are dropped
 # "highlight" = Flagges saccades are highlighted in the plot
