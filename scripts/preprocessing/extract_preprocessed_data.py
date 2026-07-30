@@ -1,59 +1,42 @@
-import mne
 from mne_bids import BIDSPath
-import pandas as pd
+import argparse
 import os.path
-import numpy as np
 import re
 import shutil
 
-# Helper functions to extract trial info from description string
-def extract_trial_info(description_string):
-    parts = [part.strip() for part in description_string.split('|')]
-    
-    trial_info = {}
-    for part in parts:
-        key,value = part.split("=",1)
-        if "trigger" in key:
-            key = "trial_type"
-        
-        trial_info[key] = value
-    
-    return trial_info
-
-def append_trial_info(df):
-    df = df.reset_index(drop=True) # Reset index to avoid alignment issues
-    return df.assign(**pd.DataFrame(df["description"].apply(extract_trial_info).to_list()))
-
-# Function to create an event df for one subject from the annotations of their eeg data
-def create_events_dataframe(subject_eeg_path):
-
-    # Load EEG data
-    raw = mne.io.read_raw_fif(subject_eeg_path)
-
-    # Extract events from annotations
-    events_temp = raw.annotations.to_data_frame(time_format=None)
-
-    events = (
-        events_temp
-        .query("not description.str.contains('ET')") # Remove ET events
-        .query("not description.str.contains('@')") # Remove amplifier sync events
-        .drop("ch_names", axis=1) # Remove ch_names column because it's only informative for ET events and otherwise []
-        .pipe(append_trial_info) # Split the description string in separate columns
-        .drop("description", axis=1) # Drop description column since it's no longer needed
-        .astype({"trial_type": "str", "block": "int", "trial": "int", "image": "str"}) # Adapt column data types
-    )
-
-    return events
-
+from preprocessing_helper_functions import *
 
 def main():
 
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description="Process subject IDs.")
+    parser.add_argument(
+        "--subject_ids",
+        type=int,
+        nargs="+",  # Accepts one or more values
+        help="List of subject IDs (e.g., --subject_ids 7 12 30)",
+    )
+
+    parser.add_argument(
+        "--overwrite",
+        action="store_true",
+        help=(
+            "If set, copy preprocessed files to output folder even if output files already exist for a subject. "
+            "Otherwise, subjects with preprocessed data in the output folder are skipped."
+        ),
+    )
+    args = parser.parse_args()
+
     # Specify file paths
     data_root_path = "/scratch/data/2024FreeViewingMSCOCO/"
-    eeg_input_path = os.path.join(data_root_path, "derivatives/mne-bids-pipeline")
-    et_input_path = os.path.join(data_root_path, "derivatives/et_preprocessing")
+    eeg_input_path = os.path.join(data_root_path, "derivatives/custom-preprocessing")
+    events_input_path = os.path.join(data_root_path, "derivatives/et-preprocessing")
     output_path = os.path.join(data_root_path, "derivatives/preprocessed")
-    print(os.path.exists(output_path))
+    
+    # Check whether output folder exists, otherwise create it
+    if not os.path.isdir(output_path):
+        os.mkdir(output_path)
+        print(f"Create output folder: {output_path}")
 
     # Specify session, run and task
     session = 1
@@ -61,30 +44,30 @@ def main():
     task = "freeviewing"
     run = 1
 
-    # Specify if EEG and ET events should be combined in one events.tsv
-    combine_eeg_et = True
-
-    # Extract all participant numbers (including excluded subjects)
-    participants = pd.read_csv(os.path.join(data_root_path, "participants.tsv"), sep='\t')
-    participant_list = participants.participant_id
-    subject_ids = list(map(lambda x: int(x.split("-")[1]), participant_list))
+    # Read subject_ids from command line or extract them from participants.tsv
+    if args.subject_ids:
+        subject_ids = args.subject_ids
+        print(f"Using provided subject_ids: {subject_ids}")
+    else:
+        subject_ids = extract_subject_ids(data_root_path)
+        print("Using subject_ids from participants.tsv file.")
 
     # Create a list of all participants with preprocessed EEG data
     dir_list_eeg = os.listdir(eeg_input_path)
     subject_dir_list_eeg = list(filter(lambda x: re.match(r"sub-\d{3}", x), dir_list_eeg))
     subject_ids_eeg = list(map(lambda x: int(x.split("-")[1]), subject_dir_list_eeg))
 
-    # Create a list of all participants with preprocessed ET data
-    dir_list_et = os.listdir(et_input_path)
-    subject_dir_list_et = list(filter(lambda x: re.match(r"sub-\d{3}", x), dir_list_et))
-    subject_ids_et = list(map(lambda x: int(x.split("-")[1]), subject_dir_list_et))
+    # Create a list of all participants with preprocessed ET data/events df
+    dir_list_events = os.listdir(events_input_path)
+    subject_dir_list_events = list(filter(lambda x: re.match(r"sub-\d{3}", x), dir_list_events))
+    subject_ids_events = list(map(lambda x: int(x.split("-")[1]), subject_dir_list_events))
 
     # Find all subjects that do not have EEG or ET data
     subjects_missing_eeg = list(set(subject_ids)-set(subject_ids_eeg))
-    subjects_missing_et = list(set(subject_ids)-set(subject_ids_et))
+    subjects_missing_events = list(set(subject_ids)-set(subject_ids_events))
 
     print(f"No preprocessed EEG data found for the following subjects: {subjects_missing_eeg}.")
-    print(f"No preprocessed ET data found for the following subjects: {subjects_missing_et}.")
+    print(f"No preprocessed ET data found for the following subjects: {subjects_missing_events}.")
 
     for subject_id in subject_ids:
         padded_subject_id = f"{subject_id:03}"
@@ -93,7 +76,8 @@ def main():
             subject = padded_subject_id,
             session = padded_session,
             task = task,
-            run = run
+            run = run,
+            datatype="eeg",
         )
 
         subject_output_path = BIDSPath(
@@ -101,58 +85,49 @@ def main():
             session = padded_session,
             task = task,
             run = run,
-            root = output_path
+            root = output_path,
+            datatype="eeg"
         )
 
-        # Variables to save whether it has already been tested whether the events for EEG and ET exist/have been created
-        checked_eeg_events = False
-        checked_et_events = False
+        # Check whether subject-specific output folder exists, otherwise create it
+        if (not os.path.isdir(subject_output_path)) and (subject_id in subject_ids_eeg) and (subject_id in subject_ids_events):
+            subject_output_path.mkdir()
+            print(f"Create subject output folder: {subject_output_path}")
+
+        subject_eeg_output_path = subject_output_path.copy().update(suffix="eeg", extension="fif")
+        subject_events_output_path = subject_output_path.copy().update(suffix="events", extension="tsv")
+
+        if os.path.exists(subject_eeg_output_path) and os.path.exists(subject_events_output_path) and not args.overwrite:
+            print(
+                f"Skipping copying preprocessed data for sub-{padded_subject_id} — output files already exist: ",
+                f"  {subject_eeg_output_path}",
+                f"  {subject_events_output_path}",
+                f"  Use --overwrite to reprocess.",
+                sep="\n"
+            )
+            continue
 
         if subject_id in subject_ids_eeg:
 
-            # Specify subject eeg paths and create output path if it does not exist already
             subject_eeg_input_path = subject_input_path.copy().update(root = eeg_input_path, datatype = "eeg", processing = "clean", suffix = "raw", extension = ".fif", check = False) # check = False because "raw" is not an allowed suffix
-            subject_eeg_output_path = subject_output_path.copy().update(datatype="eeg")
-            subject_eeg_output_path.mkdir()
 
             if os.path.exists(subject_eeg_input_path):
-
-                # Create and save events df
-                events_df = create_events_dataframe(subject_eeg_input_path)
-                events_path = subject_eeg_output_path.copy().update(suffix="events_without_et", extension = "tsv", check = False)
-                events_df.to_csv(events_path, sep="\t", index=False)
-                checked_eeg_events = True
-                print(f"Created and saved events.tsv file for subject {subject_id}.")
-
-                # Copy preprocessed eeg data (if it exists) from the mne-bids-pipeline derivative to the preprocessed derivative
-                shutil.copy(subject_eeg_input_path, subject_eeg_output_path.copy().update(suffix="eeg", extension="fif"))
-                print(f"Copying preprocessed EEG data for subject {subject_id} to `derivatives/preprocessed`.")
+                # Copy preprocessed eeg data (if it exists) from the input derivative to the preprocessed derivative
+                shutil.copy(subject_eeg_input_path, subject_eeg_output_path)
+                print(f"Copying preprocessed EEG data of subject {subject_id} to `derivatives/preprocessed`.")
             else: 
                 print(f"Preprocessed EEG data file ({subject_eeg_input_path}) could not be found. Skipping.")
 
-        if subject_id in subject_ids_et:
+        if subject_id in subject_ids_events:
 
-            # Specify subject et paths and create output path if it does not exist already
-            subject_et_input_path = subject_input_path.copy().update(root = et_input_path, run = None, datatype ="misc", suffix = "et_events", extension="tsv", check = False) # check = False because "misc" is no valid `datatype`
-            subject_et_output_path = subject_output_path.copy().update(datatype="misc", run = None, check = False)
-            subject_et_output_path.mkdir()
-
-            # Copy preprocessed et data (if it exists) from the et_preprocessing derivative to the preprocessed derivative
-            if os.path.exists(subject_et_input_path):
-                shutil.copy(subject_et_input_path, subject_et_output_path.update(suffix="et_events", extension="tsv"))
-                checked_et_events = True
-                print(f"Copying preprocessed ET data for subject {subject_id} to `derivatives/preprocessed`.")
+            # Specify subject events paths and create output path if it does not exist already
+            subject_events_input_path = subject_input_path.copy().update(root = events_input_path, suffix = "events", extension="tsv", check = True)
+            # Copy preprocessed et data (if it exists) from the et-preprocessing derivative to the preprocessed derivative
+            if os.path.exists(subject_events_input_path):
+                shutil.copy(subject_events_input_path, subject_events_output_path)
+                print(f"Copying preprocessed EEG+ET events of subject {subject_id} to `derivatives/preprocessed`.")
             else:
-                print(f"Preprocessed ET data file ({subject_et_input_path}) could not be found. Skipping.")
-
-        if combine_eeg_et and checked_eeg_events and checked_et_events:
-
-            et_events = pd.read_csv(subject_et_input_path, sep = "\t")
-            events_combined = pd.concat([events_df, et_events], join="outer", ignore_index=True)
-            assert len(events_combined) == (len(events_df) + len(et_events))
-            events_combined.sort_values(by="onset", inplace=True)
-            events_combined.to_csv(events_path.copy().update(suffix="events", check=True), sep="\t", index=False)
-            print(f"Combined EEG and ET events and save as events.tsv.")
+                print(f"Preprocessed EEG+ET events file ({subject_events_input_path}) could not be found. Skipping.")
 
 
 
