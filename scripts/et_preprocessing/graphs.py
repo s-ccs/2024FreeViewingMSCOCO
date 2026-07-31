@@ -476,7 +476,7 @@ def _graph_saccade_duration(ax, sac_df, sac_after=None, sac_dur_max: float | Non
     if sac_dur_max is None:
         dur_max = float("inf")
     else:
-        dur_max = float(sac_amp_max)
+        dur_max = float(sac_dur_max)
     window = f"[0 - {'inf' if np.isinf(dur_max) else f'{dur_max:.0f}'}] deg"
 
     def prep_data(s_df, dropout_stats, stage):
