@@ -10,10 +10,6 @@ Preprocessing:
         merge_fixation_candidates()
 Helpers:
     annotate_blink_saccades_in_df()
-
-TBD maybe refactored for events.tsv ?!
-    compute_saccade_amplitude()
-    compute_saccade_amplitude_from_radians()
 """
 
 import logging
@@ -37,7 +33,7 @@ logger = logging.getLogger(__name__)
 # Load Input file(s)
 # =============================================================================
 def load_subject_tsv(
-    filepath: Path, subject_id: str, window_ms: float = BLINK_WINDOW_MS
+    filepath: Path, subject_id: str,
 ) -> pd.DataFrame:
     """
     Args:
@@ -61,9 +57,8 @@ def load_subject_tsv(
 
     df = pd.read_csv(filepath, sep="\t")
     logger.debug(
-        f"Loaded {len(df)} events. Annotating blink saccades (window={window_ms} ms)..."
+        f"Loaded {len(df)} events."
     )
-    df = annotate_blink_saccades_in_df(df, window_ms)
 
     return df
 
@@ -72,7 +67,7 @@ def load_subject_tsv(
 # =============================================================================
 def merge_fixation_candidates(events, a_min=A_MIN, merge_threshold=None):
     """
-    # TBD: from Hooge et al. (2022)
+    Event-selection procedure described by Hooge et al. (2022).
     Saccades are dropped when they are *both* smaller than `a_min` (deg) *and* shorter than the minimum saccade duration T_min, computed as:
         T_min (ms) = 2.2 * a_min + 27
     Consecutive fixations from the same eye are then merged.
@@ -88,6 +83,41 @@ def merge_fixation_candidates(events, a_min=A_MIN, merge_threshold=None):
     Returns:
     pandas.DataFrame
         Events DataFrame after merging stage.
+
+    Notes on the merged fixation's `duration` and centroid
+    ------------------------------------------------------
+    These two quantities are deliberately computed over DIFFERENT time bases.
+    They are not inconsistent — each answers a different question.
+
+    `duration` is the SPAN of the merged fixation:
+
+        duration = end_time(last fixation) - onset(first fixation)
+
+    i.e. it INCLUDES the gaps left by the removed micro-saccades. This follows
+    Hooge et al. (2007), as reported in Hooge et al. (2022, p. 2765): when a
+    saccade is removed, the durations of the removed saccade and of the
+    preceding and following fixations are summed. The merged object is treated
+    as one continuous fixation, so the time spent in the removed saccade counts
+    toward it.
+
+    `fix_avg_x`, `fix_avg_y` and `fix_avg_pupil_size` are averaged with weights
+    equal to the COMPONENT FIXATION DURATIONS ONLY, excluding those gaps. The
+    samples recorded during a removed saccade belong to neither fixation's
+    position estimate, so they must not influence the centroid.
+
+    Worked example
+    --------------
+        Fixation A : onset 1.000  end 1.200  duration 0.200 s   x = 100 px
+          (removed saccade spanning 1.200 -> 1.220, a 20 ms gap)
+        Fixation B : onset 1.220  end 1.500  duration 0.280 s   x = 130 px
+
+        merged x        = (100*0.200 + 130*0.280) / (0.200 + 0.280)
+                        = 117.5 px            <- weights total 0.480 s
+        merged duration = 1.500 - 1.000
+                        = 0.500 s             <- span, 20 ms longer
+
+    So `duration` (0.500 s) exceeds the sum of the component durations
+    (0.480 s) by exactly the removed saccade. That is intended.
     """
     # Compute minimum saccade duration from the paper's formula
     t_min_sac= (2.2 * a_min + 27) / 1000.0
@@ -127,7 +157,7 @@ def merge_fixation_candidates(events, a_min=A_MIN, merge_threshold=None):
             and events.iloc[i + 1]["trial_type"] == "fixation"
             and events.iloc[i]["eye"] == events.iloc[i + 1]["eye"]
             and events.iloc[i+1]["onset"]-events.iloc[i]["end_time"] < merge_threshold # QUESTION:avoid merges of implausible long fixations (e.g. across two different valid fixations)
-            and np.hypot(events.iloc[i+1]["fix_avg_x"], events.iloc[i+1]["fix_avg_y"]) < a_min  # QUESTION: "only Fixations that are close to each other in time and space are combined."? # TBD: explore
+            # QUESTION: "only Fixations that are close to each other in time and space are combined."? # TBD: explore
         ):
             j = i + 1
             duration_sum = current_row["duration"]
@@ -162,47 +192,60 @@ def merge_fixation_candidates(events, a_min=A_MIN, merge_threshold=None):
 # Helpers
 # ============================================================================
 def annotate_blink_saccades_in_df(
-    events_df: pd.DataFrame, window_ms: float
+    events_df: pd.DataFrame, window_ms: float, match_eye: bool = True
 ) -> pd.DataFrame:
     """
-    Flag saccades as near a blink if the blink START or END falls within
-    the saccade interval expanded by ±window_ms.
-    Adds:
-      - blink_saccade (bool) column to saccade rows; False for all other event types.
+    Flag a saccade as a blink saccade when a blink OVERLAPS the saccade
+    interval expanded by ±window_ms.
+
+    Args:
+        events_df: events DataFrame.
+        window_ms: half-window in ms around each saccade.
+        match_eye: if True, only blinks of the SAME eye can flag a saccade.
+                   If False, any blink can (blinks are physiologically binocular).
+
+    Adds to events_df:
+        blink_saccade (bool): True for flagged saccades, False everywhere else.
     """
     events = events_df.copy()
-    w = window_ms / 1000.0  # convert to seconds
+    w = window_ms / 1000.0
 
-    saccades_mask = events["trial_type"] == "saccade"
-    blinks = events[events["trial_type"] == "blink"]
+    sac_mask = events["trial_type"] == "saccade"
+    blinks = events.loc[events["trial_type"] == "blink"]
 
-    # sort by onset time
-    b = blinks[["onset", "end_time"]].to_numpy(float)
-    b = b[np.argsort(b[:, 0])]
+    # One (onset, end_time) array PER EYE, blinks sorted by onset within each eye.
+    empty = np.empty((0, 2), dtype=float)
+    blinks_by_eye = {}
+    for eye_val in sorted(blinks["eye"].unique()):
+        sort = blinks.loc[blinks["eye"] == eye_val, ["onset", "end_time"]].to_numpy(dtype=float)
+        blinks_by_eye[eye_val] = sort[np.argsort(sort[:, 0], kind="stable")]
 
-    s = events.loc[saccades_mask, ["onset", "end_time"]].to_numpy(float)
+    # Fallback pool for match_eye=False, also sorted by onset.
+    all_blinks = blinks[["onset", "end_time"]].to_numpy(dtype=float)
+    all_blinks = all_blinks[np.argsort(all_blinks[:, 0], kind="stable")]
 
     blink_saccades = []
-    for sac_start, sac_end in s:
-        win_start = sac_start - w
-        win_end = sac_end + w
+    for sac_eye, sac_start, sac_end in events.loc[
+        sac_mask, ["eye", "onset", "end_time"]
+    ].itertuples(index=False):
+        b = blinks_by_eye.get(sac_eye, empty) if match_eye else all_blinks
+        win_start, win_end = sac_start - w, sac_end + w
+
         near = False
         for blink_start, blink_end in b:
-            if blink_start > win_end:
+            if blink_start > win_end:      # sorted by onset -> no later blink can overlap
                 break
-            if (win_start <= blink_start <= win_end) or (
-                win_start <= blink_end <= win_end
-            ):
+            # Interval overlap: also catches a blink that ENCLOSES the whole window.
+            if blink_start <= win_end and blink_end >= win_start:
                 near = True
                 break
         blink_saccades.append(near)
 
     events["blink_saccade"] = False
-    events.loc[saccades_mask, "blink_saccade"] = blink_saccades
+    events.loc[sac_mask, "blink_saccade"] = blink_saccades
 
-    n_flagged = sum(blink_saccades)
     logger.info(
-        f"Blink saccade annotation: {n_flagged}/{len(blink_saccades)} saccades flagged (window=±{window_ms} ms)"
+        f"Blink saccade annotation: {sum(blink_saccades)}/{len(blink_saccades)} saccades "
+        f"flagged (window=±{window_ms} ms, match_eye={match_eye})"
     )
-
-    return events
+    return events.sort_values(["onset", "eye"], kind="stable").reset_index(drop=True)

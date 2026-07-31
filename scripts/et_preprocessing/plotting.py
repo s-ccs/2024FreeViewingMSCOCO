@@ -40,6 +40,7 @@ from graphs import (
     _graph_saccade_amplitude,
     _graph_saccade_duration,
     _graph_saccade_angles,
+    reset_dropout_stats,
 )
 
 logger = logging.getLogger(__name__)
@@ -284,8 +285,8 @@ def plot_fixation_duration(
         out_path (str): Directory to save the figure. Pass None to skip saving (default).
         out_file_format (str): File extension for saving, e.g. 'svg', 'pdf', 'png'. Defaults to 'svg'.
         by_eye (str): One of: 'all', 'left', 'right', 'binocular'. Defaults to 'binocular'.
-        fix_dur_min (float, optional): lower bound (ms). Defaults to 60.
-        fix_dur_max (float, optional): upper bound (ms). Defaults to 1000.
+        fix_dur_min (float, optional): lower bound (ms). Defaults to 60. Pass 'None' for no threshold.
+        fix_dur_max (float, optional): upper bound (ms). Defaults to 1000. Pass 'None' for no threshold.
         title (str, optional): Defaults to 'Fixation Durations'
         dropout_stats (bool, optional): If True, compute and display dropout statistics in the summary figure. Defaults to False.
     """
@@ -348,7 +349,7 @@ def plot_saccade_amplitude(
         out_file_format (str): File extension for saving, e.g. 'svg', 'pdf', 'png'. Defaults to 'svg'.
         by_eye (str): One of: 'all', 'left', 'right', 'binocular'. Defaults to 'binocular'.
         title (str, optional): Defaults to 'Saccade Amplitude'.
-        sac_amp_max (float, optional): Upper bound (deg). Defaults to 40.
+        sac_amp_max (float, optional): Upper bound (deg). Defaults to 40. Pass 'None' for no threshold.
         include_blink_sac (bool | str): False excludes blink saccades,
             'highlight' marks them, True includes them. Defaults to False
         dropout_stats (bool, optional): If True, compute and display dropout statistics in the summary figure. Defaults to False.
@@ -404,7 +405,8 @@ def plot_saccade_duration(
     by_eye: str = "binocular",
     title: str = "Saccade Duration",
     sac_dur_max: int = 120,
-    dropout_stats: bool = False
+    dropout_stats: bool = False,
+    include_blink_sac: bool = False
 ):
     """
     Histogram of saccade durations (ms), outliers dropped for plotting only
@@ -418,6 +420,8 @@ def plot_saccade_duration(
         title (str, optional): Defaults to 'Saccade Duration'.
         sac_dur_max (int, optional): Maximum duration of a saccade (ms). Defaults to 120.
         dropout_stats (bool, optional): If True, compute and display dropout statistics in the summary figure. Defaults to False.
+        include_blink_sac (bool | str): False excludes blink saccades,
+            'highlight' marks them, True includes them. Defaults to False
     """
     s_df = events_df[events_df["trial_type"] == "saccade"].copy()
 
@@ -428,7 +432,7 @@ def plot_saccade_duration(
     # plot saccade duration histogram
     fig, ax = plt.subplots(figsize=(5, 4))
     _graph_saccade_duration(
-        ax, s_df, sac_dur_max=sac_dur_max, include_blink_sac=True, dropout_stats=dropout_stats
+        ax, s_df, sac_dur_max=sac_dur_max, include_blink_sac=include_blink_sac, dropout_stats=dropout_stats
     )
 
     # suffix to the graph title: which gaze data is shown
@@ -547,7 +551,7 @@ def plot_saccade_angles(
 
     if style in ["cartesian", None]:
         fig2, ax2 = plt.subplots()
-        _graph_saccade_angles(ax2, s_df, include_blink_sac=True, style="cartesian")
+        _graph_saccade_angles(ax2, s_df, include_blink_sac=include_blink_sac, style="cartesian")
         ax2.set_title(f"Cartesian {title}")
         fig2.tight_layout()
         if out_path is not None:
@@ -588,15 +592,16 @@ def plot_summary(
         out_file_format (str): File extension for saving, e.g. 'svg', 'pdf', 'png'. Defaults to 'svg'.
         by_eye (str): One of: 'all', 'left', 'right', 'binocular'. Defaults to 'binocular'.
         title (str, optional): Pass None for no title. Defaults to 'Summary'.
-        fix_dur_min (float, optional): Lower bound for fixation duration (ms). Defaults to 60.
-        fix_dur_max (float, optional): Upper bound for fixation duration (ms). Defaults to 1000.
-        sac_amp_max (float, optional): Upper bound for saccade amplitude (deg). Defaults to 40.
-        sac_dur_max (float, optional): Upper bound for saccade duration (ms). Defaults to 120.
+        fix_dur_min (float, optional): Lower bound for fixation duration (ms). Defaults to 60. Pass 'None' for no threshold.
+        fix_dur_max (float, optional): Upper bound for fixation duration (ms). Defaults to 1000. Pass 'None' for no threshold.
+        sac_amp_max (float, optional): Upper bound for saccade amplitude (deg). Defaults to 40. Pass 'None' for no threshold.
+        sac_dur_max (float, optional): Upper bound for saccade duration (ms). Defaults to 120. Pass 'None' for no threshold.
         include_blink_sac (bool | str):
             - True (default): include all saccades in the main sequence graph.
             - False: exclude blink saccades.
             - 'highlight': mark blink saccades in the main sequence graph.
     """
+    reset_dropout_stats()
     eye_mapping = {"left": "L", "right": "R", "binocular": "binocular"}
     gaze_map = {
         "all": "All eyes",
@@ -643,7 +648,7 @@ def plot_summary(
     fig.tight_layout()
 
     if out_path is not None:
-        out_file = f"{out_path}/{title.lower().replace(' ', '_')}-{by_eye}Eyes.{out_file_format}"
+        out_file = f"{out_path}/{'summary_plot' if title is None else title.lower().replace(' ', '_')}-{by_eye}Eyes.{out_file_format}"
         fig.savefig(out_file, bbox_inches="tight")
         logger.info(f"{title} plot saved to '{out_file}'")
     else:
@@ -684,15 +689,16 @@ def plot_summary_comparison(
         out_file_format (str): File extension for saving, e.g. 'svg', 'pdf', 'png'. Defaults to 'svg'.
         by_eye (str): One of: 'all', 'left', 'right', 'binocular'. Defaults to 'binocular'.
         title (str, optional): Pass None for no title. Defaults to 'Summary'.
-        fix_dur_min (float, optional): Lower bound for fixation duration (ms). Defaults to 60.
-        fix_dur_max (float, optional): Upper bound for fixation duration (ms). Defaults to 1000.
-        sac_amp_max (float, optional): Upper bound for saccade amplitude (deg). Defaults to 40.
-        sac_dur_max (float, optional): Upper bound for saccade duration (ms). Defaults to 120.
+        fix_dur_min (float, optional): Lower bound for fixation duration (ms). Defaults to 60. Pass 'None' for no threshold.
+        fix_dur_max (float, optional): Upper bound for fixation duration (ms). Defaults to 1000. Pass 'None' for no threshold.
+        sac_amp_max (float, optional): Upper bound for saccade amplitude (deg). Defaults to 40. Pass 'None' for no threshold.
+        sac_dur_max (float, optional): Upper bound for saccade duration (ms). Defaults to 120. Pass 'None' for no threshold.
         include_blink_sac (bool | str):
             - True (default): include all saccades in the main sequence graph.
             - False: exclude blink saccades.
             - 'highlight': mark blink saccades in the main sequence graph.
     """
+    reset_dropout_stats()
     eye_mapping = {"left": "L", "right": "R", "binocular": "binocular"}
     gaze_map = {
         "all": "All eyes",
@@ -771,7 +777,7 @@ def plot_summary_comparison(
 
     if out_path is not None:
         out_file = (
-            f"{out_path}/{title.lower().replace(' ', '_')}_comparison"
+            f"{out_path}/{'summary_plot' if title is None else title.lower().replace(' ', '_')}_comparison"
             f"-{by_eye}Eyes.{out_file_format}"
         )
         fig.savefig(out_file, bbox_inches="tight")
