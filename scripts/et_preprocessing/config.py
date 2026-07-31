@@ -48,7 +48,7 @@ TASK = "freeviewing"
 RUN = None # optional: 'None' if 'run'-specs are NOT in the filename
 
 
-# 2. Subjects
+# Subjects
 # =============================================================================
 # Default subject list processed when no --subjects argument is given: 
 # Format: list of strings, e.g. ["005", "006", "007"] or ["all"] for all subjects in the dataset. 
@@ -59,33 +59,23 @@ SUBJECTS = ["all"]
 # [ "005", "006", "007", "009", "010", "011", "013", "016", "017", "018", "021", "022", "024", "025", "029", "030", "034", "035", "038", "043", "045", "060"]
 # ["all"]
 
-# 3. Screen / hardware specs
-# =============================================================================
-# For more accessible documentation in config file
-SCREEN_RES = (1920, 1080)
-SCREEN_SIZE_M = (0.552, 0.307)  # in metres (width, height)
-SCREEN_DIST_M = 0.729  # in metres
 
-
-# 4. Preprocessing
+# Preprocessing
 # =============================================================================
 # Half-window in ms around each blink event for flagging saccades as "blink saccade" in annotate_blink_saccades_in_df().
 BLINK_WINDOW_MS = 50.0
 
 # Minimum saccade amplitude threshold (degrees)
 # s. Hooge et al. (2022), Stage 1.
-A_MIN = 1.0 # Saccades smaller than this AND shorter than T_min are dropped.
-MERGE_THRESHOLD = 100 # (in ms); only fixations with a time difference < MERGE_THRESHOLD will be merged
-
-# Minimum fixation duration (seconds)
-# s. Hooge et al. (2022), Stage 2.: Fixations shorter than this are dropped from the events dataframe.
-T_MIN_FIX = 0.06
+A_MIN = 1.0 # Saccades smaller than this AND shorter than T_min are dropped. T_min = 2.2 · A_MIN + 27
+T_MIN_FIX = 60
+MERGE_THRESHOLD = 100 # (in ms); only fixations with a time difference < MERGE_THRESHOLD will be merged. 'False' if you y
 
 # Generate Report (boolean): creates an html report
 REPORT = True
 
 
-# 5. Visualisation — general
+# Visualisation — general
 # =============================================================================
 # Eye selection for all plots. Options: "all", "left", "right", "binocular"
 BY_EYE = "right"
@@ -94,7 +84,7 @@ BY_EYE = "right"
 OUT_FILE_FORMAT = "svg"
 
 
-# 6. Visualisation — main sequence
+# Visualisation — main sequence
 # =============================================================================
 # Whether to include saccades flagged as 'near a blink' in the plotting.
 # TRUE = Flagged Saccades are included in the plot
@@ -103,46 +93,32 @@ OUT_FILE_FORMAT = "svg"
 INCLUDE_BLINK_SAC = "highlight"
 
 
-# 7. Visualisation — fixation duration
+# Visualisation — fixation duration
 # =============================================================================
-# drop implausibly short fixations
+# drop implausibly short fixations. Pass 'None' for no threshold.
 # FIX_DUR_MIN_MS = 60
 FIX_DUR_MIN_MS = 0
 
-# drop implausibly long fixations
+# drop implausibly long fixations. Pass 'None' for no threshold.
 # FIX_DUR_MAX_MS = 1000
 FIX_DUR_MAX_MS = 10000
 
-# Histogram bin width in ms
-FIX_DUR_BIN_W = 20
 
-
-# 8. Visualisation — saccade amplitude
+# Visualisation — saccade amplitude
 # =============================================================================
-# Max amplitude (deg)
+# Max amplitude (deg). Pass 'None' for no threshold.
 # SAC_AMP_MAX_DEG = 40
 SAC_AMP_MAX_DEG = 100
 
 
-# 9. Visualisation — saccade duration
+# Visualisation — saccade duration
 # =============================================================================
-# Max duration (ms); none = disable clipping
+# Max duration (ms). . Pass 'None' disable clipping
 # SAC_DUR_MAX_MS = 120
 SAC_DUR_MAX_MS = 500
 
 
-# 10. Visualisation — angular histogram
-# =============================================================================
-# If True: weight bins by saccade amplitude & exclude saccades with amplitudes < ANG_HIST_MICROSAC_MIN_DEG
-ANG_HIST_REFINEMENT = False
-ANG_HIST_MICROSAC_MIN_DEG = 1.0
-
-#  no. bins (default 36 = 10° per bin)
-ANG_HIST_BINS_POLAR = 36
-ANG_HIST_BIN_WIDTH_CART = 10
-
-
-# 11. Dropout statistics in Plotting
+# Dropout statistics in Plotting
 # =============================================================================
 # If True: compute and display dropout statistics in the summary figure
 DROPOUT_STATS = True

@@ -24,6 +24,7 @@ import config
 from preprocessing import (
     load_subject_tsv,
     merge_fixation_candidates,
+    annotate_blink_saccades_in_df
 )
 from plotting import (
     plot_eye_trace_pre_post_processing,
@@ -141,6 +142,7 @@ def run_preprocessing(subject_id: str, overwrite: bool) -> bool:
     1. Load events: sub-XXX_ses-001_task-freeviewing_et_events.tsv
     2. Run the two-stage merge + save to merged TSV: sub-XXX_ses-001_task-freeviewing_et_events_merged.tsv
     3. pre/post-merge eye trace comparison figure.
+    4. report generation
 
     Args:
         subject_id (str): subject ID (zero-padded)
@@ -164,24 +166,27 @@ def run_preprocessing(subject_id: str, overwrite: bool) -> bool:
         events_raw = load_subject_tsv(
             filepath=paths["in_tsv"],
             subject_id=subject_id,
-            window_ms=config.BLINK_WINDOW_MS,
         )
     except FileNotFoundError as e:
         logger.error(e)
         return False
 
-    # 2a. Hooge et al. (2022), Stage 1
+    # 2. Annotate blink saccades
+    logger.info(f"Annotating blink saccades (window={config.BLINK_WINDOW_MS} ms")
+    events_raw = annotate_blink_saccades_in_df(events_raw, window_ms=config.BLINK_WINDOW_MS)
+
+    # 3a. Hooge et al. (2022), Stage 1
     # Saccades which are below a certain amplitude and duration are dropped
     # and the surrounding fixations are merged
-
     logger.info(
         f"Merging events  "
         f"(a_min={config.A_MIN}°, "
         f"t_min_fix={config.T_MIN_FIX * 1000:.0f} ms, "
     )
-    if config.MERGE_THRESHOLD:
+    if isinstance(config.MERGE_THRESHOLD, (int, float)):
         merge_threshold = config.MERGE_THRESHOLD
     else:
+        logger.warning(f"MERGE_THRESHOLD is not a number: {type(config.MERGE_THRESHOLD)}. MERGE_THRESHOLD will be set to 'None'")
         merge_threshold = None
         
     events_merged = merge_fixation_candidates(
@@ -190,8 +195,8 @@ def run_preprocessing(subject_id: str, overwrite: bool) -> bool:
         merge_threshold=merge_threshold
     )
 
-    # 2b. Hooge et al. (2022), Stage 2
-    # Fixations shorter than the specified threshold are dropped from the events dataframe.
+    # 3b. Hooge et al. (2022), Stage 2
+    # Fixations shorter than the specified threshold are dropped from the events dataframe. #TBD:Check
     idx_drop_fix = events_merged.query("(trial_type == 'fixation') & (duration < @config.T_MIN_FIX)").index
     events_merged.drop(idx_drop_fix, inplace=True)
     logger.info(f"Dropped {len(idx_drop_fix)} fixations (sum for both eyes) with a duration below {config.T_MIN_FIX * 1000:.0f} ms.")
@@ -275,7 +280,6 @@ def run_visualisation(subject_id: str) -> bool:
     events_raw = load_subject_tsv(
         filepath=paths["in_tsv"],
         subject_id=subject_id,
-        window_ms=config.BLINK_WINDOW_MS,
     )
 
     out_path = str(paths["plots_dir"])
@@ -308,6 +312,7 @@ def run_visualisation(subject_id: str) -> bool:
         out_path=out_path,
         out_file_format=config.OUT_FILE_FORMAT,
         sac_amp_max=config.SAC_AMP_MAX_DEG,
+        include_blink_sac=config.INCLUDE_BLINK_SAC
     )
 
     logger.info("Plotting saccade duration...")
@@ -317,6 +322,7 @@ def run_visualisation(subject_id: str) -> bool:
         out_path=out_path,
         out_file_format=config.OUT_FILE_FORMAT,
         sac_dur_max=config.SAC_DUR_MAX_MS,
+        include_blink_sac=config.INCLUDE_BLINK_SAC
     )
 
     logger.info("Plotting fixation frequency...")
@@ -392,22 +398,22 @@ def main():
         plt.show = lambda: None
 
     # Pipeline Overview
-    print(f"\n{'=' * 60}")
-    print(f"Pipeline steps : {args.steps}")
-    print(f"Subjects       : {args.subjects}")
-    print(f"Overwrite      : {args.overwrite}")
-    print(f"Show plots     : {args.show_plots}")
-    print(f"Log level      : {args.log_level}")
-    print(f"BIDS root      : {config.DATA_ROOT}")
-    #print(f"Output subdir  : .../{config.SESSION}/{config.DERIVATIVES_SUBDIR}/")
-    #print(f"Figures subdir : .../{config.DERIVATIVES_SUBDIR}/{config.PLOTS_SUBDIR}/")
-    print(f"{'=' * 60}")
+    print(f"\n{'=' * 64}")
+    print(f"Pipeline steps     : {args.steps}")
+    print(f"Subjects           : {args.subjects}")
+    print(f"Overwrite          : {args.overwrite}")
+    print(f"Show plots         : {args.show_plots}")
+    print(f"Log level          : {args.log_level}")
+    print(f"BIDS root          : {config.DATA_ROOT}")
+    print(f"Input derivative   : .../{config.INPUT_DERIVATIVE}")
+    print(f"Output derivative  : .../{config.OUTPUT_DERIVATIVE}")
+    print(f"{'=' * 64}")
 
     n_ok = 0
     n_fail = 0
 
     if args.subjects == ["all"]:
-        subjects = os.listdir(config.DATA_ROOT)
+        subjects = os.listdir(config.DATA_ROOT / "derivatives" / config.INPUT_DERIVATIVE)
         subjects = [m.group(1) for x in subjects if (m := re.search(r"sub-(\d+)", x))]
     else:
         subjects = args.subjects

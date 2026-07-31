@@ -173,21 +173,40 @@ def _render_carousel(carousel_id: str, slides: list) -> str:
 
 def _render_dropout_table(stats: dict) -> str:
     """Render plotting-only dropout counts. Columns adapt to the recorded stages."""
+    if not stats:
+        return "<p class='plot-caption'>No dropout statistics were recorded for this run.</p>"
+
     by_metric = {}
     for rec in stats.values():
         by_metric.setdefault(rec["metric"], {})[rec.get("stage", "single")] = rec
 
-    order = ["before", "after"]
-    stages = [s for s in order if any(s in d for d in by_metric.values())]
-    head = "".join(f'<th style="text-align:left">Dropped ({s})</th>' for s in stages)
+    # "single" MUST be listed: plot_summary() records that stage, and omitting it left
+    # `stages` empty so the table rendered with no data columns at all.
+    stage_order = ["single", "before", "after"]
+    stage_label = {"single": "", "before": " (before)", "after": " (after)"}
+    stages = [s for s in stage_order if any(s in d for d in by_metric.values())]
+
+    head = "".join(
+        f'<th style="text-align:right">Total{stage_label[s]}</th>'
+        f'<th style="text-align:right">Kept{stage_label[s]}</th>'
+        f'<th style="text-align:right">Dropped{stage_label[s]}</th>'
+        for s in stages
+    )
 
     rows = ""
     for metric, d in by_metric.items():
         window = next(iter(d.values()))["window"]
-        cells = "".join(
-            (f"<td>{d[s]['dropped']} / {d[s]['total']} ({d[s]['pct']:.1f}%)</td>" if s in d else "<td>—</td>")
-            for s in stages
-        )
+        cells = ""
+        for s in stages:
+            if s in d:
+                r = d[s]
+                cells += (
+                    f"<td>{r['total']:,}</td>"
+                    f"<td>{r['kept']:,}</td>"
+                    f"<td>{r['dropped']:,} ({r['pct']:.1f}%)</td>"
+                )
+            else:
+                cells += "<td>—</td><td>—</td><td>—</td>"
         rows += f"<tr><td>{metric}</td><td>{window}</td>{cells}</tr>"
 
     return f"""
@@ -378,11 +397,10 @@ def _render_html(
                 Two-step procedure following Hooge et al. (2022): first, implausibly small
                 <em>and</em> short saccades are dropped; then consecutive
                 fixations of the same eye that are now no longer separated by such a saccade are merged.
-                In the second step, fixations with a duration below a certain threshold e.g. 60 ms are dropped.
             </p>
             <div class="formula">
-                drop saccade &nbsp;if&nbsp; amplitude &lt; a_min ({merge_info['a_min']}°)
-                &nbsp;AND&nbsp; duration &lt; T_min<br>
+                drop saccade &nbsp;if&nbsp; amplitude &lt; a_min &nbsp;AND&nbsp; duration &lt; T_min<br>
+                a_min = {merge_info['a_min']}°<br>
                 T_min (ms) = 2.2 · a_min + 27 = {merge_info['t_min_ms']:.1f} ms
             </div>
             <p class="plot-caption"><strong>Effect on the data:</strong>
@@ -402,6 +420,9 @@ def _render_html(
             <h2><span class="sec-num">4</span> · Summary Plots</h2>
             <div class="plot-block">
                 <h3>Summary plots: before vs. after preprocessing</h3>
+                <p class="plot-caption">
+                If `before_blink` is given, 'before' is drawn as two stacked outlines: non-blink (blue) at the bottom and blink saccades (green) stacked on top, so the blue->green band marks the blink saccades removed before the merge.
+            </p>
                 <img src="data:image/png;base64,{summary_comparison_plot}" alt="Summary comparison before/after">
             </div>
             <div class="plot-block">
@@ -513,6 +534,10 @@ def generate_report(
         plt.close(fig)
 
     # --- Section 4: before/after comparison + after-merge summary ---
+    # NOTE on dropout accounting (B-3/B-4): plot_summary* each call reset_dropout_stats()
+    # internally, so the accumulator is wiped at the START of every summary figure. The
+    # comparison stats must therefore be READ OUT before plot_summary() runs, otherwise
+    # they are silently discarded and only the "single" stage survives.
     logger.info("Generating summary comparison...")
     fig = plot_summary_comparison(
         events_before=events_raw,
@@ -524,12 +549,13 @@ def generate_report(
         sac_amp_max=sac_amp_max,
         sac_dur_max=sac_dur_max,
         include_blink_sac=include_blink_sac,
+        dropout_stats=True,
     )
     summary_comparison_plot = _fig_to_base64(fig)
     plt.close(fig)
+    dropout_comparison = get_dropout_stats()   # stage="before" / stage="after"
 
     logger.info("Generating summary (after merge)...")
-    reset_dropout_stats()
     fig = plot_summary(
         events_df=events_merged,
         out_path=None,
@@ -543,7 +569,10 @@ def generate_report(
     )
     summary_after_plot = _fig_to_base64(fig)
     plt.close(fig)
-    dropout_stats = get_dropout_stats()
+    dropout_single = get_dropout_stats()       # stage="single"
+
+    # Keys are f"{metric}|{stage}", so the two dicts cannot collide.
+    dropout_stats = {**dropout_comparison, **dropout_single}
 
     # --- prose numbers ---
     n_fix_before = int(stats_before["fixations"]["Count"])
