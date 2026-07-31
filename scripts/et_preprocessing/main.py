@@ -197,9 +197,26 @@ def run_preprocessing(subject_id: str, overwrite: bool) -> bool:
 
     # 3b. Hooge et al. (2022), Stage 2
     # Fixations shorter than the specified threshold are dropped from the events dataframe. #TBD:Check
-    idx_drop_fix = events_merged.query("(trial_type == 'fixation') & (duration < @config.T_MIN_FIX)").index
-    events_merged.drop(idx_drop_fix, inplace=True)
-    logger.info(f"Dropped {len(idx_drop_fix)} fixations (sum for both eyes) with a duration below {config.T_MIN_FIX * 1000:.0f} ms.")
+    if config.T_MIN_FIX is not None:
+        t_min_fix_s = config.T_MIN_FIX / 1000.0
+        n_fix_before = int((events_merged["trial_type"] == "fixation").sum())
+
+        idx_drop_fix = events_merged.index[
+            (events_merged["trial_type"] == "fixation")
+            & (events_merged["duration"] < t_min_fix_s)
+        ]
+        events_merged = events_merged.drop(idx_drop_fix).reset_index(drop=True)
+
+        pct = len(idx_drop_fix) / max(n_fix_before, 1) * 100
+        logger.info(
+            f"Stage 2: dropped {len(idx_drop_fix)}/{n_fix_before} fixations "
+            f"({pct:.1f}%, both eyes) shorter than {config.T_MIN_FIX:.0f} ms."
+        )
+        if pct > 10:
+            logger.warning(
+                f"Stage 2 removed {pct:.1f}% of fixations. Above ~10% this usually means "
+                f"Stage 1 is not merging — check the merge counts above."
+            )
 
     # Save
     os.makedirs(paths["out_dir"], exist_ok=True)
