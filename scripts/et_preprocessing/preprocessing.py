@@ -67,7 +67,29 @@ def load_subject_tsv(
 # =============================================================================
 def merge_fixation_candidates(events, a_min=A_MIN, merge_threshold=None):
     """
-    Merge consecutive fixations that are closer than merge_threshold (in seconds).
+    Stage 1 of the selection procedure of Hooge et al. (2022). Drops saccades 
+    that are BOTH smaller than `a_min` AND shorter than T_min = 2.2 * a_min + 27 (ms), 
+    then merges the fixations left adjacent.
+
+    Args:
+        events (pd.DataFrame): events with columns onset, end_time, duration,
+            trial_type, eye, fix_avg_x, fix_avg_y, fix_avg_pupil_size,
+            sacc_visual_angle. Times in seconds, positions in pixels.
+        a_min (float): minimal saccade amplitude in degrees. Equivalently the
+            maximal inter-fixation distance (Hooge et al., 2022, p. 2767).
+        merge_threshold (float, optional): maximal gap between two fixations
+            for them to merge, in MILLISECONDS. None (default) uses T_min.
+
+    Returns:
+        pd.DataFrame: events after the drop and merge, sorted by onset.
+            Saccades below both thresholds are removed; merged fixations carry
+            the first onset, the last end_time and duration-weighted positions.
+
+    References:
+        Hooge, I. T. C., Niehorster, D. C., Nystrom, M., Andersson, R., &
+        Hessels, R. S. (2022). Fixation classification: How to merge and select
+        fixation candidates. Behavior Research Methods, 54(6), 2765-2776.
+        https://doi.org/10.3758/s13428-021-01723-1
     """
     
     # Compute minimum saccade duration from the paper's formula
@@ -118,6 +140,7 @@ def merge_fixation_candidates(events, a_min=A_MIN, merge_threshold=None):
                 and events.iloc[j]["onset"]-events.iloc[j-1]["end_time"] < merge_threshold
             ):
                 next_row = events.iloc[j]
+                # full span from the first onset to the last end_time and therefore includes the removed saccades
                 duration_sum += next_row["duration"]
                 for c in ["fix_avg_x", "fix_avg_y", "fix_avg_pupil_size"]:
                     current_row[c] = (
