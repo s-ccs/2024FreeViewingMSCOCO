@@ -173,10 +173,7 @@ def plot_eye_trace_pre_post_processing(
             ax.legend(loc="upper right", fontsize=8)
 
             fig.tight_layout()
-            if top_n > 1:
-                figs[f"{rank}-{eye}"] = fig
-            else:
-                figs[eye] = fig
+            figs[f"{rank}-{eye}"] = fig
 
             if out_path is not None:
                 eye_str = eye_label.lower()

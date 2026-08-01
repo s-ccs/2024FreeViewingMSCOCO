@@ -26,7 +26,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 import config
-from config import BLINK_WINDOW_MS, A_MIN
+from config import BLINK_WINDOW_MS, A_MIN, T_MIN_FIX
 from plotting import (
     plot_summary,
     plot_summary_comparison,
@@ -172,7 +172,8 @@ def _render_carousel(carousel_id: str, slides: list) -> str:
     </div>"""
 
 def _render_dropout_table(stats: dict) -> str:
-    """Render plotting-only dropout counts. Columns adapt to the recorded stages."""
+    """Render plotting-only dropout counts. One row per processing stage,
+    one column per metric — transposed, so the table stays narrow."""
     if not stats:
         return "<p class='plot-caption'>No dropout statistics were recorded for this run.</p>"
 
@@ -180,38 +181,34 @@ def _render_dropout_table(stats: dict) -> str:
     for rec in stats.values():
         by_metric.setdefault(rec["metric"], {})[rec.get("stage", "single")] = rec
 
-    # "single" MUST be listed: plot_summary() records that stage, and omitting it left
-    # `stages` empty so the table rendered with no data columns at all.
-    stage_order = ["single", "before", "after"]
-    stage_label = {"single": "", "before": " (before)", "after": " (after)"}
+    stage_order = ["before", "after", "single"]
+    stage_label = {
+        "before": "before preprocessing",
+        "after":  "after preprocessing",
+        "single": "after preprocessing, blink sacc. excl.",
+    }
+    metrics = list(by_metric)
     stages = [s for s in stage_order if any(s in d for d in by_metric.values())]
 
-    head = "".join(
-        f'<th style="text-align:right">Total{stage_label[s]}</th>'
-        f'<th style="text-align:right">Kept{stage_label[s]}</th>'
-        f'<th style="text-align:right">Dropped{stage_label[s]}</th>'
-        for s in stages
-    )
+    head = "".join(f'<th>{m}</th>' for m in metrics)
 
-    rows = ""
-    for metric, d in by_metric.items():
-        window = next(iter(d.values()))["window"]
+    # first row: the plotting range per metric
+    range_row = "".join(
+        f'<td>{next(iter(by_metric[m].values()))["window"]}</td>' for m in metrics
+    )
+    rows = f'<tr class="range-row"><td>Plotting range</td>{range_row}</tr>'
+
+    for s in stages:
         cells = ""
-        for s in stages:
-            if s in d:
-                r = d[s]
-                cells += (
-                    f"<td>{r['total']:,}</td>"
-                    f"<td>{r['kept']:,}</td>"
-                    f"<td>{r['dropped']:,} ({r['pct']:.1f}%)</td>"
-                )
-            else:
-                cells += "<td>—</td><td>—</td><td>—</td>"
-        rows += f"<tr><td>{metric}</td><td>{window}</td>{cells}</tr>"
+        for m in metrics:
+            r = by_metric[m].get(s)
+            cells += (f"<td>{r['dropped']:,} / {r['total']:,} ({r['pct']:.1f}%)</td>"
+                      if r else "<td>—</td>")
+        rows += f"<tr><td>{stage_label[s]}</td>{cells}</tr>"
 
     return f"""
-    <div class="stat-block wide"><table>
-        <thead><tr><th>Metric</th><th style="text-align:left">Plotting range</th>{head}</tr></thead>
+    <div class="stat-block wide"><table class="dropout">
+        <thead><tr><th>Dropped for display</th>{head}</tr></thead>
         <tbody>{rows}</tbody></table></div>"""
 
 def _render_config() -> str:
@@ -332,6 +329,10 @@ details[open] > summary::before { content: "\\25BC  "; }
 .references li { font-size: 0.9em; color: #333; line-height: 1.55; margin-bottom: 10px; }
 .references li:last-child { margin-bottom: 0; }
 .references a { color: #2c3e50; word-break: break-all; }
+/* dropout table: no bold last column, fully italic range row */
+.dropout td:last-child { font-weight: normal; }
+.dropout tr.range-row td { font-style: italic; }
+.dropout th, .dropout td { text-align: left; }
 """
 
 _JS = """
@@ -439,8 +440,8 @@ def _render_html(
             <h2><span class="sec-num">3</span> · Fixation Merger</h2>
             <p class="plot-caption">
                 Two-step procedure following <a href="#sec-references">Hooge et al. (2022)</a>: first, implausibly small
-                <em>and</em> short saccades are dropped; then consecutive
-                fixations of the same eye that are now no longer separated by such a saccade are merged.
+                <em>and</em> short saccades are dropped; then consecutive fixations of the same eye that are now no longer separated by such a saccade are merged. 
+                In the second step fixations shorter than the specified threshold of T_MIN_FIX = {T_MIN_FIX} are dropped.
             </p>
             <div class="formula">
                 drop saccade &nbsp;if&nbsp; amplitude &lt; a_min &nbsp;AND&nbsp; duration &lt; T_min<br>
