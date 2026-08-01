@@ -172,7 +172,7 @@ def run_preprocessing(subject_id: str, overwrite: bool) -> bool:
         return False
 
     # 2. Annotate blink saccades
-    logger.info(f"Annotating blink saccades (window={config.BLINK_WINDOW_MS} ms")
+    logger.info(f"Annotating blink saccades (window={config.BLINK_WINDOW_MS} ms)")
     events_raw = annotate_blink_saccades_in_df(events_raw, window_ms=config.BLINK_WINDOW_MS)
 
     # 3a. Hooge et al. (2022), Stage 1
@@ -181,7 +181,7 @@ def run_preprocessing(subject_id: str, overwrite: bool) -> bool:
     logger.info(
         f"Merging events  "
         f"(a_min={config.A_MIN}°, "
-        f"t_min_fix={config.T_MIN_FIX * 1000:.0f} ms, "
+        f"t_min_fix={config.T_MIN_FIX} ms, "
     )
     if isinstance(config.MERGE_THRESHOLD, (int, float)):
         merge_threshold = config.MERGE_THRESHOLD

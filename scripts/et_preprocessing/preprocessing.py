@@ -120,28 +120,24 @@ def merge_fixation_candidates(events, a_min=A_MIN, merge_threshold=None):
     rows_to_keep = []
     i = 0
 
-    def condition_for_merging_met(idx):
-        return (
-            and events.iloc[idx]["trial_type"] == "fixation"
-            and events.iloc[idx + 1]["trial_type"] == "fixation"
-            and events.iloc[idx]["eye"] == events.iloc[idx + 1]["eye"]
-            and events.iloc[idx + 1]["onset"] - events.iloc[idx]["end_time"] < merge_threshold
-        )
-
     # Merge loop: finds and merge consecutive fixations
     while i < len(events):
         current_row = events.iloc[i].copy()
 
-        if ( 
+        if (
             i < len(events) - 1
-            and condition_for_merging_met(i)
-            ):
-            i < len(events) - 1
+            and events.iloc[i]["trial_type"] == "fixation"
+            and events.iloc[i + 1]["trial_type"] == "fixation"
+            and events.iloc[i]["eye"] == events.iloc[i + 1]["eye"]
+            and events.iloc[i+1]["onset"]-events.iloc[i]["end_time"] < merge_threshold
+        ):
             j = i + 1
             duration_sum = current_row["duration"]
             while (
                 j < len(events)
-                and condition_for_merging_met(j)
+                and events.iloc[j]["trial_type"] == "fixation"
+                and events.iloc[j]["eye"] == current_row["eye"]
+                and events.iloc[j]["onset"]-events.iloc[i]["end_time"] < merge_threshold
             ):
                 next_row = events.iloc[j]
                 # full span from the first onset to the last end_time and therefore includes the removed saccades
@@ -162,7 +158,7 @@ def merge_fixation_candidates(events, a_min=A_MIN, merge_threshold=None):
             i += 1
 
     merged_events = pd.DataFrame(rows_to_keep)
-    merged_events = merged_events.sort_values(["onset", "eye"], kind="stable").reset_index(drop=True)
+    merged_events = merged_events.sort_values(["onset", "eye"]).reset_index(drop=True)
 
     return merged_events
 

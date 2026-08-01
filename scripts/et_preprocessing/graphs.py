@@ -109,7 +109,7 @@ def _overlap_hist(ax, before, after, bins, before_blink=None):
     else:
         ax.hist([before, before_blink], bins=bins, histtype="step", stacked=True,
                 color=[BEFORE_COLOR, BLINK_MS_COLOR], linewidth=1.8, zorder=3,
-                label=["before", "blink saccades"])
+                label=["before processing", "blink saccades"])
     ax.hist(after, bins=bins, histtype="stepfilled", color=AFTER_COLOR, alpha=0.45,
             edgecolor="black", zorder=2, label="after preprocessing")
 
