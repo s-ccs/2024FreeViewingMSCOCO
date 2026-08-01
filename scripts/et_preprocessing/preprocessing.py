@@ -67,58 +67,9 @@ def load_subject_tsv(
 # =============================================================================
 def merge_fixation_candidates(events, a_min=A_MIN, merge_threshold=None):
     """
-    Event-selection procedure described by Hooge et al. (2022).
-    Saccades are dropped when they are *both* smaller than `a_min` (deg) *and* shorter than the minimum saccade duration T_min, computed as:
-        T_min (ms) = 2.2 * a_min + 27
-    Consecutive fixations from the same eye are then merged.
-
-    Parameters:
-    events : pandas.DataFrame
-        DataFrame with eye-tracking events
-    a_min : float
-        Minimum saccade amplitude threshold in degrees (default: 1.0).
-    merge_threshold : float
-        Fixations will only be merged if the time between them is below `merge_threshold` (in ms)
-
-    Returns:
-    pandas.DataFrame
-        Events DataFrame after merging stage.
-
-    Notes on the merged fixation's `duration` and centroid
-    ------------------------------------------------------
-    These two quantities are deliberately computed over DIFFERENT time bases.
-    They are not inconsistent — each answers a different question.
-
-    `duration` is the SPAN of the merged fixation:
-
-        duration = end_time(last fixation) - onset(first fixation)
-
-    i.e. it INCLUDES the gaps left by the removed micro-saccades. This follows
-    Hooge et al. (2007), as reported in Hooge et al. (2022, p. 2765): when a
-    saccade is removed, the durations of the removed saccade and of the
-    preceding and following fixations are summed. The merged object is treated
-    as one continuous fixation, so the time spent in the removed saccade counts
-    toward it.
-
-    `fix_avg_x`, `fix_avg_y` and `fix_avg_pupil_size` are averaged with weights
-    equal to the COMPONENT FIXATION DURATIONS ONLY, excluding those gaps. The
-    samples recorded during a removed saccade belong to neither fixation's
-    position estimate, so they must not influence the centroid.
-
-    Worked example
-    --------------
-        Fixation A : onset 1.000  end 1.200  duration 0.200 s   x = 100 px
-          (removed saccade spanning 1.200 -> 1.220, a 20 ms gap)
-        Fixation B : onset 1.220  end 1.500  duration 0.280 s   x = 130 px
-
-        merged x        = (100*0.200 + 130*0.280) / (0.200 + 0.280)
-                        = 117.5 px            <- weights total 0.480 s
-        merged duration = 1.500 - 1.000
-                        = 0.500 s             <- span, 20 ms longer
-
-    So `duration` (0.500 s) exceeds the sum of the component durations
-    (0.480 s) by exactly the removed saccade. That is intended.
+    Merge consecutive fixations that are closer than merge_threshold (in seconds).
     """
+    
     # Compute minimum saccade duration from the paper's formula
     t_min_sac= (2.2 * a_min + 27) / 1000.0
 
@@ -156,8 +107,7 @@ def merge_fixation_candidates(events, a_min=A_MIN, merge_threshold=None):
             and events.iloc[i]["trial_type"] == "fixation"
             and events.iloc[i + 1]["trial_type"] == "fixation"
             and events.iloc[i]["eye"] == events.iloc[i + 1]["eye"]
-            and events.iloc[i+1]["onset"]-events.iloc[i]["end_time"] < merge_threshold # QUESTION:avoid merges of implausible long fixations (e.g. across two different valid fixations)
-            # QUESTION: "only Fixations that are close to each other in time and space are combined."? # TBD: explore
+            and events.iloc[i+1]["onset"]-events.iloc[i]["end_time"] < merge_threshold
         ):
             j = i + 1
             duration_sum = current_row["duration"]

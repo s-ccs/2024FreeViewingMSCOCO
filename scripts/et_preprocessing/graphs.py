@@ -126,6 +126,16 @@ def compute_saccade_directions(s_df, style):
     
     #  Compute saccade direction: radians for polar, degrees [0, 360) for cartesian
     s = s_df.copy()
+    # Saccades whose start sample falls inside a blink carry no valid sacc_start_x/y
+    # coordinates, so drop them here.
+    coord_cols = ["sacc_start_x", "sacc_start_y", "sacc_end_x", "sacc_end_y"]
+    n_before = len(s)
+    s = s.dropna(subset=coord_cols)
+    if n_before - len(s):
+        logger.warning(
+            f"compute_saccade_directions: dropped {n_before - len(s)}/{n_before} "
+            "saccades without valid start/end coordinates (direction undefined)."
+        )
     dx = s["sacc_end_x"] - s["sacc_start_x"]
     dy = s["sacc_end_y"] - s["sacc_start_y"]
     # Flip the sign because ET coordinate system has its origin in the top left
@@ -237,6 +247,7 @@ def _graph_fixation_duration(ax, fix_df, fix_after=None, fix_dur_min: float | No
         dropout = total - len(dur)
 
         # Log kept / dropped (plotting range only)
+        logger.info(f"Dropouts for plotting fixation durations -{stage}: {total}")
         logger.info(f"Total fixations: {total}")
         if dur.empty:
             raise ValueError("No fixation durations post filtering. Check inputs or ranges.")
@@ -381,6 +392,7 @@ def _graph_saccade_amplitude(ax, sac_df, sac_after=None, sac_amp_max: float | No
         dropout = total - len(s)
 
         #  Log the numbers of items kept / dropped
+        logger.info(f"Dropouts for plotting saccade amplitudes -{stage}: {total}")
         logger.info(f"Total saccades: {total}")
         logger.info(f"Only for plotting: Kept saccades {window}): {len(s)}")
         if total > 0:
@@ -492,6 +504,7 @@ def _graph_saccade_duration(ax, sac_df, sac_after=None, sac_dur_max: float | Non
         dropout = total - len(s)
 
         #  Log the numbers of items kept / dropped
+        logger.info(f"Dropouts for plotting saccade duration -{stage}: {total}")
         logger.info(f"Total saccades: {total}")
         logger.info(f"Only for plotting: Kept saccades ({window}): {len(s)}")
         if total > 0:
@@ -596,9 +609,6 @@ def _graph_saccade_angles(ax, sac_df, sac_after=None, include_blink_sac: bool | 
 
         #  Compute saccade direction: radians for polar, degrees [0, 360) for cartesian
         s = compute_saccade_directions(s_df, style)
-
-        #  Log the number of saccades
-        logger.info(f"Total saccades: {len(s)}")
         return s
 
     #  Create figure: single, highlighted, or stacked before/after

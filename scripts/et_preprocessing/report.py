@@ -395,8 +395,8 @@ def _render_html(
             <h2><span class="sec-num">3</span> · Fixation Merger</h2>
             <p class="plot-caption">
                 Two-step procedure following Hooge et al. (2022): first, implausibly small
-                <em>and</em> short saccades are dropped; then consecutive
-                fixations of the same eye that are now no longer separated by such a saccade are merged.
+                <em>and</em> short saccades are dropped; then consecutive fixations of the same 
+                eye that are now no longer separated by such a saccade are merged.
             </p>
             <div class="formula">
                 drop saccade &nbsp;if&nbsp; amplitude &lt; a_min &nbsp;AND&nbsp; duration &lt; T_min<br>
