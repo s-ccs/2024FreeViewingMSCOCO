@@ -196,7 +196,7 @@ def run_preprocessing(subject_id: str, overwrite: bool) -> bool:
     )
 
     # 3b. Hooge et al. (2022), Stage 2
-    # Fixations shorter than the specified threshold are dropped from the events dataframe. #TBD:Check
+    # Fixations shorter than the specified threshold are dropped from the events dataframe.
     if config.T_MIN_FIX is not None:
         t_min_fix_s = config.T_MIN_FIX / 1000.0
         n_fix_before = int((events_merged["trial_type"] == "fixation").sum())
@@ -297,6 +297,9 @@ def run_visualisation(subject_id: str) -> bool:
     events_raw = load_subject_tsv(
         filepath=paths["in_tsv"],
         subject_id=subject_id,
+    )
+    events_raw = annotate_blink_saccades_in_df(
+        events_raw, window_ms=config.BLINK_WINDOW_MS
     )
 
     out_path = str(paths["plots_dir"])
