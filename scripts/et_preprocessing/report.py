@@ -235,6 +235,43 @@ def _render_config() -> str:
 
 
 # =============================================================================
+# References / bibliography
+# =============================================================================
+# Add further entries here; each dict is rendered as one bibliography item.
+# "text" is the formatted reference (HTML allowed, e.g. <em>...</em>);
+# "doi" is optional and rendered as a clickable link.
+_REFERENCES = [
+    {
+        "text": (
+            "Hooge, I. T. C., Niehorster, D. C., Nyström, M. et al. "
+            "Fixation classification: how to merge and select fixation candidates. "
+            "<em>Behavior Research Methods</em> 54, 2765&ndash;2776 (2022)."
+        ),
+        "doi": "https://doi.org/10.3758/s13428-021-01723-1",
+    },
+]
+
+
+def _render_references() -> str:
+    """Render the bibliography as an ordered list of formatted entries."""
+    if not _REFERENCES:
+        return "<p class='plot-caption'>No references.</p>"
+    items = ""
+    for ref in _REFERENCES:
+        doi = ref.get("doi")
+        link = (
+            f' <a href="{doi}" target="_blank" rel="noopener">{doi}</a>'
+            if doi
+            else ""
+        )
+        items += f'<li>{ref["text"]}{link}</li>'
+    return f"""
+    <div class="stat-block wide">
+        <ol class="references">{items}</ol>
+    </div>"""
+
+
+# =============================================================================
 # Static CSS / JS  (plain strings — no f-string brace escaping needed)
 # =============================================================================
 _CSS = """
@@ -290,6 +327,11 @@ details[open] > summary::before { content: "\\25BC  "; }
 .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: #ccc; margin: 0 4px; cursor: pointer; transition: background 0.2s; }
 .dot.active { background: #2c3e50; }
 .slide-label { font-size: 0.85em; color: #888; margin-bottom: 8px; }
+/* references */
+.references { margin: 0; padding-left: 22px; }
+.references li { font-size: 0.9em; color: #333; line-height: 1.55; margin-bottom: 10px; }
+.references li:last-child { margin-bottom: 0; }
+.references a { color: #2c3e50; word-break: break-all; }
 """
 
 _JS = """
@@ -345,6 +387,7 @@ def _render_html(
     merge_info,
     dropout_html,
     config_html,
+    references_html,
 ) -> str:
     """Assemble the full HTML report string."""
     title = subject_id.replace("sub-", "Subject ")
@@ -364,6 +407,7 @@ def _render_html(
             <a href="#sec-merger">3 · Eye-movement selection</a>
             <a href="#sec-summary">4 · Summary Plots</a>
             <a href="#sec-config">5 · Config</a>
+            <a href="#sec-references">6 · References</a>
         </nav>"""
 
     body = f"""
@@ -394,9 +438,9 @@ def _render_html(
         <section id="sec-merger">
             <h2><span class="sec-num">3</span> · Fixation Merger</h2>
             <p class="plot-caption">
-                Two-step procedure following Hooge et al. (2022): first, implausibly small
-                <em>and</em> short saccades are dropped; then consecutive fixations of the same 
-                eye that are now no longer separated by such a saccade are merged.
+                Two-step procedure following <a href="#sec-references">Hooge et al. (2022)</a>: first, implausibly small
+                <em>and</em> short saccades are dropped; then consecutive
+                fixations of the same eye that are now no longer separated by such a saccade are merged.
             </p>
             <div class="formula">
                 drop saccade &nbsp;if&nbsp; amplitude &lt; a_min &nbsp;AND&nbsp; duration &lt; T_min<br>
@@ -443,6 +487,11 @@ def _render_html(
             <h2><span class="sec-num">5</span> · Config</h2>
             <p class="plot-caption">Configuration used for this run (<code>config.py</code>).</p>
             <div class="stats-grid">{config_html}</div>
+        </section>
+
+        <section id="sec-references">
+            <h2><span class="sec-num">6</span> · References</h2>
+            <div class="stats-grid">{references_html}</div>
         </section>"""
 
     return f"""<!DOCTYPE html>
@@ -605,6 +654,7 @@ def generate_report(
         merge_info=merge_info,
         config_html=_render_config(),
         dropout_html=_render_dropout_table(dropout_stats),
+        references_html=_render_references(),
     )
 
     out_file = Path(out_path) / f"{subject_id}_report.html"
