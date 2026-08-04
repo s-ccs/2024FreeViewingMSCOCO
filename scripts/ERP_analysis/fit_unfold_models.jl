@@ -7,6 +7,8 @@ using CSV
 using Chain
 using CUDA
 
+include("erp_analysis_helper_functions.jl")
+
 data_root_path = "/scratch/data/2024FreeViewingMSCOCO"
 layout_df = bids_layout(data_root_path, specific_folder="preprocessed")
 
@@ -23,10 +25,6 @@ channels = pyconvert(Vector, data_df_orig[1, :raw].ch_names)
 
 data_df = deepcopy(data_df_orig)
 windows_to_remove = Dict()
-
-function outside_screen(x, y, screen_resolution=(1920, 1080))
-    return (x < 0) || (x > screen_resolution[1]) || (y < 0) || (y > screen_resolution[2])
-end
 
 for row in eachrow(data_df)
     @assert pyconvert(Float64, row.raw.info["sfreq"]) == sfreq "All recordings should have the same sampling frequency."
@@ -103,9 +101,8 @@ function prepare_eeg_data(raw; windows_to_remove_all=Dict(), channels::AbstractV
         end
 
         data_to_remove = [windows_to_remove.start_latency windows_to_remove.end_latency]
-        #println(data_to_remove)
+
         cleaned_data = Unfold.clean_data(data, data_to_remove)
-        #println(any(ismissing.(cleaned_data)))
 
     else
         # cleaned_data = data
@@ -115,7 +112,7 @@ function prepare_eeg_data(raw; windows_to_remove_all=Dict(), channels::AbstractV
     end
 
     # Define as CUDA array for GPU fitting
-    #cleaned_data_cuda = cu(cleaned_data)
+    #cleaned_data_cuda = cu(cleaned_data) # TODO: Change once GPU fitting works again in Unfold
     #println(typeof(cleaned_data_cuda))
 
     return cleaned_data
