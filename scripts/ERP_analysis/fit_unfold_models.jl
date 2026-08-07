@@ -126,14 +126,15 @@ for row in eachrow(data_df)
     # row.events[idx_remove, :trial_type] = row.events[idx_remove, :trial_type] .* "_outside_screen"
     @info "For subject $(row[:subject]), found $(length(idx_remove)) fixations and saccades that were outside of the screen."
 
-    # events_to_remove = findall(r -> r.trial_type == "fixation" && ismissing(r.sacc_visual_angle), eachrow(row.events))
-    # row.events = row.events[Not(events_to_remove), :]
-
     subject_path = construct_subject_bids_path(data_root_path, string(row[:subject]), "erp-analysis")
     mkpath(subject_path)
     file_name = construct_subject_filename(row[:subject], "events", "tsv", session=row.ses, run=row.run, task=row.task)
 
+    # Save event df before removing events without predictor values
     CSV.write(joinpath(subject_path, file_name), row.events, delim="\t")
+
+    events_to_remove = findall(r -> r.trial_type == "fixation" && (ismissing(r.sacc_visual_angle_w) || ismissing(r.sacc_duration_w)), eachrow(row.events))
+    row.events = row.events[Not(events_to_remove), :]
 end
 
 function prepare_eeg_data(raw; windows_to_remove_all=Dict(), channels::AbstractVector{<:Union{String,Integer}}=[])
