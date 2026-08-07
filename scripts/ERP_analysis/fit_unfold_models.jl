@@ -47,17 +47,31 @@ for row in eachrow(data_df)
     # Only use the data of the specified eye
     row.events = filter(r -> (ismissing(r.eye)) || r.eye == "R", row.events)
 
-    # # Add the saccade amplitude of the previous saccade to each fixation
-    # copy_eventinfo!(row.events, "saccade" => "fixation", :sacc_visual_angle; search_fun=:forward, column="trial_type")
-
     # Exlude practice trials (block 0)
     row.events = filter(r -> (ismissing(r.block) || r.block .!= 0), row.events)
 
     # TODO: do we need a buffer before stimulus start and after stimulus end?
-    stimulus_start = filter(r -> r.trial_type == "02 Stimulus image shown", row.events).latency
-    stimulus_end = filter(r -> r.trial_type == "08 Stimulus end", row.events).latency
-    within_timewindow = [any(stimulus_start .<= lat .<= stimulus_end) for lat in row.events.latency]
+    stimulus_start = filter(r -> r.trial_type == "02 Stimulus image shown", row.events)
+    stimulus_end = filter(r -> r.trial_type == "08 Stimulus end", row.events)
+    within_timewindow = [any(stimulus_start.latency .<= lat .<= stimulus_end.latency) for lat in row.events.latency]
     row.events = row.events[within_timewindow, :]
+
+    # Copy trial information (block, trial and image) to all events within a trial
+    cols_to_copy = ["block", "trial", "image"]
+    @assert size(stimulus_start, 1) == size(stimulus_end, 1) "There is not the same number of stimulus onset and offset events."
+
+    for (i, start) in enumerate(eachrow(stimulus_start))
+        stop = stimulus_end[i, :]
+
+        # Check that start and stop event belong to the same trial
+        [@assert start[col] == stop[col] "The value for :$(col) is not equal for start and stop event. ($(start[col]) vs $(stop[col]))" for col in cols_to_copy]
+
+        within_trial = findall([start.latency <= lat <= stop.latency for lat in row.events.latency])
+
+        for col in cols_to_copy
+            row.events[within_trial, col] .= start[col]
+        end
+    end
 
     if any(row.events.onset .< 0)
         @warn "Even after filtering for events within/around trials, there are negative onsets."
@@ -68,6 +82,29 @@ for row in eachrow(data_df)
     saccades_view = filter(r->r.trial_type=="saccade", row.events, view=true)
     saccades_view[:, :sacc_visual_angle_w] .= winsor(saccades_view.sacc_visual_angle, prop=prop)
     saccades_view[:, :sacc_duration_w] .= winsor(saccades_view.duration, prop=prop)
+
+    # Add the winsorised predictor values (saccade amplitude & duration) of the previous saccade to each fixation
+    for predictor in ["sacc_visual_angle_w", "sacc_duration_w"]
+        copy_eventinfo!(row.events, "saccade" => "fixation", predictor; search_fun=:forward, column="trial_type")
+
+        # Find cases where the predictor value should not have been copied over
+        # (e.g. when saccade and fixation are in different trials or exceed a certain temporal distance)
+        # Set the predictor value back to missing in these cases
+        time_threshold = 1/1000 # 1ms
+
+        df_temp = filter(r->(r.trial_type == "saccade") || (r.trial_type == "fixation"), row.events)
+        df_temp_next = deepcopy(df_temp)[2:end, :]
+
+        critical_lat = []
+        for (i, r) in enumerate(eachrow(df_temp_next))
+            if (r.trial_type == "fixation") && (df_temp[i, :trial_type] == "saccade") && (r[predictor] == df_temp[i, predictor]) && ((r.trial != df_temp[i, :trial]) || (r.onset - df_temp[i, :end_time] >= time_threshold))
+                append!(critical_lat, r.latency)
+            end
+        end
+        critical_idx = findall([lat in critical_lat for lat in row.events.latency])
+        @info "Found $(size(critical_idx,1)) instances where $(predictor) was copied but either the source and target events are not in the same trial or more than $(time_threshold*1000) ms apart. Setting back to missing."
+        row.events[critical_idx, predictor] .= missing
+    end
 
     idx_remove = []
 
