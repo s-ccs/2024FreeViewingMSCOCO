@@ -11,9 +11,12 @@ using CUDA
 include("erp_analysis_helper_functions.jl")
 
 data_root_path = "/scratch/data/2024FreeViewingMSCOCO"
+derivative = "erp-analysis"
 layout_df = bids_layout(data_root_path, specific_folder="preprocessed")
 
-data_subset = layout_df[1:2, :]
+batch = parse.(Int, ARGS)
+print(batch)
+data_subset = layout_df[batch, :]
 if data_subset isa DataFrameRow
     data_subset = DataFrame(data_subset)
 end
@@ -35,7 +38,7 @@ for row in eachrow(data_df)
     row.events.end_time = row.events.end_time .- first_time
 
     if any(row.events.onset .< 0)
-        @warn "For subject $(row[:subject]), there are events with negative onsets. `First_time` from raw: $first_time"
+        @info "For subject $(row[:subject]), there are events with negative onsets. This might happen if the ET recording was started before the EEG recording. `First_time` from raw: $first_time"
     end
 
     # Exlcude blink saccades
@@ -90,14 +93,14 @@ for row in eachrow(data_df)
         # Find cases where the predictor value should not have been copied over
         # (e.g. when saccade and fixation are in different trials or exceed a certain temporal distance)
         # Set the predictor value back to missing in these cases
-        time_threshold = 1/1000 # 1ms
+        time_threshold = 2/1000 # 1ms
 
         df_temp = filter(r->(r.trial_type == "saccade") || (r.trial_type == "fixation"), row.events)
         df_temp_next = deepcopy(df_temp)[2:end, :]
 
         critical_lat = []
         for (i, r) in enumerate(eachrow(df_temp_next))
-            if (r.trial_type == "fixation") && (df_temp[i, :trial_type] == "saccade") && (r[predictor] == df_temp[i, predictor]) && ((r.trial != df_temp[i, :trial]) || (r.onset - df_temp[i, :end_time] >= time_threshold))
+            if (r.trial_type == "fixation") && (df_temp[i, :trial_type] == "saccade") && (r[predictor] == df_temp[i, predictor]) && ((r.trial != df_temp[i, :trial]) || (r.onset - df_temp[i, :end_time] > time_threshold))
                 append!(critical_lat, r.latency)
             end
         end
@@ -126,7 +129,7 @@ for row in eachrow(data_df)
     # row.events[idx_remove, :trial_type] = row.events[idx_remove, :trial_type] .* "_outside_screen"
     @info "For subject $(row[:subject]), found $(length(idx_remove)) fixations and saccades that were outside of the screen."
 
-    subject_path = construct_subject_bids_path(data_root_path, string(row[:subject]), "erp-analysis")
+    subject_path = construct_subject_bids_path(data_root_path, string(row[:subject]), derivative)
     mkpath(subject_path)
     file_name = construct_subject_filename(row[:subject], "events", "tsv", session=row.ses, run=row.run, task=row.task)
 
@@ -137,13 +140,51 @@ for row in eachrow(data_df)
     row.events = row.events[Not(events_to_remove), :]
 end
 
-function prepare_eeg_data(raw; windows_to_remove_all=Dict(), channels::AbstractVector{<:Union{String,Integer}}=[])
+function prepare_eeg_data(
+    raw;
+    windows_to_remove_all=Dict(),
+    channels::AbstractVector{<:Union{String,Integer}}=["eeg"],
+    model_folder::AbstractString="")
+
+    # Only pick eeg channels (or specified channels)
+    raw_eeg = raw.copy().pick(picks=pylist(channels))
 
     # Load EEG data
-    data = pyconvert(Array, raw.copy().get_data(picks=pylist(channels), units="uV"))
+    data = pyconvert(Array, raw_eeg.get_data(units="uV"))
 
     # Get subject id from raw object
     subject_id = split(pyconvert(String, raw.info["subject_info"]["his_id"]), "sub-")[2]
+
+    # If a file path/name for the channel idx to name mapping file is given create and save it
+    if !isempty(model_folder)
+        # Extract indices of eeg channels (0-based indexing)
+        channel_inds = pyconvert(Vector, PyMNE.pick_types(raw_eeg.info, eeg=true, exclude=pylist([])))
+
+        # Extract channel names for all channel indices
+        ch_names = pyconvert(Vector{String}, [raw_eeg.ch_names[idx] for idx in channel_inds])
+
+        # Get dict which has channel names as keys and channel positions as values
+        ch_pos_dict = pyconvert(Dict, raw_eeg.get_montage().get_positions()["ch_pos"])
+
+        # Read out channel positions from dict based on channel name
+        ch_positions = pyconvert(Vector{Vector{Float64}}, get.(Ref(ch_pos_dict), ch_names, missing))
+
+        # Combine information in data frame
+        # Note channel_inds .+ 1 because Julia uses 1-based indexing
+        ch_mapping_df = DataFrame(ch_idx=channel_inds .+ 1, ch_name=ch_names, ch_position=ch_positions)
+
+        temp_path = joinpath(derivative, model_folder)
+        subject_path = construct_subject_bids_path(data_root_path, subject_id, temp_path)
+        mkpath(subject_path)
+        ch_mapping_file_name = construct_subject_filename(
+            subject_id,
+            "channel_mapping",
+            "tsv")
+        # session=row.ses,
+        # run=row.run,
+        # task=row.task)
+        CSV.write(joinpath(subject_path, ch_mapping_file_name), ch_mapping_df, delim="\t")
+    end
 
     # Extract time windows that should be removed for the specific subject
     windows_to_remove_sub = windows_to_remove_all[subject_id]
@@ -173,23 +214,51 @@ function prepare_eeg_data(raw; windows_to_remove_all=Dict(), channels::AbstractV
     return cleaned_data
 end
 
-# bf_stimulus = firbasis(τ=(-0.3, 1.5), sfreq=sfreq)
-# bf_fixation = firbasis(τ=(-0.3, 1.0), sfreq=sfreq)
-# f_stimulus = @formula 0 ~ 1
-# f_fixation = @formula 0 ~ 1 + spl(sacc_visual_angle, 4)
-# bfDict = ["02 Stimulus image shown" => (f_stimulus, bf_stimulus),
-#     "fixation" => (f_fixation, bf_fixation)]
-# results_all = run_unfold(data_df, bfDict; eventcolumn="trial_type", channels=["eeg"])
 
 # Model fitting
-bf_stimulus = firbasis(τ=(-0.3, 1.5), sfreq=sfreq)
-bf_saccade = firbasis(τ=(-0.3, 1.0), sfreq=sfreq)
-# bf_saccade_outside = firbasis(τ=(-0.3, 1.0), sfreq=sfreq)
 
+# Stimulus basis function and formula is the same for all models (only used for overlap correction)
+bf_stimulus = firbasis(τ=(-0.3, 1.5), sfreq=sfreq)
 f_stimulus = @formula 0 ~ 1
-#f_saccade = @formula 0 ~ 1 + spl(sacc_visual_angle, 4) + spl(peak_velocity, 4) + spl(duration, 4)
-f_saccade = @formula 0 ~ 1 + spl(sacc_visual_angle, 4)
+# bf_saccade_outside = firbasis(τ=(-0.3, 1.0), sfreq=sfreq)
 # f_saccade_outside = @formula 0 ~ 1
+
+custom_solver = (X, y) -> Unfold.solver_predefined(X, y; solver=:qr)
+
+event_list = ["saccade", "fixation"]
+pred_variable_list = ["sacc_visual_angle_w", "sacc_duration_w"]
+pred_term_list = ["spl(sacc_visual_angle_w, 4)", "spl(sacc_duration_w, 4)"]
+combinations = collect(Iterators.product(event_list, zip(pred_variable_list, pred_term_list)))
+
+for (em_event, predictor) in combinations
+
+    predictor_var, predictor_term = predictor
+
+    bf_em = firbasis(τ=(-0.3, 1.0), sfreq=sfreq)
+    f_em = eval(Meta.parse("@formula 0 ~ 1 + $predictor_term"))
+
+    bfDict = [
+        "02 Stimulus image shown" => (f_stimulus, bf_stimulus),
+        em_event => (f_em, bf_em)
+    ]
+
+    model_folder = em_event * "/" * predictor_var
+
+    @info "Fitting models for event: $(em_event) with formula $(f_em)."
+    results = run_unfold(
+        data_df,
+        bfDict;
+        eventcolumn="trial_type",
+        channels=["eeg"],
+        solver=custom_solver,
+        extract_data=prepare_eeg_data,
+        windows_to_remove_all=windows_to_remove,
+        model_folder=model_folder
+    )
+
+    save_results(results, data_root_path, derivatives_subfolder=joinpath(derivative, model_folder), overwrite=false)
+
+end
 
 # TODO: Test model fitting with three events
 # bfDict = [
@@ -197,21 +266,3 @@ f_saccade = @formula 0 ~ 1 + spl(sacc_visual_angle, 4)
 #     "saccade" => (f_saccade, bf_saccade),
 #     "saccade_outside_screen" => (f_saccade_outside, bf_saccade_outside)
 # ]
-
-bfDict = [
-    "02 Stimulus image shown" => (f_stimulus, bf_stimulus),
-    "saccade" => (f_saccade, bf_saccade)
-]
-
-custom_solver = (X, y) -> Unfold.solver_predefined(X, y; solver=:qr) #multithreading=false)
-results_all = run_unfold(
-    data_df,
-    bfDict;
-    eventcolumn="trial_type",
-    channels=["eeg"],
-    solver=custom_solver,
-    extract_data=prepare_eeg_data,
-    windows_to_remove_all=windows_to_remove
-)
-
-save_results(results_all, data_root_path, derivatives_subfolder="Unfold/test", overwrite=false)
