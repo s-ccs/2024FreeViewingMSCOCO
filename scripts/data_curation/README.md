@@ -60,3 +60,8 @@ See `missing_trials_info_all_participants.tsv`
 
 ## Rename files
 Since we used inconsistent task names during the recordings, we had do unify the task name to `"freeviewing"` afterwards using the `unify_filenames_task.sh` script which uses `adapt_filenames_in_tsv.py`.
+
+## Populate `participants.tsv`file using participant forms
+The `extract_participant_info.py` script loads the participant forms for all subjects and combines the demographic information (age, gender, etc) in a data frame which is saved as `participants.tsv` following BIDS conventions.
+
+Moreover, the script contains code to calculate a demographics summary e.g. average age and to save it as a json file.
