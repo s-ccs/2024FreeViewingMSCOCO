@@ -266,3 +266,36 @@ end
 #     "saccade" => (f_saccade, bf_saccade),
 #     "saccade_outside_screen" => (f_saccade_outside, bf_saccade_outside)
 # ]
+
+
+## Explorative model fitting
+# bf_stimulus = firbasis(τ=(-0.3, 1.5), sfreq=sfreq)
+# f_stimulus = @formula 0 ~ 1
+
+# bf_fixation = firbasis(τ=(-0.3, 1.0), sfreq=sfreq)
+# f_fixation = @formula 0 ~ 1# + spl(sacc_duration_w, 4)
+
+# bf_saccade = firbasis(τ=(-0.3, 1.0), sfreq=sfreq)
+# f_saccade = @formula 0 ~ 1# + spl(sacc_duration_w, 4)
+
+# bfDict = [
+#     "02 Stimulus image shown" => (f_stimulus, bf_stimulus),
+#     "fixation" => (f_fixation, bf_fixation),
+#     "saccade" => (f_saccade, bf_saccade),
+# ]
+
+# custom_solver = (X, y) -> Unfold.solver_predefined(X, y; solver=:qr)
+# model_folder = "model_playground/both_em_events"
+
+# results = run_unfold(
+#     data_df,
+#     bfDict;
+#     eventcolumn="trial_type",
+#     channels=["eeg"],
+#     solver=custom_solver,
+#     extract_data=prepare_eeg_data,
+#     windows_to_remove_all=windows_to_remove,
+#     model_folder=model_folder
+# )
+
+# save_results(results, data_root_path, derivatives_subfolder=joinpath(derivative, model_folder), overwrite=false)
