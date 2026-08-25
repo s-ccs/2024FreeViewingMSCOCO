@@ -179,16 +179,14 @@ def run_preprocessing(subject_id: str, overwrite: bool) -> bool:
     # Saccades which are below a certain amplitude and duration are dropped
     # and the surrounding fixations are merged
     logger.info(
-        f"Merging events  "
-        f"(a_min={config.A_MIN}°, "
-        f"t_min_fix={config.T_MIN_FIX} ms, "
-    )
+        f"Dropping saccades below amplitude a_min={config.A_MIN}°... "
+        )
     if isinstance(config.MERGE_THRESHOLD, (int, float)):
         merge_threshold = config.MERGE_THRESHOLD
     else:
         logger.warning(f"MERGE_THRESHOLD is not a number: {type(config.MERGE_THRESHOLD)}. MERGE_THRESHOLD will be set to 'None'")
         merge_threshold = None
-        
+
     events_merged = merge_fixation_candidates(
         events_raw,
         a_min=config.A_MIN,
@@ -201,21 +199,18 @@ def run_preprocessing(subject_id: str, overwrite: bool) -> bool:
         t_min_fix_s = config.T_MIN_FIX / 1000.0
         n_fix_before = int((events_merged["trial_type"] == "fixation").sum())
 
+        logger.info(
+                    f"Dropping fixations shorter than {config.T_MIN_FIX:.0f} ms..."
+                )
+
         idx_drop_fix = events_merged.index[
             (events_merged["trial_type"] == "fixation")
             & (events_merged["duration"] < t_min_fix_s)
         ]
         events_merged = events_merged.drop(idx_drop_fix).reset_index(drop=True)
 
-        pct = len(idx_drop_fix) / max(n_fix_before, 1) * 100
         logger.info(
-            f"Stage 2: dropped {len(idx_drop_fix)}/{n_fix_before} fixations "
-            f"({pct:.1f}%, both eyes) shorter than {config.T_MIN_FIX:.0f} ms."
-        )
-        if pct > 10:
-            logger.warning(
-                f"Stage 2 removed {pct:.1f}% of fixations. Above ~10% this usually means "
-                f"Stage 1 is not merging — check the merge counts above."
+            f"Dropped {len(idx_drop_fix)} fixations (sum for both eyes) with a duration below {config.T_MIN_FIX * 1000:.0f} ms."
             )
 
     # Save
@@ -223,7 +218,7 @@ def run_preprocessing(subject_id: str, overwrite: bool) -> bool:
     events_merged.to_csv(paths["out_tsv"], sep="\t", index=False)
     logger.info(f"--> Saved merged TSV: {paths['out_tsv']}")
 
-    # 3. pre/post-merge eye trace comparison
+    # 4. pre/post-merge eye trace comparison
     os.makedirs(paths["plots_dir"], exist_ok=True)
     logger.info("Plotting eye trace comparison...")
     plot_eye_trace_pre_post_processing(
@@ -236,7 +231,7 @@ def run_preprocessing(subject_id: str, overwrite: bool) -> bool:
         top_n=3,
     )
 
-    # 4. before/after summary comparison (needs both raw + merged data)
+    # 5. before/after summary comparison (needs both raw + merged data)
     logger.info("Plotting before/after summary comparison...")
     fig = plot_summary_comparison(
         events_before=events_raw,
