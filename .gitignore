@@ -26,6 +26,7 @@ docs/site/
 
 # for images
 assets/images/*.jpg
+assets/images/**/*.jpg
 
 # for exit questions
 experiment/2024FreeViewingMSCOCO_exit_questions.tsv
