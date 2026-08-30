@@ -1,8 +1,5 @@
 Scripts etc. - everything that runs something on it's own and is not a function, goes here.
 
-- `exp-startup` - bash script to create the BIDS-style `data/sub-xxx/ses-yyy/beh` folder for a participant, copy the behavioural file templates from the `assets` folder and rename them according to the subject.
-
-
 
 Please use easily understandable filenames
 
