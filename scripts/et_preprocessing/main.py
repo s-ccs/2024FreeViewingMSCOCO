@@ -24,7 +24,8 @@ import config
 from preprocessing import (
     load_subject_tsv,
     merge_fixation_candidates,
-    annotate_blink_saccades_in_df
+    annotate_blink_saccades_in_df,
+    calculate_saccade_angle_in_df
 )
 from plotting import (
     plot_eye_trace_pre_post_processing,
@@ -171,9 +172,10 @@ def run_preprocessing(subject_id: str, overwrite: bool) -> bool:
         logger.error(e)
         return False
 
-    # 2. Annotate blink saccades
+    # 2. Annotate blink saccades and the saccade angle in the events dataframe
     logger.info(f"Annotating blink saccades (window={config.BLINK_WINDOW_MS} ms)")
     events_raw = annotate_blink_saccades_in_df(events_raw, window_ms=config.BLINK_WINDOW_MS)
+    events_raw = calculate_saccade_angle_in_df(events_raw)
 
     # 3a. Hooge et al. (2022), Stage 1
     # Saccades which are below a certain amplitude and duration are dropped
@@ -296,6 +298,8 @@ def run_visualisation(subject_id: str) -> bool:
     events_raw = annotate_blink_saccades_in_df(
         events_raw, window_ms=config.BLINK_WINDOW_MS
     )
+
+    events_raw = calculate_saccade_angle_in_df(events_raw)
 
     out_path = str(paths["plots_dir"])
     os.makedirs(out_path, exist_ok=True)
