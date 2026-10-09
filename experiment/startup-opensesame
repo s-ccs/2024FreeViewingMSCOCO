@@ -1,5 +1,5 @@
 #!/bin/bash
-echo "Welcome to the FreeViewing Experiment - To open the corresponding OpenSesame files, please chose: 
+echo "Welcome to the FreeViewing Experiment - To open the corresponding OpenSesame files, please choose: 
 
 1: Startup the EyeTracking Test
 2: Startup the 2024FreeViewingMSCOCO Experiment
