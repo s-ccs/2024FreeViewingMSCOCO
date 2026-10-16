@@ -19,6 +19,13 @@ begin
 	using ColorSchemes
 end
 
+<<<<<<< Updated upstream
+=======
+# ╔═╡ 436a1c51-d2b4-4d67-95a4-f56f2752fa17
+	using TopoPlots
+
+
+>>>>>>> Stashed changes
 # ╔═╡ 94c886cf-07a5-4207-a473-af538b1d3268
 plots_dir = "/store/users/schepers/projects/FreeViewingMSCOCO/plots/2026-09-16_Meeting_Bene/"
 
@@ -174,6 +181,7 @@ begin
 	ch_name_roi = ch_mapping_df[in.(ch_mapping_df.ch_idx,Ref(ch_idx_roi)),:ch_name]
 end
 
+<<<<<<< Updated upstream
 # ╔═╡ 827b3e75-1f53-4c80-81da-1ba048833ef6
 begin
 	using TopoPlots
@@ -212,6 +220,60 @@ md"""
 
 # ╔═╡ 3bdc8569-cd34-4790-a69b-f7f63b315b0e
 let
+=======
+# ╔═╡ 15ed76c0-22b1-421a-a52d-02fb8f0383aa
+md"""
+# Lambda response figure
+"""
+
+# ╔═╡ 68de7a49-f738-4ca7-a283-5c165028b30e
+box1 = Box(g_abc[1,1:3], color = (:yellow, 0.5), strokecolor = :transparent)
+
+# ╔═╡ fbebd978-8b58-4fa6-a3b5-947cc2ca2380
+_x = g_d[1,1][1,2]
+
+# ╔═╡ 56a0e64f-9c1d-4bdf-89ab-46b8efac5692
+f.content[49].alignmode=Mixed(right=0)
+
+# ╔═╡ e1dc7db9-d34b-49d7-8cdb-97f2d533829d
+f.content[49].alignmode[]
+
+# ╔═╡ 3ab1013d-a751-4d55-a88c-45ef81b23ee1
+f.content[49]
+
+# ╔═╡ 2da779b0-586f-49ba-ab5c-329ff55e994c
+#g_abc.alignmode = Mixed(left=0)
+
+# ╔═╡ 54963a1c-deef-4269-b315-16788352f8a5
+#g_d.alignmode = Mixed(left=500)
+
+# ╔═╡ 6f247b96-dc31-4ccd-9303-b4c6ce620234
+#f.content[1].alignmode.val = Mixed(left=0)
+
+# ╔═╡ 101085cd-d008-4a37-867f-162e7ecb728d
+begin
+	f2 = Figure()
+	_ga = f2[1,1] = GridLayout()
+	_gb = f2[2,1] = GridLayout()
+	ax1 = Axis(_ga[1,1])
+	ax2 = Axis(_gb[1,1])
+
+	ax2.ylabel ="bla"
+	#ax2.alignmode=Mixed(left=0)
+	#ax1.alignmode=Mixed(left=0)
+	_ga.alignmode = Mixed(left=0)
+	_gb.alignmode = Mixed(left=0)
+	f2
+end
+
+# ╔═╡ 16ad32d8-f331-4ba4-b488-eb690535fce2
+md"""
+## Helper functions
+"""
+
+# ╔═╡ 3bdc8569-cd34-4790-a69b-f7f63b315b0e
+begin
+>>>>>>> Stashed changes
 	# Figure layout
 	f = Figure(size = (1200,800), fontsize=19)
 	g_abc = f[1, 1:3] = GridLayout()
@@ -228,7 +290,11 @@ let
 	    mapping = (; y = :yhat_mean, color = predictor, group = predictor),
 		colorbar = ( ;label = "Saccade amplitude [°]", labelrotation = pi/2),
 		visual = (; linewidth=3, colormap=:roma, color=:roma),
+<<<<<<< Updated upstream
 		axis = (; xlabel = "Time [s]"),
+=======
+		axis = (; xlabel = "Time [s]", xticks = 0:0.2:0.6),
+>>>>>>> Stashed changes
 	)
 
 	# Plot detected peaks
@@ -359,7 +425,11 @@ let
 		positions=positions_2d,
 		label_scatter = (markersize = 4.85, strokecolor = stroke_color, strokewidth = 0.5),
 		interpolation = NullInterpolator(),
+<<<<<<< Updated upstream
 		head = (color = :black, linewidth = 0.5),
+=======
+		head = (color = :black, linewidth = 0.01),
+>>>>>>> Stashed changes
 		#axis=(aspect=DataAspect(),),
 		colormap = colormap,
 		#label_text=true
@@ -377,9 +447,18 @@ let
 	    eff_sub_topo;
 		bin_width = bin_width,
 	    positions = positions_2d,
+<<<<<<< Updated upstream
 	    axis = (; xlabel = "Time windows [s]"), #ylabel = "Saccade amplitude [°]"),
 		mapping = (; y = :yhat_mean, row = :sacc_visual_angle_w),
 		visual = (; contours = (; color = :black)),
+=======
+	    # axis = (; alignmode=Mixed(left=0), backgroundcolor=:red, xlabel = "Time windows [s]", ylabel = "Saccade amplitude [°]"),
+	    axis = (; backgroundcolor=:red, xlabel = "Time windows [s]", ylabel = "Y-Label"),
+		#topo_axis=(;alignmode=Mixed(left=0),backgroundcolor=(:blue,0.5)),
+		mapping = (; y = :yhat_mean, row = :sacc_visual_angle_w),
+		visual = (; contours = (; color = :black)),
+		
+>>>>>>> Stashed changes
 	)
 
 	# Add panel labels
@@ -403,10 +482,49 @@ let
 	current_figure()
 end
 
+<<<<<<< Updated upstream
 # ╔═╡ 16ad32d8-f331-4ba4-b488-eb690535fce2
 md"""
 ## Helper functions
 """
+=======
+# ╔═╡ 827b3e75-1f53-4c80-81da-1ba048833ef6
+# ╠═╡ disabled = true
+#=╠═╡
+begin
+	#using TopoPlots
+	fig = Figure()
+	ax_t = Axis(fig[1,1], aspect=DataAspect())
+
+	colormap = vcat(1,colorschemes[:tab10].colors[1:length(ch_idx_roi)])
+	
+	marker_list = zeros(length(positions_2d))
+	marker_list[ch_idx_roi] .= 1:length(ch_idx_roi)
+
+	labels = repeat([""], length(positions_2d))
+	labels[ch_idx_roi] = ch_name_roi
+
+	stroke_color = repeat([:white], length(positions_2d))
+	stroke_color[ch_idx_roi] .= :black
+	
+	TopoPlots.eeg_topoplot!(
+		ax_t,
+		marker_list,
+		#labels = labels,
+		positions=positions_2d,
+		head = nothing,
+		label_scatter = (markersize = 25, strokecolor = stroke_color, strokewidth = 1),
+		interpolation = NullInterpolator(),
+		colormap = colormap,
+		#label_text=true
+	)
+	hidedecorations!(current_axis())
+	hidespines!(current_axis())
+
+	current_figure()
+end
+  ╠═╡ =#
+>>>>>>> Stashed changes
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -3001,8 +3119,23 @@ version = "4.1.0+0"
 # ╟─6765e88a-da48-42fd-9524-2f9abd209bc3
 # ╠═3f61697b-211a-49e9-9869-b94e5f95bc50
 # ╟─15ed76c0-22b1-421a-a52d-02fb8f0383aa
+<<<<<<< Updated upstream
 # ╠═3bdc8569-cd34-4790-a69b-f7f63b315b0e
 # ╟─16ad32d8-f331-4ba4-b488-eb690535fce2
+=======
+# ╠═68de7a49-f738-4ca7-a283-5c165028b30e
+# ╠═fbebd978-8b58-4fa6-a3b5-947cc2ca2380
+# ╠═56a0e64f-9c1d-4bdf-89ab-46b8efac5692
+# ╠═e1dc7db9-d34b-49d7-8cdb-97f2d533829d
+# ╠═3ab1013d-a751-4d55-a88c-45ef81b23ee1
+# ╠═2da779b0-586f-49ba-ab5c-329ff55e994c
+# ╠═54963a1c-deef-4269-b315-16788352f8a5
+# ╠═6f247b96-dc31-4ccd-9303-b4c6ce620234
+# ╠═101085cd-d008-4a37-867f-162e7ecb728d
+# ╠═3bdc8569-cd34-4790-a69b-f7f63b315b0e
+# ╟─16ad32d8-f331-4ba4-b488-eb690535fce2
+# ╠═436a1c51-d2b4-4d67-95a4-f56f2752fa17
+>>>>>>> Stashed changes
 # ╠═827b3e75-1f53-4c80-81da-1ba048833ef6
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
