@@ -186,9 +186,9 @@ def run_preprocessing(subject_id: str, overwrite: bool) -> bool:
     if isinstance(config.TEMPORAL_MERGE_THRESHOLD, (int, float)):
         temporal_merge_threshold = config.TEMPORAL_MERGE_THRESHOLD
     else:
-        logger.warning(f"TEMPORAL_MERGE_THRESHOLD is not a number: {type(config.TEMPORAL_MERGE_THRESHOLD)}. TEMPORAL_MERGE_THRESHOLD will be set to 'None'")
-        temporal_merge_threshold = None
-
+        logger.warning(f"TEMPORAL_MERGE_THRESHOLD is not a number: {type(config.TEMPORAL_MERGE_THRESHOLD)}. TEMPORAL_MERGE_THRESHOLD will be set to 50 ms.")
+        temporal_merge_threshold = 50
+        
     events_merged = merge_fixation_candidates(
         events_raw,
         a_min=config.A_MIN,
