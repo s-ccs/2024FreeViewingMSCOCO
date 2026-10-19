@@ -73,9 +73,9 @@ BLINK_WINDOW_MS = 50.0
 
 # Minimum saccade amplitude threshold (degrees)
 # s. Hooge et al. (2022), Stage 1.
-A_MIN = 1.0 # Saccades smaller than this AND shorter than T_min are dropped. T_min = 2.2 · A_MIN + 27
+A_MIN = 1.0 # Saccades smaller than this are dropped.
 T_MIN_FIX = 60
-MERGE_THRESHOLD = 100 # (in ms); only fixations with a time difference < MERGE_THRESHOLD will be merged. Set to 'False' if T_MIN_SAC should be used as threshold.
+TEMPORAL_MERGE_THRESHOLD = 50 # (in ms); only fixations with a time difference < TEMPORAL_MERGE_THRESHOLD will be merged.
 
 # Generate Report (boolean): creates an html report
 REPORT = True

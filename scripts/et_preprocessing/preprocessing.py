@@ -6,10 +6,8 @@ Overview:
 Load Input file(s):
     load_subject_tsv
 Preprocessing:
-    merge_events() calls:
-        merge_fixation_candidates()
-Helpers:
     annotate_blink_saccades_in_df()
+    merge_fixation_candidates()
 """
 
 import logging
@@ -65,20 +63,19 @@ def load_subject_tsv(
 
 # Preprocessing
 # =============================================================================
-def merge_fixation_candidates(events, a_min=A_MIN, merge_threshold=None):
+def merge_fixation_candidates(events, a_min=A_MIN, temporal_merge_threshold=50):
     """
-    Stage 1 of the selection procedure of Hooge et al. (2022). Drops saccades 
-    that are BOTH smaller than `a_min` AND shorter than T_min = 2.2 * a_min + 27 (ms), 
-    then merges the fixations left adjacent.
+    Stage 1 of the selection procedure of Hooge et al. (2022) (using only an amplitude criterion).
+    Drops saccades that are smaller than `a_min`, then merges the fixations left adjacent (if they
+    are close enough in time and space).
 
     Args:
         events (pd.DataFrame): events with columns onset, end_time, duration,
             trial_type, eye, fix_avg_x, fix_avg_y, fix_avg_pupil_size,
             sacc_visual_angle. Times in seconds, positions in pixels.
-        a_min (float): minimal saccade amplitude in degrees. Equivalently the
-            maximal inter-fixation distance (Hooge et al., 2022, p. 2767).
-        merge_threshold (float, optional): maximal gap between two fixations
-            for them to merge, in MILLISECONDS. None (default) uses T_min.
+        a_min (float): minimal saccade amplitude in degrees.
+        temporal_merge_threshold (float, optional): maximal time gap between
+             two fixations for them to merge, in MILLISECONDS. Defaults to 50 ms.
 
     Returns:
         pd.DataFrame: events after the drop and merge, sorted by onset.
@@ -92,29 +89,24 @@ def merge_fixation_candidates(events, a_min=A_MIN, merge_threshold=None):
         https://doi.org/10.3758/s13428-021-01723-1
     """
     
-    # Compute minimum saccade duration from the paper's formula
-    t_min_sac= (2.2 * a_min + 27) / 1000.0
-
-    if merge_threshold is None:
-        merge_threshold = t_min_sac
-    else:
-        merge_threshold /= 1000.0  
+    # Convert from milliseconds to seconds 
+    temporal_merge_threshold /= 1000.0  
 
     # Sort by eye and onset to prevent cross-eye merging
     events = events.sort_values(["eye", "onset"]).reset_index(drop=True)
 
     n_before = (events["trial_type"] == "saccade").sum()
+
     # Drop saccades that are BOTH below amplitude AND duration threshold
     events = events[
         ~(
             (events["trial_type"] == "saccade")
             & (events["sacc_visual_angle"] < a_min)
-            & (events["duration"] < t_min_sac)
         )
     ].reset_index(drop=True)
     n_dropped = n_before - (events["trial_type"] == "saccade").sum()
     logger.info(
-        f"Dropped {n_dropped} saccades (amplitude < {a_min}° and duration < {t_min_sac*1000:.1f} ms)"
+        f"Dropped {n_dropped} saccades (amplitude < {a_min}°)"
     )
 
     rows_to_keep = []
@@ -129,7 +121,7 @@ def merge_fixation_candidates(events, a_min=A_MIN, merge_threshold=None):
             and events.iloc[i]["trial_type"] == "fixation"
             and events.iloc[i + 1]["trial_type"] == "fixation"
             and events.iloc[i]["eye"] == events.iloc[i + 1]["eye"]
-            and events.iloc[i+1]["onset"]-events.iloc[i]["end_time"] < merge_threshold
+            and events.iloc[i+1]["onset"]-events.iloc[i]["end_time"] < temporal_merge_threshold
         ):
             j = i + 1
             duration_sum = current_row["duration"]
@@ -137,7 +129,7 @@ def merge_fixation_candidates(events, a_min=A_MIN, merge_threshold=None):
                 j < len(events)
                 and events.iloc[j]["trial_type"] == "fixation"
                 and events.iloc[j]["eye"] == current_row["eye"]
-                and events.iloc[j]["onset"]-events.iloc[i]["end_time"] < merge_threshold
+                and events.iloc[j]["onset"]-events.iloc[i]["end_time"] < temporal_merge_threshold
             ):
                 next_row = events.iloc[j]
                 # full span from the first onset to the last end_time and therefore includes the removed saccades
