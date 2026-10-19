@@ -75,7 +75,7 @@ BLINK_WINDOW_MS = 50.0
 # s. Hooge et al. (2022), Stage 1.
 A_MIN = 1.0 # Saccades smaller than this are dropped.
 T_MIN_FIX = 60
-TEMPORAL_MERGE_THRESHOLD = 100 # (in ms); only fixations with a time difference < TEMPORAL_MERGE_THRESHOLD will be merged.
+TEMPORAL_MERGE_THRESHOLD = 50 # (in ms); only fixations with a time difference < TEMPORAL_MERGE_THRESHOLD will be merged.
 
 # Generate Report (boolean): creates an html report
 REPORT = True
