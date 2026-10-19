@@ -176,23 +176,23 @@ def run_preprocessing(subject_id: str, overwrite: bool) -> bool:
     events_raw = annotate_blink_saccades_in_df(events_raw, window_ms=config.BLINK_WINDOW_MS)
 
     # 3a. Hooge et al. (2022), Stage 1
-    # Saccades which are below a certain amplitude and duration are dropped
+    # Saccades which are below a certain amplitude are dropped
     # and the surrounding fixations are merged
     logger.info(
         f"Merging events  "
         f"(a_min={config.A_MIN}°, "
         f"t_min_fix={config.T_MIN_FIX} ms, "
     )
-    if isinstance(config.MERGE_THRESHOLD, (int, float)):
-        merge_threshold = config.MERGE_THRESHOLD
+    if isinstance(config.TEMPORAL_MERGE_THRESHOLD, (int, float)):
+        temporal_merge_threshold = config.TEMPORAL_MERGE_THRESHOLD
     else:
-        logger.warning(f"MERGE_THRESHOLD is not a number: {type(config.MERGE_THRESHOLD)}. MERGE_THRESHOLD will be set to 'None'")
-        merge_threshold = None
+        logger.warning(f"TEMPORAL_MERGE_THRESHOLD is not a number: {type(config.TEMPORAL_MERGE_THRESHOLD)}. TEMPORAL_MERGE_THRESHOLD will be set to 'None'")
+        temporal_merge_threshold = None
         
     events_merged = merge_fixation_candidates(
         events_raw,
         a_min=config.A_MIN,
-        merge_threshold=merge_threshold
+        temporal_merge_threshold=temporal_merge_threshold
     )
 
     # 3b. Hooge et al. (2022), Stage 2
