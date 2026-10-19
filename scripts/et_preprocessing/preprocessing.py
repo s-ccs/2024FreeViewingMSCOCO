@@ -6,8 +6,9 @@ Overview:
 Load Input file(s):
     load_subject_tsv
 Preprocessing:
-    annotate_blink_saccades_in_df()
-    merge_fixation_candidates()
+    annotate_matching_binocular_events
+    annotate_blink_saccades_in_df
+    merge_fixation_candidates
 """
 
 import logging
@@ -61,7 +62,7 @@ def load_subject_tsv(
     return df
 
 
-# Preprocessing
+# Preprocessing: Merge fixation candidates
 # =============================================================================
 def merge_fixation_candidates(events, a_min=A_MIN, temporal_merge_threshold=50):
     """
@@ -154,6 +155,9 @@ def merge_fixation_candidates(events, a_min=A_MIN, temporal_merge_threshold=50):
 
     return merged_events
 
+
+# Preprocessing: Calculate (absolute) saccade angle
+# =============================================================================
 def calculate_saccade_angle_in_df(events_df: pd.DataFrame) -> pd.DataFrame:
     """
     Calculate the angle of each saccade in radians, based on the start and end positions.
@@ -184,6 +188,9 @@ def calculate_saccade_angle_in_df(events_df: pd.DataFrame) -> pd.DataFrame:
     )
     df['sacc_angle'] = np.where(valid, np.arctan2(dy, dx) % (2 * np.pi), np.nan)
     return df
+
+# Preprocessing: Annotate blink saccades
+# =============================================================================
 
 def annotate_blink_saccades_in_df(
     events_df: pd.DataFrame, window_ms: float, match_eye: bool = True
@@ -243,3 +250,140 @@ def annotate_blink_saccades_in_df(
         f"flagged (window=±{window_ms} ms, match_eye={match_eye})"
     )
     return events.sort_values(["onset", "eye"], kind="stable").reset_index(drop=True)
+
+
+# Preprocessing: Annotate matching binocular events
+# =============================================================================
+
+def annotate_matching_binocular_events(events_df, tolerance = 0.02, select_candidate=True, reset_non_reciprocal_matches=True):
+    """Annotate events whether they have a matching event in the opposite eye.
+
+    A candidate must have the same ``trial_type`` and an absolute difference in
+    both onset and end time no greater than ``tolerance`` seconds. If multiple
+    candidates qualify and ``select_candidate=True``, the candidate with the
+    smallest sum of absolute onset and end-time differences is selected. If
+    ``select_candidate=False``, all candidates and their scores are retained
+    when multiple candidates qualify.
+    
+
+    Parameters
+    ----------
+    events_df : pandas.DataFrame
+        Events to annotate. Must contain ``onset``, ``end_time``,
+        ``trial_type``, and ``eye`` columns. Eye values must be ``"L"`` or
+        ``"R"``.
+    tolerance : float, default=0.02
+        Maximum permitted difference, in seconds, for both onset and end
+        times. Must be non-negative.
+    select_candidate: bool, default=True
+        Whether to select the lowest-score candidate when multiple candidates qualify. 
+        If ``False``, all such candidates and their scores are retained.
+    reset_non_reciprocal_matches: bool, default=True
+         When ``select_candidate=True``, whether to find events that do not have a reciprocal match
+         and reset them to `has_match = False`. This parameter has no effect when ``select_candidate=False``.
+
+    Returns
+    -------
+    pandas.DataFrame
+        A copy of the input, sorted by ``onset`` with a reset index, plus:
+        ``has_match`` (whether a match is retained), ``matching_event``, and
+        ``matching_score``. When ``select_candidate=True`` and
+        ``reset_non_reciprocal_matches=True``, ``has_match=False`` means either
+        that no candidate was found or that the selected match was not reciprocal;
+        in the latter case, ``matching_event`` and ``matching_score`` are also
+        cleared. A single selected match is represented by its positional index
+        in the returned DataFrame and a scalar score. When
+        ``select_candidate=False`` and multiple candidates qualify, these columns
+        contain lists of indices and scores, respectively; the list scores are
+        rounded to four decimal places. Unmatched events have ``None`` for
+        ``matching_event`` and ``NaN`` for ``matching_score``.
+    """
+
+    if tolerance < 0:
+        raise ValueError("Tolerance must be a non-negative value in seconds.")
+
+    # Copy original data frame and sort by onset
+    output_df = events_df.copy().sort_values("onset", kind="stable").reset_index(drop=True)
+
+    other_eye = {"L": "R", "R": "L"}
+
+    # Extract event onset and offsets as numpy arrays
+    onset = output_df["onset"].to_numpy(dtype=float)
+    end = output_df["end_time"].to_numpy(dtype=float)
+
+    # Create lookup dictionary grouped by trial_type and eye with only onset and offset
+    # to simplify finding matching event candidates and avoiding repeated df querying
+    grouped_df = output_df.groupby(["trial_type", "eye"], sort=False)
+
+    groups = {}
+    for key, group in grouped_df:
+        pos = group.index.to_numpy()
+        groups[key] = (onset[pos], end[pos], pos)
+
+    n = len(output_df)
+    output_df["has_match"] = pd.Series([False] * n, index=output_df.index, dtype=bool)
+    output_df["matching_event"] = pd.Series([None] * n, index=output_df.index, dtype=object)
+    output_df["matching_score"] = output_df["matching_score"] = pd.Series([np.nan] * n, index=output_df.index, dtype=object)
+    
+    # Loop over all events and look for matching candidates in the other eye
+    for i, row in output_df.iterrows():
+
+        # Extract relevant onset and offsets from the groups dictionary
+        eye = other_eye.get(row["eye"])
+        events_subset = groups.get((row["trial_type"], eye)) if eye else None
+        if events_subset is None:
+            continue
+
+        # Search candidates that have an onset within the onset tolerance region
+        onsets_subset, offsets_subset, event_indices = events_subset
+        lo = np.searchsorted(onsets_subset, onset[i] - tolerance, side="left")
+        hi = np.searchsorted(onsets_subset, onset[i] + tolerance, side="right")
+        candidates = event_indices[lo:hi]
+
+        # Check whether the candidates also have their offsets within the offset tolerance region
+        candidates = candidates[np.abs(end[candidates] - end[i]) <= tolerance]
+
+        # Calculate the onset and offset differences per candidate and take the sum
+        scores = np.abs(onset[candidates] - onset[i]) + np.abs(end[candidates] - end[i])
+
+        # If there is no matching candidate continue with the next event
+        if len(candidates) == 0:
+            continue  
+            
+        else:
+            output_df.loc[i, "has_match"] = True
+            
+        # If there is only one matching candidate set has_match to True and save the candidate index and matching score
+        if len(candidates) == 1:
+            output_df.at[i, "matching_event"] = int(candidates[0])
+            output_df.at[i, "matching_score"] = float(scores[0])
+
+        elif len(candidates) > 1:
+
+            if select_candidate:
+                # Find candidate with lowest score i.e. lowest onset/offset differences
+                winner_idx = np.argmin(scores)
+                winner_candidate = int(candidates[winner_idx])
+                winner_score = float(scores[winner_idx])
+    
+                output_df.at[i, "matching_event"] = winner_candidate
+                output_df.at[i, "matching_score"] = winner_score
+
+            else:
+                output_df.at[i, "matching_event"] = candidates.tolist()
+                output_df.at[i, "matching_score"] = np.round(scores,4).tolist()
+
+    # Find matching candidates that are not reciprocal and reset them to has_match = False
+    if select_candidate and reset_non_reciprocal_matches:
+        selected = output_df["matching_event"].tolist()
+        reciprocal = np.zeros(n, dtype=bool)
+    
+        for i, j in enumerate(selected):
+            if j is not None and selected[int(j)] == i:
+                reciprocal[i] = True
+    
+        output_df.loc[~reciprocal, "has_match"] = False
+        output_df.loc[~reciprocal, "matching_event"] = None
+        output_df.loc[~reciprocal, "matching_score"] = np.nan
+            
+    return output_df
