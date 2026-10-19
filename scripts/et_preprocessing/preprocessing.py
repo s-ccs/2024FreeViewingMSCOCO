@@ -63,7 +63,7 @@ def load_subject_tsv(
 
 # Preprocessing
 # =============================================================================
-def merge_fixation_candidates(events, a_min=A_MIN, temporal_merge_threshold=None):
+def merge_fixation_candidates(events, a_min=A_MIN, temporal_merge_threshold=50):
     """
     Stage 1 of the selection procedure of Hooge et al. (2022) (using only an amplitude criterion).
     Drops saccades that are smaller than `a_min`, then merges the fixations left adjacent (if they
@@ -75,7 +75,7 @@ def merge_fixation_candidates(events, a_min=A_MIN, temporal_merge_threshold=None
             sacc_visual_angle. Times in seconds, positions in pixels.
         a_min (float): minimal saccade amplitude in degrees.
         temporal_merge_threshold (float, optional): maximal time gap between
-             two fixations for them to merge, in MILLISECONDS.
+             two fixations for them to merge, in MILLISECONDS. Defaults to 50 ms.
 
     Returns:
         pd.DataFrame: events after the drop and merge, sorted by onset.
