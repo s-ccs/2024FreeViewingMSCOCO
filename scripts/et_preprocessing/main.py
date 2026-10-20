@@ -187,6 +187,7 @@ def run_preprocessing(subject_id: str, overwrite: bool) -> bool:
             logger.warning(f"BINOCULAR_TOLERANCE is not a number: {type(config.BINOCULAR_TOLERANCE)}. BINOCULAR_TOLERANCE will be set to 20 ms.")
             binocular_tolerance = 20 / 1000 # convert to seconds
 
+        logger.info(f"Annotate events whether they have a matching event in the opposite eye (with an absolute onset/offset time diff tolerance of {config.BINOCULAR_TOLERANCE} ms).")
         events_raw = annotate_matching_binocular_events(events_raw, tolerance = binocular_tolerance, select_candidate=True, reset_non_reciprocal_matches=True)
 
     # 4a. Hooge et al. (2022), Stage 1
