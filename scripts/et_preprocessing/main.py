@@ -212,7 +212,7 @@ def run_preprocessing(subject_id: str, overwrite: bool) -> bool:
         events_merged = events_merged.drop(idx_drop_fix).reset_index(drop=True)
 
         logger.info(
-            f"Dropped {len(idx_drop_fix)} fixations (sum for both eyes) with a duration below {config.T_MIN_FIX * 1000:.0f} ms."
+            f"Dropped {len(idx_drop_fix)}/{n_fix_before} fixations (sum for both eyes) with a duration below {config.T_MIN_FIX:.0f} ms."
             )
 
     # Save
