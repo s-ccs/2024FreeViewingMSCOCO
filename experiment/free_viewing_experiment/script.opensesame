@@ -1,0 +1,744 @@
+---
+API: 3
+OpenSesame: 4.0.13
+Platform: posix
+---
+set width 1920
+set title free_viewing_experiment
+set subject_parity even
+set subject_nr 0
+set start experiment
+set sound_sample_size -16
+set sound_freq 48000
+set sound_channels 2
+set sound_buf_size 1024
+set sampler_backend psycho
+set round_decimals 2
+set psychopy_screen 1
+set mouse_backend psycho
+set keyboard_backend psycho
+set height 1080
+set fullscreen no
+set form_clicks no
+set foreground white
+set font_underline no
+set font_size 18
+set font_italic False
+set font_family mono
+set font_bold False
+set experiment_path "/home/stimulus/projects/2024FreeViewingMSCOCO/experiment"
+set disable_garbage_collection False
+set description "The main experiment item"
+set color_backend psycho
+set clock_backend psycho
+set canvas_backend psycho
+set background "#808080"
+
+define sketchpad PressSpacebar
+	set duration 0
+	set description "Displays stimuli"
+	draw textline center=1 color=white font_bold=no font_family=sans font_italic=no font_size=18 html=yes show_if=True text="Press spacebar to start trial<br />" x=-6 y=8 z_index=0
+
+define sequence block_sequence
+	set flush_keyboard yes
+	set description "Runs a number of items in sequence"
+	run fixation_sequence True
+	run stimulus_sequence True
+	run break_sequence "=(count_block_sequence>0) and (count_block_sequence!=total_trials) and ((count_block_sequence%block_size) == 0)"
+
+define sequence break_sequence
+	set flush_keyboard yes
+	set description "Runs a number of items in sequence"
+	run send_trigger_breakstart True
+	run break_sketchpad True
+	run send_trigger_breakend True
+
+define sketchpad break_sketchpad
+	set duration keypress
+	set description ""
+	draw textline center=1 color=white font_bold=no font_family=sans font_italic=no font_size=18 html=yes show_if=True text="Short break<br /><br />You have completed [current_block_no] out of [total_blocks] blocks.<br /><br />Press any key when you are ready to continue." x=0 y=0 z_index=0
+
+define sketchpad end_of_exp
+	set duration keypress
+	set description "Displays stimuli"
+	draw textline center=1 color=white font_bold=no font_family=sans font_italic=no font_size=18 html=yes show_if=True text="End of experiment. <br /><br />Thank you for participating!<br /><br />Press any key to exit." x=0 y=0 z_index=0
+
+define sketchpad end_of_practice
+	set duration keypress
+	set description "Displays stimuli"
+	draw textline center=1 color=white font_bold=no font_family=sans font_italic=no font_size=18 html=yes show_if=True text="End of the practice session - now we will recalibrate and begin with the actual experiment. <br /><br /><br />Press any key to continue" x=0 y=0 z_index=0
+
+define form_text_display endofinstructions
+	set timeout infinite
+	set spacing 10
+	set rows "1;4;1"
+	set only_render no
+	set ok_text Ok
+	set margins "50;50;50;50"
+	set form_title Title
+	set form_text "Thank you for participating."
+	set description "A simple text display form"
+	set cols "1;1;1"
+	set _theme gray
+	widget 0 0 3 1 label text="{form_title}"
+	widget 0 1 3 1 label center=no text="{form_text}"
+	widget 1 2 1 1 button text="{ok_text}"
+
+
+define form_text_display endofpractice
+	set timeout infinite
+	set spacing 10
+	set rows "1;4;1"
+	set only_render no
+	set ok_text Ok
+	set margins "50;50;50;50"
+	set form_title Title
+	set form_text "End of Practice"
+	set description "A simple text display form"
+	set cols "1;1;1"
+	set _theme gray
+	widget 0 0 3 1 label text="{form_title}"
+	widget 0 1 3 1 label center=no text="{form_text}"
+	widget 1 2 1 1 button text="{ok_text}"
+
+
+define sequence experiment
+	set flush_keyboard yes
+	set description "Runs a number of items in sequence"
+	run setup True
+	run instructions True
+	run new_pygaze_start_recording True
+	run practiceloop True
+	run end_of_practice True
+	run send_trigger_end_practice True
+	run manual_calibrate True
+	run main_loop True
+	run end_of_exp True
+	run new_pygaze_stop_recording True
+
+define sketchpad fixation1_sketchpad
+	set duration 0
+	set description "Displays stimuli"
+	draw fixdot color=white show_if=True style=default x=0 y=0 z_index=0
+
+define sketchpad fixation_jittered
+	set duration 400
+	set description "Displays stimuli"
+	draw fixdot color=white show_if=True style=default x=0 y=0 z_index=0
+
+define loop fixation_loop
+	set source_file ""
+	set source table
+	set repeat 1
+	set order random
+	set description "Repeatedly runs another item"
+	set cycles 1
+	set continuous no
+	set break_if_on_first yes
+	set break_if fixated
+	setcycle 0 empty_column ""
+	run ""
+
+define sequence fixation_sequence
+	set flush_keyboard yes
+	set description "Runs a number of items in sequence"
+	run PressSpacebar True
+	run keyboard_response True
+	run manual_pause_start "[response_keyboard_response] = 'p'"
+	run send_trigger_manual_pause_start "[response_keyboard_response] = 'p'"
+	run manual_pause_kbd "[response_keyboard_response] = 'p'"
+	run manual_calibrate "[response_keyboard_response] = 'p' and [response_manual_pause_kbd] = 'c'"
+	run manual_pause_end "[response_keyboard_response] = 'p'"
+	run manual_pause_end_kbd "[response_keyboard_response] = 'p'"
+	run send_trigger_manual_pause_end "[response_keyboard_response] = 'p'"
+	run fixation1_sketchpad True
+	run wait_for_centre_gaze True
+
+define inline_script general_setup
+	set description "Executes Python code"
+	___run__
+	# Setup for getting python package & version information to be sent as trigger
+	import os
+	
+	print('---Printing the Packages--- ') #this gets printed
+	
+	# Option1: without Capturing(), returns TOO many packages (but with the correct version)
+	out = os.popen('conda list').read()
+	print(out)
+	outlet.push_sample(["trigger=0\nPython version info:\n"+"\n".join(out)])
+	
+	# General setup for other parameters
+	import csv 
+	import random
+	
+	n_practicetrials = 3 
+	block_size = 50
+	exp_imgdetails_file_name = "projects/2024FreeViewingMSCOCO/assets/images/experiment_images_info.csv" # to find total number of experiment trials from the csv length 
+	fixated = False
+	random.seed(var.subject_nr) # Set the seed to the subject nr to make the randomization of the images reproducable (especially for the case when the experiments needs to be restarted with a later trial) 
+	
+	exp.items['block_sequence'].count = -1 * n_practicetrials # negative trial numbers for the practice block.
+	
+	with open(exp_imgdetails_file_name) as file:
+	    total_trials = len(list(csv.reader(file))) - 1 # first row is column headers
+	print("total trials ", total_trials) 
+	total_blocks = math.ceil(total_trials / block_size)
+	print("total blocks ", total_blocks)
+	current_block_no = 1 # block number 1 for the first block (assume no increment happens in practice loop)
+	
+	eyetracker.send_command("calibration_area_proportion = 0.60 0.75")
+	eyetracker.send_command("screen_write_prescale = 8")
+	eyetracker.send_command("validation_area_proportion = 0.60 0.75")
+	eyetracker.send_command("calibration_type = HV13") # automatically works to set validation_type as well.
+	
+	# new_pygaze_init runs a calibration by default at init, but that will not have the custom parameters. 
+	# Thus we have unchecked 'calibrate' from the pygaze_init and are triggering the first calibration here through code.
+	# eyetracker.stop_recording()
+	
+	class MyDot:
+	    '''
+	    Generates the best fixation target according to Thaler et al. (2013) - Adapted to Canvas
+	    '''
+	    def __init__(self, c, x, y, outer_diameter=50, inner_diameter=10,
+	                 outer_color = 'black', inner_color = 'white',units = 'pix',interpolate = True):
+	
+	        # Set propertis of dot
+	        outer_dot = Circle(x, y, outer_diameter/2, fill=True, color = outer_color, units = units,interpolate = interpolate)
+	        line_vertical = Rect(x - inner_diameter/2, y - outer_diameter/2, inner_diameter, outer_diameter, fill=True, color = inner_color, units = units,interpolate = interpolate)
+	        line_horizontal = Rect(x - outer_diameter/2, y - inner_diameter/2, outer_diameter, inner_diameter, fill=True, color = inner_color, units = units,interpolate = interpolate)
+	        inner_dot = Circle(x, y, inner_diameter/2, fill=True, color = outer_color, units = units,interpolate = interpolate)
+	
+	        self.outer_diameter = outer_diameter
+	        self.inner_diameter = inner_diameter
+	        self.outer_dot = outer_dot
+	        self.inner_dot = inner_dot
+	        self.line_vertical = line_vertical
+	        self.line_horizontal = line_horizontal
+	        self.canvas = c
+	
+	    def add_to_canvas(self):
+	        c = self.canvas
+	        c['outer_dot'] = self.outer_dot
+	        c['line_vertical'] = self.line_vertical
+	        c['line_horizontal'] = self.line_horizontal
+	        c['inner_dot'] = self.inner_dot
+	
+	    def set_size(self, size):
+	        ''' Scales the **initial** stimulus size by 'size'
+	        That is, if size == 1, the **initial** size is set.
+	        '''
+	        self.inner_dot.radius = size * self.inner_diameter / 2
+	        self.outer_dot.radius = size * self.outer_diameter / 2
+	        self.line_vertical.size = (self.inner_diameter*size, self.outer_diameter*size)
+	        self.line_horizontal.size = (self.outer_diameter*size, self.inner_diameter*size)
+	        print('size change successful')
+	
+	
+	def custom_target(x,y):
+	
+	    # TODO: Check where this come from to automate this
+	    x_offset = var.width/2 
+	    y_offset= var.height/2 
+	    x_pos = x-x_offset
+	    y_pos = y-y_offset
+	
+	    c = Canvas()
+	    dot = MyDot(c, x_pos, y_pos,outer_diameter=20,inner_diameter=4)
+	    #dot.set_size(0.1)
+	    dot.add_to_canvas()
+	    c.show()
+	
+	eyetracker.set_draw_drift_correction_target_func(custom_target)
+	eyetracker.set_draw_calibration_target_func(custom_target)
+	
+	
+	eyetracker.calibrate()
+	eyetracker.start_recording()
+	__end__
+	set _prepare ""
+
+define notepad getting_started
+	__note__
+	Welcome to OpenSesame 4.0 "Melodramatic Milgram"!
+	If you are new to OpenSesame, it is a good idea to follow one of the tutorials,
+	which can be found on the documentation site:
+	- <http://osdoc.cogsci.nl/>
+	You can also check out the examples. These can be opened via:
+	- Menu -> Tools -> Example experiments.
+	And feel free to ask for help on the forum:
+	- <http://forum.cogsci.nl/>
+	Have fun with OpenSesame!
+	__end__
+	set description "A simple notepad to document your experiment. This plug-in does nothing."
+
+define sequence instructions
+	set flush_keyboard yes
+	set description "Runs a number of items in sequence"
+	run welcome True
+	run instructions_sketchpad True
+	run start_practice_trials_info True
+
+define sketchpad instructions_sketchpad
+	set duration keypress
+	set description "Displays stimuli"
+	draw textline center=0 color=white font_bold=no font_family=sans font_italic=no font_size=18 html=yes show_if=True text="You will be presented photographies to freely look at. There is no other task.<br /><br /><br />1. You can start a trial by pressing SPACE. <br /><br />2. At each trial, a dot will appear on the screen. Please look at the dot until the next image appears.<br /><br />3. The image will appear for you to freely explore<br /><br /><br />The experiment consists of 8 blocks with 50 trials each. <br /><br />After each block, you can take a larger break and e.g. stretch a bit, or close your eyes for a longer time. <br /><br /><b> Do not stand up without asking the experimenter for permission.</b>" x=-352 y=-160 z_index=0
+	draw textline center=1 color=white font_bold=no font_family=mono font_italic=no font_size=18 html=yes show_if=True text="<i>Press any key to continue. </i>" x=0 y=288 z_index=0
+
+define keyboard_response keyboard_response
+	set timeout infinite
+	set flush yes
+	set event_type keypress
+	set duration keypress
+	set description "Collects keyboard responses"
+	set allowed_responses "SPACE;p"
+
+define logger log_all_variables
+	set description "Logs experimental data"
+	set auto_log yes
+	exclude datetime
+	exclude out
+
+define loop main_loop
+	set source_file "experiment_images_info.csv"
+	set source file
+	set repeat 1
+	set order random
+	set description "Repeatedly runs another item"
+	set cycles 10
+	set continuous no
+	set break_if_on_first yes
+	set break_if False
+	setcycle 0 image "1_o.jpg"
+	setcycle 1 image "2_o.jpg"
+	setcycle 2 image "3_o.jpg"
+	setcycle 3 image "4_o.jpg"
+	setcycle 4 image "5_o.jpg"
+	setcycle 5 image "6_o.jpg"
+	setcycle 6 image "7_o.jpg"
+	setcycle 7 image "8_o.jpg"
+	setcycle 8 image "9_o.jpg"
+	setcycle 9 image "10_o.jpg"
+	run block_sequence
+
+define inline_script manual_calibrate
+	set description "Executes Python code"
+	___run__
+	send_triggers(3,'Recalibration start  - manual calibrate')
+	eyetracker.stop_recording()
+	eyetracker.calibrate()
+	eyetracker.start_recording()
+	send_triggers(4,'Recalibration end  - manual calibrate')
+	__end__
+	set _prepare ""
+
+define sketchpad manual_pause_end
+	set duration 0
+	set description "Displays stimuli"
+	draw textline center=1 color=white font_bold=no font_family=sans font_italic=no font_size=18 html=yes show_if=True text="Thank you for waiting. We will now resume the experiment.<br /><br />Press SPACE to continue" x=0 y=0 z_index=0
+
+define keyboard_response manual_pause_end_kbd
+	set timeout infinite
+	set flush yes
+	set event_type keypress
+	set duration keypress
+	set description "Collects keyboard responses"
+	set allowed_responses SPACE
+
+define keyboard_response manual_pause_kbd
+	set timeout infinite
+	set flush yes
+	set event_type keypress
+	set duration keypress
+	set description "Collects keyboard responses"
+	set allowed_responses "c;r"
+
+define sketchpad manual_pause_start
+	set duration 0
+	set description "Displays stimuli"
+	draw textline center=1 color=white font_bold=no font_family=sans font_italic=no font_size=18 html=yes show_if=True text="Manual pause<br /><br />The researcher has paused the experiment. Please wait for further instructions." x=0 y=0 z_index=0
+
+define form_text_display new_1_form_text_display
+	set timeout infinite
+	set spacing 10
+	set rows "1;4;1"
+	set only_render no
+	set ok_text Ok
+	set margins "50;50;50;50"
+	set form_title Title
+	set form_text "Your message"
+	set description "A simple text display form"
+	set cols "1;1;1"
+	set _theme gray
+	widget 0 0 3 1 label text="{form_title}"
+	widget 0 1 3 1 label center=no text="{form_text}"
+	widget 1 2 1 1 button text="{ok_text}"
+
+
+define inline_script new_1_inline_script
+	set description "Executes Python code"
+	___run__
+	import random
+	random.seed(var.subject_nr)
+	__end__
+	set _prepare ""
+
+define sketchpad new_1_sketchpad
+	set duration keypress
+	set description "Displays stimuli"
+
+define inline_script new_2_inline_script
+	set description "Executes Python code"
+	set _run "print(exp.items['block_sequence'].count)"
+	set _prepare ""
+
+define sequence new_2_sequence
+	set flush_keyboard yes
+	set description "Runs a number of items in sequence"
+
+define inline_script new_3_inline_script
+	set description "Executes Python code"
+	set _run ""
+	set _prepare ""
+
+define inline_script new_4_inline_script
+	set description "Executes Python code"
+	set _run "print(exp.items['block_sequence'].count)"
+	set _prepare ""
+
+define inline_script new_5_inline_script
+	set description "Executes Python code"
+	set _run ""
+	set _prepare ""
+
+define inline_script new_6_inline_script
+	set description "Executes Python code"
+	set _run ""
+	set _prepare ""
+
+define inline_script new_7_inline_script
+	set description "Executes Python code"
+	set _run "exp.items['block_sequence'].count = 3"
+	set _prepare ""
+
+define advanced_delay new_advanced_delay
+	set jitter_mode Uniform
+	set jitter 300
+	set duration 500
+	set description "A random delay sampled from either a normal or uniform distribution"
+
+define feedback new_feedback
+	set reset_variables yes
+	set duration keypress
+	set description "Provides feedback to the participant"
+
+define form_text_display new_form_text_display
+	set timeout infinite
+	set spacing 10
+	set rows "1;4;1"
+	set only_render no
+	set ok_text Ok
+	set margins "50;50;50;50"
+	set form_title Title
+	set form_text "Your message"
+	set description "A simple text display form"
+	set cols "1;1;1"
+	set _theme gray
+	widget 0 0 3 1 label text="{form_title}"
+	widget 0 1 3 1 label center=no text="{form_text}"
+	widget 1 2 1 1 button text="{ok_text}"
+
+
+define inline_script new_inline_script
+	set description "Executes Python code"
+	set _run "var.count_block_sequence = -3"
+	set _prepare ""
+
+define loop new_loop
+	set source_file ""
+	set source table
+	set repeat 1
+	set order random
+	set description "Repeatedly runs another item"
+	set cycles 1
+	set continuous no
+	set break_if_on_first yes
+	set break_if never
+	setcycle 0 empty_column ""
+	run trial_sequence
+
+define pygaze_init new_pygaze_init
+	set tracker_type EyeLink
+	set tobiiglasses_udpport 49152
+	set tobiiglasses_address "192.168.71.50"
+	set smi_send_port 4444
+	set smi_recv_port 5555
+	set smi_ip "127.0.0.1"
+	set sacc_vel_thr 35
+	set sacc_acc_thr 9500
+	set eyelink_pupil_size_mode area
+	set eyelink_force_drift_correct yes
+	set description "Initializes and calibrates the eye tracker"
+	set calibrate no
+	set calbeep no
+	set alea_api_key "Contact Alea for an API key"
+	set alea_animated_calibration no
+	set _logfile automatic
+
+define pygaze_log new_pygaze_log
+	set throttle 2
+	set msg ""
+	set description "Writes information to the eye-tracker logfile"
+	set auto_log no
+
+define pygaze_start_recording new_pygaze_start_recording
+	set status_msg start_recording
+	set description "Puts the eye tracker into recording mode"
+
+define pygaze_stop_recording new_pygaze_stop_recording
+	set status_msg stop_recording
+	set description ""
+
+define reset_feedback new_reset_feedback
+	set description "A very simple plug-in to reset feedback variables"
+
+define sequence new_sequence
+	set flush_keyboard yes
+	set description "Runs a number of items in sequence"
+
+define form_text_display practiceinstructions
+	set timeout infinite
+	set spacing 10
+	set rows "1;4;1"
+	set only_render no
+	set ok_text Ok
+	set margins "50;50;50;50"
+	set form_title Title
+	set form_text ""
+	set description "A simple text display form"
+	set cols "1;1;1"
+	set _theme gray
+	widget 0 0 3 1 label text="{form_title}"
+	widget 0 1 3 1 label center=no text="{form_text}"
+	widget 1 2 1 1 button text="{ok_text}"
+
+
+define loop practiceloop
+	set source_file "practise_images_info.csv"
+	set source file
+	set repeat 1
+	set order random
+	set description "Repeatedly runs another item"
+	set cycles 3
+	set continuous no
+	set break_if_on_first no
+	set break_if "[count_block_sequence] == -1"
+	setcycle 0 image "1_p.jpg"
+	setcycle 1 image "2_p.jpg"
+	setcycle 2 image "3_p.jpg"
+	run block_sequence
+
+define form_text_display priliminaryinstructions
+	set timeout infinite
+	set spacing 10
+	set rows "1;4;1"
+	set only_render no
+	set ok_text Ok
+	set margins "50;50;50;50"
+	set form_title Title
+	set form_text ""
+	set description "A simple text display form"
+	set cols "1;1;1"
+	set _theme gray
+	widget 0 0 3 1 label text="{form_title}"
+	widget 0 1 3 1 label center=no text="{form_text}"
+	widget 1 2 1 1 button text="{ok_text}"
+
+
+define inline_script send_trigger_breakend
+	set description "Executes Python code"
+	___run__
+	send_triggers(6,'Break end')
+	send_triggers(3,'Recalibration start  - send_trigger_breakend')
+	eyetracker.stop_recording()
+	eyetracker.calibrate()
+	eyetracker.start_recording()
+	send_triggers(4,'Recalibration end  - send_trigger_breakend')
+	__end__
+	set _prepare ""
+
+define inline_script send_trigger_breakstart
+	set description "Executes Python code"
+	___run__
+	send_triggers(5,'Break start')
+	current_block_no = math.floor((count_block_sequence) / block_size) + 1 # current_block_no + 1
+	__end__
+	set _prepare ""
+
+define inline_script send_trigger_end_practice
+	set description "Executes Python code"
+	___run__
+	send_triggers(7,'End of practice trials')
+	exp.items['block_sequence'].count = 1 # start trial-number from 1
+	__end__
+	set _prepare ""
+
+define inline_script send_trigger_end_stimulus
+	set description "Executes Python code"
+	___run__
+	send_triggers(8,'Stimulus end')
+	var.fixated = False
+	__end__
+	set _prepare ""
+
+define inline_script send_trigger_manual_pause_end
+	set description "Executes Python code"
+	set _run "send_triggers(10,'Manual pause end')"
+	set _prepare ""
+
+define inline_script send_trigger_manual_pause_start
+	set description "Executes Python code"
+	set _run "send_triggers(9,'Manual pause start')"
+	set _prepare ""
+
+define inline_script send_trigger_start_stimulus
+	set description "Executes Python code"
+	set _run "send_triggers(2,'Stimulus image shown')"
+	set _prepare ""
+
+define sequence setup
+	set flush_keyboard yes
+	set description "Runs a number of items in sequence"
+	run new_pygaze_init True
+	run trigger_setup True
+	run general_setup True
+
+define sketchpad start_practice_trials_info
+	set duration keypress
+	set description "Displays stimuli"
+	draw textline center=1 color=white font_bold=no font_family=sans font_italic=no font_size=18 html=yes show_if=True text="Let us begin with some practice trials.<br /><br />If you have any questions, feel free to ask during this practice session. " x=0 y=0 z_index=0
+	draw textline center=1 color=white font_bold=no font_family=mono font_italic=no font_size=18 html=yes show_if=True text="<i> Press any key to continue </i>" x=0 y=256 z_index=0
+
+define sketchpad stimuli
+	set duration 5000
+	set description "Displays stimuli"
+	draw image center=1 file="projects/2024FreeViewingMSCOCO/assets/images/[file_name]" scale=1 show_if=True x=0 y=0 z_index=0
+
+define sequence stimulus_sequence
+	set flush_keyboard yes
+	set description "Runs a number of items in sequence"
+	run new_advanced_delay True
+	run send_trigger_start_stimulus True
+	run stimuli True
+	run send_trigger_end_stimulus True
+	run log_all_variables True
+
+define sequence trial_sequence
+	set flush_keyboard yes
+	set description "Runs a number of items in sequence"
+
+define inline_script trigger_setup
+	set description "Executes Python code"
+	___run__
+	from pylsl import StreamInfo, StreamOutlet
+	import math
+	
+	# Setup your marker streams - EEG
+	# Setup LSL
+	# Create stream info
+	info = StreamInfo(name="experiment_markers", type="Markers", channel_count=1,channel_format="string", source_id="opensesame_markers_001")
+	# Make an outlet
+	outlet = StreamOutlet(info)
+	#eyetracker.send_command("write_ioport 0xA 0x0")
+	#eyetracker.send_command("write_ioport 0x7 0x0")
+	
+	def send_triggers(trig_no,trig_name):
+	    """Send value as hardware trigger and LSL marker."""
+	    current_trial_no = count_block_sequence # trialno.
+	    current_block_no = math.floor((current_trial_no-1) / block_size) + 1
+	    
+	    # send to ET 
+	    eyetracker.log(f"trigger={trig_no:02d} {trig_name} | block={current_block_no} | trial={current_trial_no} | image={var.file_name}")
+	    
+	    # send to LSL
+	    outlet.push_sample([f"trigger={trig_no:02d} {trig_name} | block={current_block_no} | trial={current_trial_no} | image={var.file_name}"])
+	    
+	    # show to researcher in console
+	    print(f"trigger={trig_no:02d} {trig_name} | block={current_block_no} | trial={current_trial_no} | image={var.file_name}")
+	    
+	    # Send to EEG via ET - not used as of now
+	    # 0x8 for installed parallelport card
+	    # 0x7 for USB2TTL
+	    # 0x236?? for mainboard parallelport 
+	    #cmd = "write_ioport 0x7 0x"+f"{trig_no:02x}".upper()
+	    #print(cmd)
+	    #eyetracker.send_command(cmd)
+	    #clock.sleep(2)
+	    #eyetracker.send_command("write_ioport 0x7 0x0")
+	__end__
+	set _prepare ""
+
+define inline_script wait_for_centre_gaze
+	set description "Executes Python code"
+	___run__
+	send_triggers(1,'Fixation dot shown')
+	
+	# compute the screen centre coordinates
+	centre = (exp.resolution()[0]/2, exp.resolution()[1]/2)
+	
+	wait_for_gaze(centre)
+	__end__
+	___prepare__
+	import math
+	
+	tolerance = 44
+	gaze_timeout = 5000
+	duration = 650
+	
+	def wait_for_gaze(point): # every 'diff' milliseconds, check if the user is looking at a point within a euclidean distance of 'tolerance' px from the centre point. Timeout: recalibrate ET and restart fixation check if not fixated within 'gaze_timeout' ms
+	    fstart_time = clock.time()
+	    gaze_in_start_time = clock.time()
+	    gaze_in_circle = False
+	    while True:
+	        clock.sleep(5) # 5ms
+	
+	        gazepos = eyetracker.sample()
+	        # check the distance between the sample and the centre
+	        # of the screen
+	        d = math.sqrt((gazepos[0] - point[0])**2 + (gazepos[1] - point[1])**2) 
+	
+	        # check if the distance is 'small enough'i
+	        if d < tolerance:
+	            #return # use this if we only want to check at any one time point
+	            # to make sure gaze is within tolerance for 'duration' amount of time:
+	            if gaze_in_circle == False:
+	                gaze_in_start_time = clock.time()
+	                gaze_in_circle = True
+	            elif (clock.time() - gaze_in_start_time) > duration:
+	                # ideally, duration must be larger then diff
+	                var.fixated = True
+	                print('fixated -> True')
+	                return 
+	
+	        else:
+	            gaze_in_circle = False
+	            # implement a timeout
+	            if (clock.time() - fstart_time) > gaze_timeout:
+	                send_triggers(3,'Recalibration start - wait_for_center_gaze timed out')
+	                eyetracker.stop_recording()
+	                eyetracker.calibrate()
+	                eyetracker.start_recording()
+	                send_triggers(4,'Recalibration end  - wait_for_center_gaze timed out')
+	                fstart_time = clock.time()
+	                items.run(u'PressSpacebar') # because opensesame was showing a blank screen instead of the fixation dot sketchpad, after calibration
+	                items.run(u'keyboard_response')
+	                items.run(u'fixation1_sketchpad') # because opensesame was showing a blank screen instead of the fixation dot sketchpad, after calibration
+	                send_triggers(1,'Fixation dot shown again due to recalibration')
+	__end__
+
+define sketchpad welcome
+	set start_response_interval no
+	set reset_variables no
+	set duration keypress
+	set description "Displays stimuli"
+	draw textline center=1 color=white font_bold=no font_family=sans font_italic=no font_size=32 html=yes show_if=True text="Welcome to our EEG/Eye-Tracking experiment! <br /><br /><i> Press any key to continue... </i>" x=10 y=-37 z_index=0
+

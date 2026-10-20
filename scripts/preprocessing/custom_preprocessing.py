@@ -21,12 +21,20 @@ def main():
         action="store_true",
         help="Enable interpolation plot.",
     )
+    parser.add_argument(
+        "--overwrite",
+        action="store_true",
+        help=(
+            "If set, re-run custom preprocessing even if output files already exist for a subject. "
+            "Otherwise, already processed subjects are skipped."
+        ),
+    )
     args = parser.parse_args()
 
     # Specify file paths
     data_root_path = "/scratch/data/2024FreeViewingMSCOCO/"
     #input_path = os.path.join(data_root_path, "derivatives/mne-bids-pipeline")
-    input_path = os.path.join(data_root_path, "derivatives/preprocessing-with-manual-preprocessing")
+    input_path = os.path.join(data_root_path, "derivatives/test-pipeline")
     output_path = os.path.join(data_root_path, "derivatives/custom-preprocessing")
 
     # Check whether output folder exists, otherwise create it
@@ -42,10 +50,6 @@ def main():
 
     # Specify if EEG and ET events should be combined in one events.tsv
     combine_eeg_et = True
-
-    # Variables to save whether it has already been tested whether the events for EEG and ET exist/have been created
-    checked_eeg_events = False
-    checked_et_events = False
 
     # Read subject_ids from command line or extract them from participants.tsv
     if args.subject_ids:
@@ -71,13 +75,27 @@ def main():
             session = padded_session,
             task = task,
             run = run,
-            root = output_path
+            root = output_path,
+            datatype="eeg"
         )
 
-        # Specify subject eeg paths and create output path if it does not exist already
+        # Create output path if it does not exist already
+        subject_output_path.mkdir()
+
+        # Specify subject eeg and event paths
         subject_eeg_input_path = subject_input_path.copy().update(root= input_path, datatype = "eeg", processing = "clean", suffix = "raw", extension = ".fif", check = False) # check = False because "raw" is not an allowed suffix
-        subject_eeg_output_path = subject_output_path.copy().update(datatype="eeg")
-        subject_eeg_output_path.mkdir()
+        subject_events_output_path = subject_output_path.copy().update(suffix="events", extension = "tsv", check = True)
+        subject_eeg_output_path = subject_output_path.copy().update(processing = "clean", suffix = "raw", extension = ".fif", check = False)
+
+        if os.path.exists(subject_events_output_path) and os.path.exists(subject_eeg_output_path) and not args.overwrite:
+            print(
+                f"Skipping custom preprocessing for sub-{padded_subject_id} — output files already exist: ",
+                f"  {subject_eeg_output_path}",
+                f"  {subject_events_output_path}",
+                f"  Use --overwrite to reprocess.",
+                sep="\n"
+            )
+            continue
 
         if os.path.exists(subject_eeg_input_path):
             
@@ -89,8 +107,8 @@ def main():
 
             if combine_eeg_et:
                 # Save EEG events (before combining with ET)
-                events_path = subject_eeg_output_path.copy().update(suffix="events_without_et", extension = "tsv", check = False)
-                events_df.to_csv(events_path, sep="\t", index=False)
+                #events_path = subject_output_path.copy().update(suffix="events_without_et", extension = "tsv", check = False)
+                events_df.to_csv(subject_events_output_path.copy().update(suffix="events_without_et", extension = "tsv", check = False), sep="\t", index=False)
                 
                 # Load ET events and combine with EEG events
                 subject_et_input_path = subject_input_path.copy().update(root = input_path, run = None, datatype ="misc", suffix = "et_events", extension="tsv", check = False) # check = False because "misc" is no valid `datatype`
@@ -99,19 +117,23 @@ def main():
                 events_combined = pd.concat([events_df, et_events], join="outer", ignore_index=True)
                 assert len(events_combined) == (len(events_df) + len(et_events))
                 events_combined.sort_values(by="onset", inplace=True)
-                events_combined.to_csv(events_path.copy().update(suffix="events", check=True), sep="\t", index=False)
+                events_combined.to_csv(subject_events_output_path, sep="\t", index=False)
                 print(f"Combined EEG and ET events and save as events.tsv.")
             else:
                 # Save EEG events
-                events_path = subject_eeg_output_path.copy().update(suffix="events", extension = "tsv", check = True)
-                events_df.to_csv(events_path, sep="\t", index=False)
+                #events_path = subject_eeg_output_path.copy().update(suffix="events", extension = "tsv", check = True)
+                events_df.to_csv(subject_events_output_path, sep="\t", index=False)
                 print(f"Created and saved EEG events.tsv file for subject {subject_id}.")
 
             # Interpolate bad channels
-            raw_eeg.interpolate_bads(reset_bads=False)
+            # raw_eeg.interpolate_bads(reset_bads=False)
+            raw_eeg.interpolate_bads(reset_bads=True)
+
+            # Re-reference again to average reference after interpolation
+            raw_eeg.set_eeg_reference("average")
 
             # Save EEG data with interpolated channels
-            raw_eeg.save(subject_eeg_output_path.copy().update(processing = "clean", suffix = "raw", extension = ".fif", check = False), overwrite=True)
+            raw_eeg.save(subject_eeg_output_path, overwrite=True)
             print("Saved EEG data with interpolated bad channels.")
 
             # Make a plot with interpolated channels marked in red

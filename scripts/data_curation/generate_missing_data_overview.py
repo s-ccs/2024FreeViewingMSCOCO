@@ -99,26 +99,25 @@ def calculate_missing_data(subject_id, data_root_path, output_path):
     # Initialise list 
     trials_missing_onset_or_offset = []
 
-    # Check whether the number of stimulus onset and offset events matches
+    # # Check if there are trials with a missing onset or offset event
     # If a trial is missing onset or offset, its number is saved and afterwards dropped from the df for the calculation
-    if len(stim_onset_events) != len(stim_offset_events):
-        warning_msg = "The number of stimulus onset and offset events does not match. " \
-        "Check whether all triggers have been send correctly."
+    warning_msg = "There are trials that have either a missing onset or offset event."
 
-        trials_without_offset = set(stim_onset_events.trial) - set(stim_offset_events.trial)
-        trials_without_onset = set(stim_offset_events.trial) - set(stim_onset_events.trial)
+    trials_without_offset = set(stim_onset_events.trial) - set(stim_offset_events.trial)
+    trials_without_onset = set(stim_offset_events.trial) - set(stim_onset_events.trial)
 
-        incomplete_trials_msg = ""
-        if trials_without_offset:
-            incomplete_trials_msg += f" The following trials have an onset event but no offset event: {trials_without_offset}."
-            trials_missing_onset_or_offset.extend(trials_without_offset)
-            stim_onset_events.drop(stim_onset_events[stim_onset_events["trial"].isin(trials_without_offset)].index, inplace=True)
-        
-        if trials_without_onset:
-            incomplete_trials_msg += f" The following trials have an offset event but no onset event: {trials_without_onset}."
-            trials_missing_onset_or_offset.extend(trials_without_onset)
-            stim_offset_events.drop(stim_offset_events[stim_offset_events["trial"].isin(trials_without_onset)].index, inplace=True)
+    incomplete_trials_msg = ""
+    if trials_without_offset:
+        incomplete_trials_msg += f" The following trials have an onset event but no offset event: {trials_without_offset}."
+        trials_missing_onset_or_offset.extend(trials_without_offset)
+        stim_onset_events.drop(stim_onset_events[stim_onset_events["trial"].isin(trials_without_offset)].index, inplace=True)
+    
+    if trials_without_onset:
+        incomplete_trials_msg += f" The following trials have an offset event but no onset event: {trials_without_onset}."
+        trials_missing_onset_or_offset.extend(trials_without_onset)
+        stim_offset_events.drop(stim_offset_events[stim_offset_events["trial"].isin(trials_without_onset)].index, inplace=True)
 
+    if trials_without_offset | trials_without_onset:
         warnings.warn(warning_msg + incomplete_trials_msg)
 
     # Check that the stimulus onset/offset pairs have the same trial number
