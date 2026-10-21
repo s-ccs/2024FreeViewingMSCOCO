@@ -36,7 +36,7 @@ INPUT_SUBDIR = "eeg"
 # INPUT_SUFFIX = "et_events"
 INPUT_SUFFIX = "events"
 
-OUTPUT_DERIVATIVE = "et-preprocessing-smaller-threshold-AND"
+OUTPUT_DERIVATIVE = "et-preprocessing"
 OUTPUT_SUBDIR = "eeg"
 OUTPUT_SUFFIX = "events"
 
