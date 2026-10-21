@@ -22,19 +22,19 @@ from pathlib import Path
 # 1. PATHS
 # =============================================================================
 # Root directory of the BIDS dataset.
-# DATA_ROOT = Path("/scratch/data/2024FreeViewingMSCOCO")
-DATA_ROOT = Path(
-     r"C:\Users\chris\Documents\ArbeitUni\VIS_S-CCS\FreeViewing\BIDS")  # TBD: Delete later
+DATA_ROOT = Path("/scratch/data/2024FreeViewingMSCOCO")
+# DATA_ROOT = Path(
+#      r"C:\Users\chris\Documents\ArbeitUni\VIS_S-CCS\FreeViewing\BIDS")  # TBD: Delete later
 
 # If the ET (or EEG+ET) events input file is within a derivative folder, specify which one
 # If raw data should be used set it to None
-# INPUT_DERIVATIVE = "custom-preprocessing"
-INPUT_DERIVATIVE = "in"
+INPUT_DERIVATIVE = "custom-preprocessing"
+# INPUT_DERIVATIVE = "in"
 # Name of the subdirectory containing the events.tsv file: eeg vs misc
-# INPUT_SUBDIR = "eeg"
-INPUT_SUBDIR = "misc"
-INPUT_SUFFIX = "et_events"
-# INPUT_SUFFIX = "events"
+INPUT_SUBDIR = "eeg"
+# INPUT_SUBDIR = "misc"
+# INPUT_SUFFIX = "et_events"
+INPUT_SUFFIX = "events"
 
 OUTPUT_DERIVATIVE = "et-preprocessing"
 OUTPUT_SUBDIR = "eeg"
@@ -45,8 +45,8 @@ PLOTS_SUBDIR = "plots"
 # BIDS specs
 SESSION = "ses-001"
 TASK = "freeviewing"
-RUN = None # optional: 'None' if 'run'-specs are NOT in the filename
-
+# RUN = None # optional: 'None' if 'run'-specs are NOT in the filename
+RUN = 1
 
 # Subjects
 # =============================================================================
@@ -73,9 +73,9 @@ BLINK_WINDOW_MS = 50.0
 
 # Minimum saccade amplitude threshold (degrees)
 # s. Hooge et al. (2022), Stage 1.
-A_MIN = 1.0 # Saccades smaller than this AND shorter than T_min are dropped. T_min = 2.2 · A_MIN + 27
+A_MIN = 0.5 # Saccades smaller than this AND shorter than T_min are dropped. T_min = 2.2 · A_MIN + 27
 T_MIN_FIX = 60
-MERGE_THRESHOLD = 100 # (in ms); only fixations with a time difference < MERGE_THRESHOLD will be merged. Set to 'False' if T_MIN_SAC should be used as threshold.
+MERGE_THRESHOLD = 100 # must be integer or float (in ms); only fixations with a time difference < MERGE_THRESHOLD will be merged. Set to 'None' if T_MIN_SAC should be used as threshold.
 
 # Generate Report (boolean): creates an html report
 REPORT = True

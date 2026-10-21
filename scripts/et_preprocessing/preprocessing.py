@@ -126,10 +126,10 @@ def merge_fixation_candidates(events, a_min=A_MIN, merge_threshold=None):
 
         if (
             i < len(events) - 1
-            and events.iloc[i]["trial_type"] == "fixation"
-            and events.iloc[i + 1]["trial_type"] == "fixation"
-            and events.iloc[i]["eye"] == events.iloc[i + 1]["eye"]
-            and events.iloc[i+1]["onset"]-events.iloc[i]["end_time"] < merge_threshold
+            and events.iloc[i]["trial_type"] == "fixation" # if the current row is a fixation
+            and events.iloc[i + 1]["trial_type"] == "fixation" # if the next row is also a fixation
+            and events.iloc[i]["eye"] == events.iloc[i + 1]["eye"] # if the current row and the next row are from the same eye
+            and events.iloc[i+1]["onset"]-events.iloc[i]["end_time"] < merge_threshold # if the gap between the current row and the next row is less than the merge threshold
         ):
             j = i + 1
             duration_sum = current_row["duration"]
@@ -137,7 +137,7 @@ def merge_fixation_candidates(events, a_min=A_MIN, merge_threshold=None):
                 j < len(events)
                 and events.iloc[j]["trial_type"] == "fixation"
                 and events.iloc[j]["eye"] == current_row["eye"]
-                and events.iloc[j]["onset"]-events.iloc[i]["end_time"] < merge_threshold
+                and events.iloc[j]["onset"]-events.iloc[j-1]["end_time"] < merge_threshold # if the gap between the current row and the next row is less than the merge threshold
             ):
                 next_row = events.iloc[j]
                 # full span from the first onset to the last end_time and therefore includes the removed saccades
@@ -162,8 +162,37 @@ def merge_fixation_candidates(events, a_min=A_MIN, merge_threshold=None):
 
     return merged_events
 
-# Helpers
-# ============================================================================
+def calculate_saccade_angle_in_df(events_df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Calculate the angle of each saccade in radians, based on the start and end positions.
+
+    Args:
+        events_df (pd.DataFrame): DataFrame containing saccade events with columns 'sacc_start_x', 'sacc_start_y', 'sacc_end_x', 'sacc_end_y'.
+
+    Returns:
+        pd.DataFrame: DataFrame with an additional 'sacc_angle' column containing the calculated angles in radians [0, 2*pi), measured
+            counter-clockwise from rightwards. NaN where undefined.
+    """
+    df = events_df.copy()
+    coord_cols = ["sacc_start_x", "sacc_start_y", "sacc_end_x", "sacc_end_y"]
+
+    dx = df['sacc_end_x'] - df['sacc_start_x']
+    dy = df['sacc_end_y'] - df['sacc_start_y']
+    # Flip the sign because the ET origin is top-left, so screen y goes downward.
+    dy = -dy
+
+    valid = (
+        (df["trial_type"] == "saccade")
+        & df[coord_cols].notna().all(axis=1)
+        & ((dx != 0) | (dy != 0))
+        )
+
+    logger.info(
+        f"Calculating saccade angles: {valid.sum()}/{len(df[df['trial_type'] == 'saccade'])} valid saccades. Non-valid saccades will have NaN in the 'sacc_angle' column."
+    )
+    df['sacc_angle'] = np.where(valid, np.arctan2(dy, dx) % (2 * np.pi), np.nan)
+    return df
+
 def annotate_blink_saccades_in_df(
     events_df: pd.DataFrame, window_ms: float, match_eye: bool = True
 ) -> pd.DataFrame:

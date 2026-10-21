@@ -113,40 +113,6 @@ def _overlap_hist(ax, before, after, bins, before_blink=None):
     ax.hist(after, bins=bins, histtype="stepfilled", color=AFTER_COLOR, alpha=0.45,
             edgecolor="black", zorder=2, label="after preprocessing")
 
-def compute_saccade_directions(s_df, style):
-    """Add a saccade direction angle to the dataframe.
-
-    Args:
-        s_df (pd.DataFrame): Saccades with sacc_start/end_x/y columns.
-        style (str): "polar" for radians [0, 2π), else "degrees" [0, 360).
-
-    Returns:
-        pd.DataFrame: Copy of s_df with an added "angle" column.
-    """
-    
-    #  Compute saccade direction: radians for polar, degrees [0, 360) for cartesian
-    s = s_df.copy()
-    # Saccades whose start sample falls inside a blink carry no valid sacc_start_x/y
-    # coordinates, so drop them here.
-    coord_cols = ["sacc_start_x", "sacc_start_y", "sacc_end_x", "sacc_end_y"]
-    n_before = len(s)
-    s = s.dropna(subset=coord_cols)
-    if n_before - len(s):
-        logger.warning(
-            f"compute_saccade_directions: dropped {n_before - len(s)}/{n_before} "
-            "saccades without valid start/end coordinates (direction undefined)."
-        )
-    dx = s["sacc_end_x"] - s["sacc_start_x"]
-    dy = s["sacc_end_y"] - s["sacc_start_y"]
-    # Flip the sign because ET coordinate system has its origin in the top left
-    # (instead of bottom left) and the y-axis needs to be flipped for the angle computation
-    dy = -dy 
-    if style == "polar":
-        s["angle"] = np.arctan2(dy, dx) % (2 * np.pi)
-    else:
-        s["angle"] = (np.degrees(np.arctan2(dy, dx)) + 360) % 360
-    return s
-
 # =============================================================================
 # Main sequence
 # =============================================================================
@@ -582,7 +548,7 @@ def _graph_saccade_duration(ax, sac_df, sac_after=None, sac_dur_max: float | Non
 # =============================================================================
 # Saccade angular histogram
 # =============================================================================
-def _graph_saccade_angles(ax, sac_df, sac_after=None, include_blink_sac: bool | str = False, style: str = "polar"):
+def _graph_saccade_angles(ax, sac_df, sac_after=None, include_blink_sac: bool | str = False, style: str = "polar", angle_col: str = "sacc_angle"):
     """
     Helperfunction: draw the saccade direction histogram onto `ax`.
     style='polar'     -> rose plot; ax must be a polar axis (radians, 36 bins).
@@ -598,32 +564,48 @@ def _graph_saccade_angles(ax, sac_df, sac_after=None, include_blink_sac: bool | 
         include_blink_sac (bool | str): False excludes blink saccades,
             'highlight' marks them, True includes them without marking. Defaults to False.
         style (str): 'polar' or 'cartesian'. Defaults to 'polar'.
+        angle_col (str): column holding the direction in RADIANS [0, 2*pi), as
+            written by calculate_saccade_angle_in_df(). Converted to degrees
+            internally when style='cartesian'. Defaults to 'sacc_angle'.
     """
-    # Histogram bins depend on the plotting style
-    bins = 36 if style == "polar" else np.arange(0, 361, 10)
+    # Histogram bins depend on the plotting style. Explicit bin EDGES, not a bin
+    # count: given an integer, matplotlib spans the DATA range, so the bins would
+    # shift between subjects and between the before/after stages.
+    if style == "polar":
+        bins = np.linspace(0, 2 * np.pi, 37)   # 36 x 10°, in radians
+    else:
+        bins = np.arange(0, 361, 10)           # 36 x 10°, in degrees
 
-    def prep_data(s_df):
+    def prep_data(s_df, label):
         #  Optionally exclude blink saccades (only when include is False)
+        d, n_blink = _exclude_blink(s_df, include_blink_sac)
         if include_blink_sac is False:
-            s_df, _ = _exclude_blink(s_df, include_blink_sac)
+            logger.info(f"Saccade directions ({label}) — excluded {n_blink} blink saccades.")
 
-        #  Compute saccade direction: radians for polar, degrees [0, 360) for cartesian
-        s = compute_saccade_directions(s_df, style)
-        return s
+        #  Angles are stored in radians; the cartesian axis expects degrees.
+        d = d.copy()
+        d["_angle_plot"] = d[angle_col] if style == "polar" else np.degrees(d[angle_col])
+
+        #  Saccades without a defined direction (NaN) cannot be binned.
+        n_undef = int(d["_angle_plot"].isna().sum())
+        if n_undef:
+            logger.info(f"Saccade directions ({label}) — {n_undef}/{len(d)} saccades "
+                        f"without a defined direction (NaN) not plotted.")
+        return d.dropna(subset=["_angle_plot"])
 
     #  Create figure: single, highlighted, or stacked before/after
     if sac_after is None:
         logger.info("Plotting saccade direction histogram — single histogram.")
 
         # prep the data for plotting
-        sac_df = prep_data(sac_df)
-        if sac_df.empty:
+        s = prep_data(sac_df, "single")
+        if s.empty:
             raise ValueError("No saccade directions found.")
 
         if include_blink_sac == "highlight":
             # separate the blink saccades from the normal saccades for highlighting
-            saccade = sac_df.loc[sac_df["blink_saccade"] == False, "angle"]
-            blink = sac_df.loc[sac_df["blink_saccade"] == True, "angle"]
+            saccade = s.loc[s["blink_saccade"] == False, "_angle_plot"]
+            blink = s.loc[s["blink_saccade"] == True, "_angle_plot"]
 
             # plot
             ax.hist(
@@ -636,25 +618,25 @@ def _graph_saccade_angles(ax, sac_df, sac_after=None, include_blink_sac: bool | 
             )
             ax.legend(fontsize=6)
         else:
-            ax.hist(sac_df["angle"], bins=bins, edgecolor="black")
+            ax.hist(s["_angle_plot"], bins=bins, edgecolor="black")
 
     # stacked figure: before vs. after preprocessing
     else:
         logger.info("Plotting saccade direction histogram — stacked before/after.")
 
         # prep the data for plotting
-        s_before = prep_data(sac_df)
-        s_after = prep_data(sac_after)
+        s_before = prep_data(sac_df, "before")
+        s_after = prep_data(sac_after, "after")
         if s_before.empty and s_after.empty:
             raise ValueError("No saccade directions found.")
 
-        # plot: after filled behind, before as outline on top; highlight blink saccades (green)
+        # plot: 'after' is filled, 'before' is displayed as outline on top & blink saccades are highlighted (green)
         if include_blink_sac is False:
-            _overlap_hist(ax, s_before["angle"].values, s_after["angle"].values, bins)
+            _overlap_hist(ax, s_before["_angle_plot"].values, s_after["_angle_plot"].values, bins)
         else:
-            before_nb = s_before.loc[~s_before["blink_saccade"], "angle"].values
-            before_bl = s_before.loc[s_before["blink_saccade"], "angle"].values
-            after_nb = s_after.loc[~s_after["blink_saccade"], "angle"].values
+            before_nb = s_before.loc[~s_before["blink_saccade"], "_angle_plot"].values
+            before_bl = s_before.loc[s_before["blink_saccade"], "_angle_plot"].values
+            after_nb = s_after.loc[~s_after["blink_saccade"], "_angle_plot"].values
             _overlap_hist(ax, before_nb, after_nb, bins, before_blink=before_bl)
         anchor = (1.15, 1.12) if style == "polar" else (1.0, 1.0)
         ax.legend(fontsize=6, loc="upper right", bbox_to_anchor=anchor)
@@ -677,7 +659,7 @@ def _graph_saccade_angles(ax, sac_df, sac_after=None, include_blink_sac: bool | 
 
 
 # =============================================================================
-# Main-sequence scatter primitive
+# Main-sequence scatter
 # =============================================================================
 def ms_scatter(sub, include_blink_sac, ax_ms, label=None, sac_color=None, blink_color=None):
     """
