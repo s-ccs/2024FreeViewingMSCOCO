@@ -83,7 +83,7 @@ REPORT = True
 
 # Visualisation — general
 # =============================================================================
-# Eye selection for all plots. Options: "all", "left", "right", "binocular"
+# Eye selection for all plots. Options: "all", "left", "right", "binocular" or "both" (same as "binocular")
 BY_EYE = "right"
 
 # Output figure file format. Options: "svg", "pdf", "eps"
