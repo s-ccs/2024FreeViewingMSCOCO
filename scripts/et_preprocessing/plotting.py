@@ -45,6 +45,20 @@ from graphs import (
 
 logger = logging.getLogger(__name__)
 
+# Mapping for finding the events of the chosen eye(s) in the events dataframe, based on the `by_eye` argument.
+EYE_MAPPING = {"left": "L", 
+               "right": "R", 
+               "binocular": "both", 
+               "both": "both"
+               }
+# Mapping for the title suffixes of the plots, based on the `by_eye` argument.
+GAZE_MAPPING = {
+        "all": "Left, Right and Binocular Gaze",
+        "left": "Left Gaze only",
+        "right": "Right Gaze only",
+        "binocular": "Binocular Gaze only",
+        "both": "Binocular Gaze only",
+    }
 
 # =============================================================================
 # Eye Trace Comparison (pre/post merge)
@@ -197,7 +211,7 @@ def plot_main_sequence(
     events_df: pd.DataFrame,
     out_path: str = None,
     out_file_format: str = "svg",
-    by_eye: str = "binocular",
+    by_eye: str = "all",
     title: str = "Main Sequence",
     include_blink_sac: bool | str = True,
 ):
@@ -208,19 +222,21 @@ def plot_main_sequence(
         events_df (pd.DataFrame)
         out_path (str): Directory to save the figure. Pass None to skip saving (default).
         out_file_format (str): File extension for saving, e.g. 'svg', 'pdf'. Defaults to 'svg'.
-        by_eye (str): One of: 'all', 'left', 'right', 'binocular'. Defaults to 'binocular'.
+        by_eye (str): One of: 'all', 'left', 'right', 'binocular' or 'both' (same as 'binocular'). Defaults to 'all'.
         title (str): Defaults to 'Main Sequence'.
         include_blink_sac (bool | str):
             - True (default): include all saccades; blink saccades treated like any other.
             - False: exclude blink saccades entirely.
             - 'highlight': include all saccades, but mark blink saccades in a distinct colour.
     """
+    if by_eye not in GAZE_MAPPING:
+        raise ValueError(f"by_eye must be one of: {list(GAZE_MAPPING)}; got '{by_eye}' instead.")
+
     # filter out saccades and optionally by eye
     s = events_df[events_df["trial_type"] == "saccade"].copy()
 
     if by_eye != "all":
-        eye_map = {"left": "L", "right": "R", "binocular": "binocular"}
-        s = s[s["eye"] == eye_map[by_eye]]
+        s = s[s["eye"] == EYE_MAPPING[by_eye]]
 
     base_name = (
         f"{title.lower().replace(' ', '_')}-{by_eye}Eyes"
@@ -233,18 +249,12 @@ def plot_main_sequence(
     _graph_main_sequence(ax, s, include_blink_sac, by_eye)
 
     # Labels & title
-    gaze_map = {
-        "all": "Left, Right and Binocular Gaze",
-        "left": "Left Gaze only",
-        "right": "Right Gaze only",
-        "binocular": "Binocular Gaze only",
-    }
     blink_decision_map = {
         False: "(blink saccades excluded)",
         "highlight": "(blink saccades highlighted)",
     }
     suffix = blink_decision_map.get(include_blink_sac, "")
-    ax.set_title(f"{title} — {gaze_map[by_eye]}" + (f" {suffix}" if suffix else ""))
+    ax.set_title(f"{title} — {GAZE_MAPPING[by_eye]}" + (f" {suffix}" if suffix else ""))
 
     fig.tight_layout()
 
@@ -267,7 +277,7 @@ def plot_fixation_duration(
     events_df: pd.DataFrame,
     out_path: str = None,
     out_file_format: str = "svg",
-    by_eye: str = "binocular",
+    by_eye: str = "all",
     fix_dur_min: float = 60,
     fix_dur_max: float = 1000,
     title: str = "Fixation Durations",
@@ -281,34 +291,27 @@ def plot_fixation_duration(
         events_df (pd.DataFrame):
         out_path (str): Directory to save the figure. Pass None to skip saving (default).
         out_file_format (str): File extension for saving, e.g. 'svg', 'pdf', 'png'. Defaults to 'svg'.
-        by_eye (str): One of: 'all', 'left', 'right', 'binocular'. Defaults to 'binocular'.
+        by_eye (str): One of: 'all', 'left', 'right', 'binocular' or 'both' (same as 'binocular'). Defaults to 'all'.
         fix_dur_min (float, optional): lower bound (ms). Defaults to 60. Pass 'None' for no threshold.
         fix_dur_max (float, optional): upper bound (ms). Defaults to 1000. Pass 'None' for no threshold.
         title (str, optional): Defaults to 'Fixation Durations'
         dropout_stats (bool, optional): If True, compute and display dropout statistics in the summary figure. Defaults to False.
     """
-    if by_eye not in {"all", "left", "right", "binocular"}:
-        raise ValueError("by_eye must be one of: 'all', 'left', 'right', 'binocular'")
+    if by_eye not in GAZE_MAPPING:
+        raise ValueError(f"by_eye must be one of: {list(GAZE_MAPPING)}; got '{by_eye}' instead.")
 
     # filter out fixations and optionally by eye
     fix = events_df[events_df["trial_type"] == "fixation"].copy()
 
     if by_eye != "all":
-        eye_mapping = {"left": "L", "right": "R", "binocular": "binocular"}
-        fix = fix[fix["eye"] == eye_mapping[by_eye]]
+        fix = fix[fix["eye"] == EYE_MAPPING[by_eye]]
 
     # plot fixation duration histogram
     fig, ax = plt.subplots()
     _graph_fixation_duration(ax, fix, fix_dur_min=fix_dur_min, fix_dur_max=fix_dur_max, dropout_stats=dropout_stats)
 
     # Labels & title
-    gaze_map = {
-        "all": "All eyes",
-        "left": "Left eye only",
-        "right": "Right eye only",
-        "binocular": "Binocular only",
-    }
-    ax.set_title(f"{title} — {gaze_map[by_eye]}")
+    ax.set_title(f"{title} — {GAZE_MAPPING[by_eye]}")
     fig.tight_layout()
 
     # Save & show
@@ -330,7 +333,7 @@ def plot_saccade_amplitude(
     events_df: pd.DataFrame,
     out_path: str = None,
     out_file_format: str = "svg",
-    by_eye: str = "binocular",
+    by_eye: str = "all",
     title: str = "Saccade Amplitude",
     sac_amp_max: float = 40,
     include_blink_sac: bool | str = False,
@@ -344,19 +347,21 @@ def plot_saccade_amplitude(
         events_df (pd.DataFrame):
         out_path (str): Directory to save the figure. Pass None to skip saving (default).
         out_file_format (str): File extension for saving, e.g. 'svg', 'pdf', 'png'. Defaults to 'svg'.
-        by_eye (str): One of: 'all', 'left', 'right', 'binocular'. Defaults to 'binocular'.
+        by_eye (str): One of: 'all', 'left', 'right', 'binocular' or 'both' (same as 'binocular'). Defaults to 'all'.
         title (str, optional): Defaults to 'Saccade Amplitude'.
         sac_amp_max (float, optional): Upper bound (deg). Defaults to 40. Pass 'None' for no threshold.
         include_blink_sac (bool | str): False excludes blink saccades,
             'highlight' marks them, True includes them. Defaults to False
         dropout_stats (bool, optional): If True, compute and display dropout statistics in the summary figure. Defaults to False.
     """
+    if by_eye not in GAZE_MAPPING:
+        raise ValueError(f"by_eye must be one of: {list(GAZE_MAPPING)}; got '{by_eye}' instead.")
+
     # filter out saccades and optionally by eye
     s_df = events_df[events_df["trial_type"] == "saccade"].copy()
 
     if by_eye != "all":
-        eye_mapping = {"left": "L", "right": "R", "binocular": "binocular"}
-        s_df = s_df[s_df["eye"] == eye_mapping[by_eye]]
+        s_df = s_df[s_df["eye"] == EYE_MAPPING[by_eye]]
 
     # plot saccade amplitude histogram
     fig, ax = plt.subplots(figsize=(5, 4))
@@ -365,18 +370,12 @@ def plot_saccade_amplitude(
     )
 
     # Title
-    gaze_map = {
-        "all": "Left, Right and Binocular Gaze",
-        "left": "Left Gaze only",
-        "right": "Right Gaze only",
-        "binocular": "Binocular Gaze only",
-    }
     blink_decision_map = {
         False: "(blink saccades excluded)",
         "highlight": "(blink saccades highlighted)",
     }
     suffix = blink_decision_map.get(include_blink_sac, "")
-    ax.set_title(f"{title} — {gaze_map[by_eye]}" + (f" {suffix}" if suffix else ""))
+    ax.set_title(f"{title} — {GAZE_MAPPING[by_eye]}" + (f" {suffix}" if suffix else ""))
 
     fig.tight_layout()
 
@@ -399,7 +398,7 @@ def plot_saccade_duration(
     events_df: pd.DataFrame,
     out_path: str = None,
     out_file_format: str = "svg",
-    by_eye: str = "binocular",
+    by_eye: str = "all",
     title: str = "Saccade Duration",
     sac_dur_max: int = 120,
     dropout_stats: bool = False,
@@ -413,18 +412,20 @@ def plot_saccade_duration(
         events_df (pd.DataFrame):
         out_path (str): Directory to save the figure. Pass None to skip saving (default).
         out_file_format (str, optional): File extension for saving. Defaults to 'svg'.
-        by_eye (str, optional): One of: 'all', 'left', 'right', 'binocular'. Defaults to 'binocular'.
+        by_eye (str, optional): One of: 'all', 'left', 'right', 'binocular' or 'both' (same as 'binocular'). Defaults to 'all'.
         title (str, optional): Defaults to 'Saccade Duration'.
         sac_dur_max (int, optional): Maximum duration of a saccade (ms). Defaults to 120.
         dropout_stats (bool, optional): If True, compute and display dropout statistics in the summary figure. Defaults to False.
         include_blink_sac (bool | str): False excludes blink saccades,
             'highlight' marks them, True includes them. Defaults to False
     """
+    if by_eye not in GAZE_MAPPING:
+        raise ValueError(f"by_eye must be one of: {list(GAZE_MAPPING)}; got '{by_eye}' instead.")
+
     s_df = events_df[events_df["trial_type"] == "saccade"].copy()
 
     if by_eye != "all":
-        eye_mapping = {"left": "L", "right": "R", "binocular": "binocular"}
-        s_df = s_df[s_df["eye"] == eye_mapping[by_eye]]
+        s_df = s_df[s_df["eye"] == EYE_MAPPING[by_eye]]
 
     # plot saccade duration histogram
     fig, ax = plt.subplots(figsize=(5, 4))
@@ -433,13 +434,7 @@ def plot_saccade_duration(
     )
 
     # suffix to the graph title: which gaze data is shown
-    gaze_map = {
-        "all": "All eyes",
-        "left": "Left eye only",
-        "right": "Right eye only",
-        "binocular": "Binocular only",
-    }
-    ax.set_title(f"{title} — {gaze_map[by_eye]}")
+    ax.set_title(f"{title} — {GAZE_MAPPING[by_eye]}")
     fig.tight_layout()
 
     if out_path is not None:
@@ -460,8 +455,9 @@ def plot_fixation_frequency(
     events_df: pd.DataFrame,
     out_path: str = None,
     out_file_format: str = "svg",
-    by_eye: str = "binocular",
+    by_eye: str = "all",
     title="Fixation frequency histogram",
+    subject_col: str = None,
 ):
     """
     Histogram of fixation frequency (fixations per second), binned by
@@ -471,20 +467,24 @@ def plot_fixation_frequency(
         events_df (pd.DataFrame):
         out_path (str): Directory to save the figure. Pass None to skip saving (default).
         out_file_format (str): File extension for saving. Defaults to 'svg'.
-        by_eye (str, optional): One of: 'all', 'left', 'right', 'binocular'. Defaults to 'binocular'.
+        by_eye (str, optional): One of: 'all', 'left', 'right', 'binocular' or 'both' (same as 'binocular'). Defaults to 'all'.
         title (str, optional): Defaults to 'Fixation frequency histogram'.
+        subject_col (str, optional): Column identifying the subject if events_df combines several
+            subjects (e.g. 'subject'); counts are then computed per subject and eye. Defaults to None.
     """
+    if by_eye not in GAZE_MAPPING:
+        raise ValueError(f"by_eye must be one of: {list(GAZE_MAPPING)}; got '{by_eye}' instead.")
+
     # filter out fixations and optionally by eye
     f_df = events_df[events_df["trial_type"] == "fixation"].copy()
 
     if by_eye != "all":
-        eye_mapping = {"left": "L", "right": "R", "binocular": "binocular"}
-        f_df = f_df[f_df["eye"] == eye_mapping[by_eye]]
+        f_df = f_df[f_df["eye"] == EYE_MAPPING[by_eye]]
 
     # plot fixation frequency histogram
     fig, ax = plt.subplots()
-    _graph_fixation_frequency(ax, f_df)
-    ax.set_title(title)
+    _graph_fixation_frequency(ax, f_df, subject_col=subject_col)
+    ax.set_title(f"{title} — {GAZE_MAPPING[by_eye]}")
     fig.tight_layout()
 
     # show & save
@@ -506,7 +506,7 @@ def plot_saccade_angles(
     events_df: pd.DataFrame,
     out_path: str = None,
     out_file_format: str = "svg",
-    by_eye: str = "binocular",
+    by_eye: str = "all",
     title: str = "Saccade Direction Histogram",
     style: str = None,
     include_blink_sac: bool = False,
@@ -519,16 +519,18 @@ def plot_saccade_angles(
         events_df (pd.DataFrame):
         out_path (str): Directory to save the figure. Pass None to skip saving. Defaults to None.
         out_file_format (str): File extension for saving. Defaults to 'svg'.
-        by_eye (str): One of: 'all', 'left', 'right', 'binocular'. Defaults to 'binocular'.
+        by_eye (str): One of: 'all', 'left', 'right', 'binocular' or 'both' (same as 'binocular'). Defaults to 'all'.
         title (str, optional): Defaults to 'Saccade Direction Histogram'.
         style (str, optional): One of: 'polar', 'cartesian', or None (produces both). Defaults to None.
         include_blink_sac (bool, optional): If True, include blink saccades in the histogram. Defaults to False.
     """
+    if by_eye not in GAZE_MAPPING:
+        raise ValueError(f"by_eye must be one of: {list(GAZE_MAPPING)}; got '{by_eye}' instead.")
+
     s_df = events_df[events_df["trial_type"] == "saccade"].copy()
 
     if by_eye != "all":
-        eye_mapping = {"left": "L", "right": "R", "binocular": "binocular"}
-        s_df = s_df[s_df["eye"] == eye_mapping[by_eye]]
+        s_df = s_df[s_df["eye"] == EYE_MAPPING[by_eye]]
 
     base = f"{title.lower().replace(' ', '_')}-{by_eye}Eyes"
 
@@ -569,14 +571,15 @@ def plot_summary(
     events_df: pd.DataFrame,
     out_path: str = None,
     out_file_format: str = "svg",
-    by_eye: str = "binocular",
+    by_eye: str = "all",
     title: str = "Summary",
     fix_dur_min: float = 60,
     fix_dur_max: float = 1000,
     sac_amp_max: float = 40,
     sac_dur_max: float = 120,
     include_blink_sac: bool | str = True,
-    dropout_stats: bool = False
+    dropout_stats: bool = False,
+    subject_col: str = None,
 ):
     """
     Summary figure combining all core plots into one graphic (2×3 grid):
@@ -587,7 +590,7 @@ def plot_summary(
         events_df (pd.DataFrame)
         out_path (str): Directory to save the figure. Pass None to skip saving (default).
         out_file_format (str): File extension for saving, e.g. 'svg', 'pdf', 'png'. Defaults to 'svg'.
-        by_eye (str): One of: 'all', 'left', 'right', 'binocular'. Defaults to 'binocular'.
+        by_eye (str): One of: 'all', 'left', 'right', 'binocular' or 'both' (same as 'binocular'). Defaults to 'all'.
         title (str, optional): Pass None for no title. Defaults to 'Summary'.
         fix_dur_min (float, optional): Lower bound for fixation duration (ms). Defaults to 60. Pass 'None' for no threshold.
         fix_dur_max (float, optional): Upper bound for fixation duration (ms). Defaults to 1000. Pass 'None' for no threshold.
@@ -597,22 +600,20 @@ def plot_summary(
             - True (default): include all saccades in the main sequence graph.
             - False: exclude blink saccades.
             - 'highlight': mark blink saccades in the main sequence graph.
+        subject_col (str, optional): Column identifying the subject if the data combine several
+            subjects; used by the fixation-frequency graph. Defaults to None.
     """
+    if by_eye not in GAZE_MAPPING:
+        raise ValueError(f"by_eye must be one of: {list(GAZE_MAPPING)}; got '{by_eye}' instead.")
+
     reset_dropout_stats()
-    eye_mapping = {"left": "L", "right": "R", "binocular": "binocular"}
-    gaze_map = {
-        "all": "All eyes",
-        "left": "Left eye only",
-        "right": "Right eye only",
-        "binocular": "Binocular only",
-    }
 
     # Shared data prep
     fix_df = events_df[events_df["trial_type"] == "fixation"].copy()
     sac_df = events_df[events_df["trial_type"] == "saccade"].copy()
 
     if by_eye != "all":
-        chosen_eye = eye_mapping[by_eye]
+        chosen_eye = EYE_MAPPING[by_eye]
         fix_df = fix_df[fix_df["eye"] == chosen_eye]
         sac_df = sac_df[sac_df["eye"] == chosen_eye]
 
@@ -629,7 +630,7 @@ def plot_summary(
     _graph_fixation_duration(
         ax_fdur, fix_df, fix_dur_min=fix_dur_min, fix_dur_max=fix_dur_max, dropout_stats=dropout_stats
     )
-    _graph_fixation_frequency(ax_ffreq, fix_df)
+    _graph_fixation_frequency(ax_ffreq, fix_df, subject_col=subject_col)
     _graph_saccade_amplitude(
         ax_samp, sac_df, sac_amp_max=sac_amp_max, include_blink_sac=include_blink_sac, dropout_stats=dropout_stats
     )
@@ -641,7 +642,7 @@ def plot_summary(
     )
 
     if title is not None:
-        fig.suptitle(f"{title} — {gaze_map[by_eye]}", fontsize=14, fontweight="bold")
+        fig.suptitle(f"{title} — {GAZE_MAPPING[by_eye]}", fontsize=14, fontweight="bold")
     fig.tight_layout()
 
     if out_path is not None:
@@ -664,7 +665,7 @@ def plot_summary_comparison(
     events_after: pd.DataFrame,
     out_path: str = None,
     out_file_format: str = "svg",
-    by_eye: str = "binocular",
+    by_eye: str = "all",
     title: str = "Summary",
     fix_dur_min: float = 60,
     fix_dur_max: float = 1000,
@@ -672,6 +673,7 @@ def plot_summary_comparison(
     sac_dur_max: float = 120,
     include_blink_sac: bool | str = True,
     dropout_stats: bool = False,
+    subject_col: str = None,
 ):
     """
     Before/after summary figure — same 2×3 grid as plot_summary, but each graph
@@ -684,7 +686,7 @@ def plot_summary_comparison(
         events_after (pd.DataFrame): Merged (post-merge) events dataframe.
         out_path (str): Directory to save the figure. Pass None to skip saving (default).
         out_file_format (str): File extension for saving, e.g. 'svg', 'pdf', 'png'. Defaults to 'svg'.
-        by_eye (str): One of: 'all', 'left', 'right', 'binocular'. Defaults to 'binocular'.
+        by_eye (str): One of: 'all', 'left', 'right', 'binocular' or 'both' (same as 'binocular'). Defaults to 'all'.
         title (str, optional): Pass None for no title. Defaults to 'Summary'.
         fix_dur_min (float, optional): Lower bound for fixation duration (ms). Defaults to 60. Pass 'None' for no threshold.
         fix_dur_max (float, optional): Upper bound for fixation duration (ms). Defaults to 1000. Pass 'None' for no threshold.
@@ -694,15 +696,13 @@ def plot_summary_comparison(
             - True (default): include all saccades in the main sequence graph.
             - False: exclude blink saccades.
             - 'highlight': mark blink saccades in the main sequence graph.
+        subject_col (str, optional): Column identifying the subject if the data combine several
+            subjects; used by the fixation-frequency graph. Defaults to None.
     """
+    if by_eye not in GAZE_MAPPING:
+        raise ValueError(f"by_eye must be one of: {list(GAZE_MAPPING)}; got '{by_eye}' instead.")
+
     reset_dropout_stats()
-    eye_mapping = {"left": "L", "right": "R", "binocular": "binocular"}
-    gaze_map = {
-        "all": "All eyes",
-        "left": "Left eye only",
-        "right": "Right eye only",
-        "binocular": "Binocular only",
-    }
 
     # Copy to avoid mutating the caller's dataframes (processing_stage tag below).
     events_before = events_before.copy()
@@ -716,7 +716,7 @@ def plot_summary_comparison(
     sac_after = events_after[events_after["trial_type"] == "saccade"].copy()
 
     if by_eye != "all":
-        chosen_eye = eye_mapping[by_eye]
+        chosen_eye = EYE_MAPPING[by_eye]
         fix_before = fix_before[fix_before["eye"] == chosen_eye]
         fix_after = fix_after[fix_after["eye"] == chosen_eye]
         sac_before = sac_before[sac_before["eye"] == chosen_eye]
@@ -743,7 +743,7 @@ def plot_summary_comparison(
         fix_dur_max=fix_dur_max, 
         dropout_stats=dropout_stats
     )
-    _graph_fixation_frequency(ax_ffreq, fix_before, fix_after)
+    _graph_fixation_frequency(ax_ffreq, fix_before, fix_after, subject_col=subject_col)
     _graph_saccade_amplitude(
         ax_samp,
         sac_before,
@@ -766,7 +766,7 @@ def plot_summary_comparison(
 
     if title is not None:
         fig.suptitle(
-            f"{title} — {gaze_map[by_eye]} (before vs. after)",
+            f"{title} — {GAZE_MAPPING[by_eye]} (before vs. after)",
             fontsize=14,
             fontweight="bold",
         )

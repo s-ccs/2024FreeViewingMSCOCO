@@ -527,7 +527,7 @@ def generate_report(
     events_merged: pd.DataFrame,
     subject_id: str,
     out_path: str,
-    by_eye: str = "right",
+    by_eye: str = "all",
     sac_amp_max: float = 40,
     fix_dur_min: float = 60,
     fix_dur_max: float = 1000,
@@ -542,7 +542,7 @@ def generate_report(
         events_merged (pd.DataFrame): Merged (post-merge) events dataframe.
         subject_id (str): Subject ID string, used in the report title and filename.
         out_path (str): Directory to save the report HTML file.
-        by_eye (str): One of: 'all', 'left', 'right', 'binocular'. Defaults to 'right'.
+        by_eye (str): One of: 'all', 'left', 'right', 'binocular', 'both'. Defaults to 'all'.
         sac_amp_max (float, optional): Upper bound for saccade amplitude (deg). Defaults to 40.
         fix_dur_min (float, optional): Lower bound for fixation duration (ms). Defaults to 60.
         fix_dur_max (float, optional): Upper bound for fixation duration (ms). Defaults to 1000.
