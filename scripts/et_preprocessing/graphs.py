@@ -24,6 +24,7 @@ import logging
 import matplotlib.pyplot as plt
 from matplotlib.colors import to_rgba
 import numpy as np
+import pandas as pd
 
 logger = logging.getLogger(__name__)
 
@@ -32,11 +33,13 @@ BEFORE_COLOR = "#0072B2"  # blue   — before preprocessing / saccades
 AFTER_COLOR = "#D55E00"   # orange — after preprocessing / blink saccades (single eye)
 BLINK_COLOR = "#E69F00"   # orange — blink saccades (histograms)
 BLINK_MS_COLOR = "#009E73"  # green  — blink saccades (main sequence)
+
 # Fixed colour per eye, when plotting multiple eyes in one graph (by_eye='all')
 EYE_COLORS = {
     "L": "#0072B2",          # blue
     "R": "#E69F00",          # orange
     "binocular": "#009E73",  # green
+    "both": "#009E73",       # green, same as binocular
 }
 # Dropout accounting (values dropped for plotting only)
 _DROPOUT_STATS = {}
@@ -116,7 +119,7 @@ def _overlap_hist(ax, before, after, bins, before_blink=None):
 # =============================================================================
 # Main sequence
 # =============================================================================
-def _graph_main_sequence(ax, sac_df, include_blink_sac: bool | str = False, by_eye: str = "binocular"):
+def _graph_main_sequence(ax, sac_df, include_blink_sac: bool | str = False, by_eye: str = "all"):
     """
     Helperfunction: draw the main-sequence scatter (amplitude vs. peak velocity,
     log-log) onto `ax`.
@@ -130,7 +133,7 @@ def _graph_main_sequence(ax, sac_df, include_blink_sac: bool | str = False, by_e
         include_blink_sac (bool | str): False excludes blink saccades,
             'highlight' marks them, True includes them without marking. Defaults to False.
         by_eye (str): 'all' plots one colour per eye; otherwise a single group.
-            Defaults to 'binocular'.
+            Defaults to 'all'.
     """
     # determine whether this is a comparison plot (df contains 'processing_stage' column) or a single plot
     comparison = "processing_stage" in sac_df.columns
@@ -266,7 +269,7 @@ def _graph_fixation_duration(ax, fix_df, fix_after=None, fix_dur_min: float | No
 # =============================================================================
 # Fixation frequency
 # =============================================================================
-def _graph_fixation_frequency(ax, fix_df, fix_after=None):
+def _graph_fixation_frequency(ax, fix_df, fix_after=None, subject_col=None):
     """
     Helperfunction: draw the fixation-frequency histogram (fixations per second)
     onto `ax`. Single histogram when fix_after is None; stacked before/after otherwise.
@@ -275,13 +278,33 @@ def _graph_fixation_frequency(ax, fix_df, fix_after=None):
         ax: Matplotlib axis to draw on.
         fix_df (pd.DataFrame): fixation events (single, or the 'before' stage).
         fix_after (pd.DataFrame, optional): fixation events for the 'after' stage. Defaults to None.
+        subject_col (str, optional): name of the column identifying the subject, for data
+            frames that combine several subjects (e.g. 'subject', 'sub-id'). Defaults to None (single subject). 
+            If None, possible subject column is used automatically (error if several match). Pass False to ignore subjects.
     """
 
+    if subject_col is None:
+        possible_sub_col = [c for c in ("subject", "subject_id", "subject_nr", "sub", "participant", "participant_id") if c in fix_df.columns]
+        if len(possible_sub_col) == 1:
+            subject_col = possible_sub_col[0]
+            logger.warning(f"Fixation frequency: no subject_col given but possible subject column found; "
+                           f"using column '{subject_col}' as subject column. "
+                           f"Pass subject_col=False to ignore them."
+            )
+        elif len(possible_sub_col) > 1:
+            raise ValueError(f"Fixation frequency: several possible subject columns found: {possible_sub_col}. "
+                   f"Pass subject_col=... to choose one or subject_col=False to ignore them.")
+
     def per_sec(df):
-        # onset is in SECONDS -> floor to the integer second, then count fixations per second
-        sec = df["onset"].floordiv(1).astype(int)
-        full = np.arange(int(df["onset"].min()), int(df["onset"].max()) + 1)
-        return sec.value_counts().reindex(full, fill_value=0).sort_index()
+        # onset is in SECONDS -> floor to the integer second, then count fixations per second,
+        # group for every eye (and subject); the per-group counts are pooled
+        group_cols = ["eye"] if not subject_col else [subject_col, "eye"]
+        pooled = []
+        for _, g in df.groupby(group_cols):
+            sec = g["onset"].floordiv(1).astype(int)
+            full = np.arange(int(g["onset"].min()), int(g["onset"].max()) + 1)
+            pooled.append(sec.value_counts().reindex(full, fill_value=0))
+        return pd.concat(pooled, ignore_index=True)
 
     # single figure
     if fix_after is None:

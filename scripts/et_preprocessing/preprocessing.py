@@ -215,6 +215,16 @@ def annotate_blink_saccades_in_df(
     sac_mask = events["trial_type"] == "saccade"
     blinks = events.loc[events["trial_type"] == "blink"]
 
+    #  warning if the input don't contain any blinks
+    if blinks.empty:
+        logger.warning(
+            "The events dataframe contains no blink events."
+        )
+    if not sac_mask.any():
+        logger.warning(
+            "The events dataframe contains no saccade events."
+        )
+
     # One (onset, end_time) array PER EYE, blinks sorted by onset within each eye.
     empty = np.empty((0, 2), dtype=float)
     blinks_by_eye = {}
