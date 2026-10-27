@@ -64,7 +64,7 @@ def load_subject_tsv(
 
 # Preprocessing: Merge fixation candidates
 # =============================================================================
-def merge_fixation_candidates(events, a_min=A_MIN, temporal_merge_threshold=50):
+def merge_fixation_candidates(events, a_min=A_MIN, binocularity_criterion = True, binocular_matching_tolerance = 20, temporal_merge_threshold=50):
     """
     Stage 1 of the selection procedure of Hooge et al. (2022) (using only an amplitude criterion).
     Drops saccades that are smaller than `a_min`, then merges the fixations left adjacent (if they
@@ -75,6 +75,10 @@ def merge_fixation_candidates(events, a_min=A_MIN, temporal_merge_threshold=50):
             trial_type, eye, fix_avg_x, fix_avg_y, fix_avg_pupil_size,
             sacc_visual_angle. Times in seconds, positions in pixels.
         a_min (float): minimal saccade amplitude in degrees.
+        binocularity_criterion (bool, default: True): whether to exclude saccades that do
+            not have a matching saccade in the opposite eye.
+        binocular_matching_tolerance (float, default: 20): Only used if binocularity_criterion for saccade selection is used.
+            Maximum permitted difference, in milliseconds, for both onset and end times of matching binocular events. Must be non-negative.
         temporal_merge_threshold (float, optional): maximal time gap between
              two fixations for them to merge, in MILLISECONDS. Defaults to 50 ms.
 
@@ -96,18 +100,35 @@ def merge_fixation_candidates(events, a_min=A_MIN, temporal_merge_threshold=50):
     # Sort by eye and onset to prevent cross-eye merging
     events = events.sort_values(["eye", "onset"]).reset_index(drop=True)
 
+    # Annotate binocular matching events
+    if binocularity_criterion:
+        if not "has_match" in events.columns:
+            logger.info(f"Annotate events whether they have a matching event in the opposite eye (with an absolute onset/offset time diff tolerance of {binocular_matching_tolerance} ms).")
+            events = annotate_matching_binocular_events(events, tolerance_ms = binocular_matching_tolerance, select_candidate=True, reset_non_reciprocal_matches=True)
+             
+
     n_before = (events["trial_type"] == "saccade").sum()
 
-    # Drop saccades that are BOTH below amplitude AND duration threshold
-    events = events[
-        ~(
-            (events["trial_type"] == "saccade")
-            & (events["sacc_visual_angle"] < a_min)
-        )
-    ].reset_index(drop=True)
+    # Drop saccades that are below amplitude threshold (or not binocular)
+    if binocularity_criterion:
+        events = events[
+            ~(
+                (events["trial_type"] == "saccade")
+                & ((events["sacc_visual_angle"] < a_min) | (events["has_match"] == False))
+            )
+        ].reset_index(drop=True)
+
+    else:
+        events = events[
+            ~(
+                (events["trial_type"] == "saccade")
+                & (events["sacc_visual_angle"] < a_min)
+            )
+        ].reset_index(drop=True)
+
     n_dropped = n_before - (events["trial_type"] == "saccade").sum()
     logger.info(
-        f"Dropped {n_dropped} saccades (amplitude < {a_min}°)"
+        f"Dropped {n_dropped} saccades (amplitude < {a_min}° or not binocular (if using binocularity criterion))"
     )
 
     rows_to_keep = []
@@ -255,11 +276,11 @@ def annotate_blink_saccades_in_df(
 # Preprocessing: Annotate matching binocular events
 # =============================================================================
 
-def annotate_matching_binocular_events(events_df, tolerance = 0.02, select_candidate=True, reset_non_reciprocal_matches=True):
+def annotate_matching_binocular_events(events_df, tolerance_ms = 20, select_candidate=True, reset_non_reciprocal_matches=True):
     """Annotate events whether they have a matching event in the opposite eye.
 
     A candidate must have the same ``trial_type`` and an absolute difference in
-    both onset and end time no greater than ``tolerance`` seconds. If multiple
+    both onset and end time no greater than ``tolerance_ms`` milliseconds. If multiple
     candidates qualify and ``select_candidate=True``, the candidate with the
     smallest sum of absolute onset and end-time differences is selected. If
     ``select_candidate=False``, all candidates and their scores are retained
@@ -272,8 +293,8 @@ def annotate_matching_binocular_events(events_df, tolerance = 0.02, select_candi
         Events to annotate. Must contain ``onset``, ``end_time``,
         ``trial_type``, and ``eye`` columns. Eye values must be ``"L"`` or
         ``"R"``.
-    tolerance : float, default=0.02
-        Maximum permitted difference, in seconds, for both onset and end
+    tolerance_ms : float, default=20
+        Maximum permitted difference, in milliseconds, for both onset and end
         times. Must be non-negative.
     select_candidate: bool, default=True
         Whether to select the lowest-score candidate when multiple candidates qualify. 
@@ -299,8 +320,10 @@ def annotate_matching_binocular_events(events_df, tolerance = 0.02, select_candi
         ``matching_event`` and ``NaN`` for ``matching_score``.
     """
 
-    if tolerance < 0:
-        raise ValueError("Tolerance must be a non-negative value in seconds.")
+    if type(tolerance_ms) not in [int, float] or tolerance_ms < 0:
+        raise ValueError("Tolerance must be a non-negative value (int or float) in milliseconds.")
+    else:
+        tolerance = tolerance_ms / 1000 # convert to seconds
 
     # Copy original data frame and sort by onset
     output_df = events_df.copy().sort_values("onset", kind="stable").reset_index(drop=True)

@@ -143,7 +143,7 @@ def run_preprocessing(subject_id: str, overwrite: bool) -> bool:
     """
     1. Load events: sub-XXX_ses-001_task-freeviewing_et_events.tsv
     2. Annotate blink saccades
-    3. Annotate binocular matching events
+    3. Check binocular merging criterion + tolerance level
     4. Run the two-stage merge
     5. Save preprocessed events to TSV in out_dir
     6. Pre/post-merge eye trace + summary comparison figures
@@ -181,16 +181,13 @@ def run_preprocessing(subject_id: str, overwrite: bool) -> bool:
     events_raw = annotate_blink_saccades_in_df(events_raw, window_ms=config.BLINK_WINDOW_MS)
     events_raw = calculate_saccade_angle_in_df(events_raw)
 
-    # 3. Annotate binocular matching events
-    if config.BINOCULAR_MATCHING:
-        if isinstance(config.BINOCULAR_TOLERANCE, (int, float)):
-            binocular_tolerance = config.BINOCULAR_TOLERANCE / 1000 # convert to seconds
+    # 3. Check binocular merging criterion + tolerance level
+    if config.BINOCULARITY_CRITERION:
+        if isinstance(config.BINOCULAR_MATCHING_TOLERANCE, (int, float)):
+            binocular_matching_tolerance = config.BINOCULAR_MATCHING_TOLERANCE
         else:
-            logger.warning(f"BINOCULAR_TOLERANCE is not a number: {type(config.BINOCULAR_TOLERANCE)}. BINOCULAR_TOLERANCE will be set to 20 ms.")
-            binocular_tolerance = 20 / 1000 # convert to seconds
-
-        logger.info(f"Annotate events whether they have a matching event in the opposite eye (with an absolute onset/offset time diff tolerance of {config.BINOCULAR_TOLERANCE} ms).")
-        events_raw = annotate_matching_binocular_events(events_raw, tolerance = binocular_tolerance, select_candidate=True, reset_non_reciprocal_matches=True)
+            logger.warning(f"BINOCULAR_MATCHING_TOLERANCE is not a number: {type(config.BINOCULAR_MATCHING_TOLERANCE)}. BINOCULAR_MATCHING_TOLERANCE will be set to 20 ms.")
+            binocular_matching_tolerance = 20
 
     # 4a. Hooge et al. (2022), Stage 1
     # Saccades which are below a certain amplitude are dropped
@@ -204,11 +201,28 @@ def run_preprocessing(subject_id: str, overwrite: bool) -> bool:
         logger.warning(f"TEMPORAL_MERGE_THRESHOLD is not a number: {type(config.TEMPORAL_MERGE_THRESHOLD)}. TEMPORAL_MERGE_THRESHOLD will be set to 50 ms.")
         temporal_merge_threshold = 50
         
-    events_merged = merge_fixation_candidates(
-        events_raw,
-        a_min=config.A_MIN,
-        temporal_merge_threshold=temporal_merge_threshold
+    logger.info(
+        f"Dropping saccades & merging surrounding fixations"
+        f"(a_min={config.A_MIN}°, "
+        f"t_min_fix={config.T_MIN_FIX} ms, "
+        f"binocularity_criterion={config.BINOCULARITY_CRITERION}, "
     )
+
+    if config.BINOCULARITY_CRITERION:
+        events_merged = merge_fixation_candidates(
+            events_raw,
+            a_min=config.A_MIN,
+            binocularity_criterion=True,
+            binocular_matching_tolerance=binocular_matching_tolerance,
+            temporal_merge_threshold=temporal_merge_threshold
+        )
+    else:
+        events_merged = merge_fixation_candidates(
+            events_raw,
+            a_min=config.A_MIN,
+            binocularity_criterion=False,
+            temporal_merge_threshold=temporal_merge_threshold
+        )
 
     # 4b. Hooge et al. (2022), Stage 2
     # Fixations shorter than the specified threshold are dropped from the events dataframe.
