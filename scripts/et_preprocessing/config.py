@@ -36,7 +36,7 @@ INPUT_SUBDIR = "eeg"
 # INPUT_SUFFIX = "et_events"
 INPUT_SUFFIX = "events"
 
-OUTPUT_DERIVATIVE = "et-preprocessing"
+OUTPUT_DERIVATIVE = "test-annotate-binocular-matching-events"
 OUTPUT_SUBDIR = "eeg"
 OUTPUT_SUFFIX = "events"
 
@@ -53,7 +53,8 @@ RUN = 1
 # Default subject list processed when no --subjects argument is given: 
 # Format: list of strings, e.g. ["005", "006", "007"] or ["all"] for all subjects in the dataset. 
 # The subject list is used to find the input files in DATA_ROOT/sub-XXX/ses-001/misc/sub-XXX_ses-001_task-freeviewing_et_events.tsv
-SUBJECTS = ["all"]
+#SUBJECTS = ["all"]
+SUBJECTS = ["038"]
 #SUBJECTS = ["007","029","061"]
 # ["005"]
 # [ "005", "006", "007", "009", "010", "011", "013", "016", "017", "018", "021", "022", "024", "025", "029", "030", "034", "035", "038", "043", "045", "060"]
@@ -71,9 +72,9 @@ SCREEN_DIST_M = 0.729  # in metres
 # Half-window in ms around each blink event for flagging saccades as "blink saccade" in annotate_blink_saccades_in_df().
 BLINK_WINDOW_MS = 50.0
 
-# Whether to annotate whether ET events match in both eyes
-BINOCULAR_MATCHING = True
-TEMPORAL_MERGE_THRESHOLD = 20
+ # Whether to use non-binocularity as an exclusion criterion for saccades
+BINOCULARITY_CRITERION = True
+BINOCULAR_MATCHING_TOLERANCE = 20 # (in ms);  maximum allowed absolute difference in both onset and end time for two events to be labelled as matching
 
 # Minimum saccade amplitude threshold (degrees)
 # s. Hooge et al. (2022), Stage 1.
