@@ -79,7 +79,7 @@ def merge_fixation_candidates(events, a_min=A_MIN, binocularity_criterion = True
             not have a matching saccade in the opposite eye.
         binocular_matching_tolerance (float, default: 20): Only used if binocularity_criterion for saccade selection is used.
             Maximum permitted difference, in milliseconds, for both onset and end times of matching binocular events. Must be non-negative.
-        temporal_merge_threshold (float, optional): maximal time gap between
+        temporal_merge_threshold (float): maximal time gap between
              two fixations for them to merge, in MILLISECONDS.
         spatial_merge_threshold (float): Maximal Euclidean distance (in pixels) between two fixations for them to merge. 
 
