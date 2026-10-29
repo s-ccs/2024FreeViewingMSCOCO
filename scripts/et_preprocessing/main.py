@@ -19,6 +19,7 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import pandas as pd
+import numpy as np
 
 import config
 from preprocessing import (
@@ -26,7 +27,7 @@ from preprocessing import (
     merge_fixation_candidates,
     annotate_blink_saccades_in_df,
     calculate_saccade_angle_in_df,
-    annotate_matching_binocular_events
+    deg_to_px,
 )
 from plotting import (
     plot_eye_trace_pre_post_processing,
@@ -200,6 +201,14 @@ def run_preprocessing(subject_id: str, overwrite: bool) -> bool:
     else:
         logger.warning(f"TEMPORAL_MERGE_THRESHOLD is not a number: {type(config.TEMPORAL_MERGE_THRESHOLD)}. TEMPORAL_MERGE_THRESHOLD will be set to 50 ms.")
         temporal_merge_threshold = 50
+
+    # Calculate pixel density for conversion from pixels to dva (take mean over x and y dimension as approximation)
+    px_per_mm = np.mean(np.array(config.SCREEN_RES) / np.array(config.SCREEN_SIZE_MM))
+    if isinstance(config.SPATIAL_MERGE_THRESHOLD, (int, float)):
+        spatial_merge_threshold = deg_to_px(config.SPATIAL_MERGE_THRESHOLD, config.SCREEN_DIST_MM, px_per_mm)
+    else:
+        logger.warning(f"SPATIAL_MERGE_THRESHOLD is not a number: {type(config.SPATIAL_MERGE_THRESHOLD)}. SPATIAL_MERGE_THRESHOLD will be set to 1°.")
+        spatial_merge_threshold = deg_to_px(1, config.SCREEN_DIST_MM, px_per_mm)
         
     logger.info(
         f"Dropping saccades & merging surrounding fixations"
@@ -214,14 +223,16 @@ def run_preprocessing(subject_id: str, overwrite: bool) -> bool:
             a_min=config.A_MIN,
             binocularity_criterion=True,
             binocular_matching_tolerance=binocular_matching_tolerance,
-            temporal_merge_threshold=temporal_merge_threshold
+            temporal_merge_threshold=temporal_merge_threshold,
+            spatial_merge_threshold=spatial_merge_threshold,
         )
     else:
         events_merged = merge_fixation_candidates(
             events_raw,
             a_min=config.A_MIN,
             binocularity_criterion=False,
-            temporal_merge_threshold=temporal_merge_threshold
+            temporal_merge_threshold=temporal_merge_threshold,
+            spatial_merge_threshold=spatial_merge_threshold,
         )
 
     # 4b. Hooge et al. (2022), Stage 2
