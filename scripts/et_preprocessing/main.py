@@ -194,7 +194,7 @@ def run_preprocessing(subject_id: str, overwrite: bool) -> bool:
     # Saccades which are below a certain amplitude are dropped
     # and the surrounding fixations are merged
     logger.info(
-        f"Dropping saccades below amplitude a_min={config.A_MIN}°... "
+        f"Dropping saccades below amplitude a_min={config.A_MIN}° (+ using binocularity criterion = {config.BINOCULARITY_CRITERION})... "
         )
     if isinstance(config.TEMPORAL_MERGE_THRESHOLD, (int, float)):
         temporal_merge_threshold = config.TEMPORAL_MERGE_THRESHOLD
@@ -211,10 +211,9 @@ def run_preprocessing(subject_id: str, overwrite: bool) -> bool:
         spatial_merge_threshold = deg_to_px(1, config.SCREEN_DIST_MM, px_per_mm)
         
     logger.info(
-        f"Dropping saccades & merging surrounding fixations"
-        f"(a_min={config.A_MIN}°, "
-        f"t_min_fix={config.T_MIN_FIX} ms, "
-        f"binocularity_criterion={config.BINOCULARITY_CRITERION}, "
+        f"Merging surrounding fixations using the following parameters:"
+        f"Temporal merge threshold (between subsequent fixations): {temporal_merge_threshold} ms, "
+        f"Spatial merge threshold (Distance to first fixation in merging cluster): {spatial_merge_threshold} pixels "
     )
 
     if config.BINOCULARITY_CRITERION:
