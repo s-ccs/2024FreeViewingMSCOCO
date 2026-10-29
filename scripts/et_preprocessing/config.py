@@ -62,9 +62,9 @@ SUBJECTS = ["all"]
 # Screen / hardware specs
 # =============================================================================
 # For more accessible documentation in config file
-SCREEN_RES = (1920, 1080)
-SCREEN_SIZE_M = (0.552, 0.307)  # in metres (width, height)
-SCREEN_DIST_M = 0.729  # in metres
+SCREEN_RES = [1920, 1080]
+SCREEN_SIZE_MM = [552, 307]  # in mm (width, height)
+SCREEN_DIST_MM = 729  # in mm
 
 # Preprocessing
 # =============================================================================
@@ -80,6 +80,7 @@ BINOCULAR_MATCHING_TOLERANCE = 20 # (in ms);  maximum allowed absolute differenc
 A_MIN = 0.5 # Saccades smaller than this are dropped.
 T_MIN_FIX = 60
 TEMPORAL_MERGE_THRESHOLD = 50 # must be integer or float (in ms); only fixations with a time difference < TEMPORAL_MERGE_THRESHOLD will be merged.
+SPATIAL_MERGE_THRESHOLD = 1 # must be integer of float (in °); only fixations with a spatial distance < SPATIAL_MERGE_THRESHOLD will be merged
 
 # Generate Report (boolean): creates an html report
 REPORT = True

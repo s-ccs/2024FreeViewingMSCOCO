@@ -64,9 +64,9 @@ def load_subject_tsv(
 
 # Preprocessing: Merge fixation candidates
 # =============================================================================
-def merge_fixation_candidates(events, a_min=A_MIN, binocularity_criterion = True, binocular_matching_tolerance = 20, temporal_merge_threshold=50):
+def merge_fixation_candidates(events, a_min=A_MIN, binocularity_criterion = True, binocular_matching_tolerance = 20, temporal_merge_threshold=50, spatial_merge_threshold=44.5):
     """
-    Stage 1 of the selection procedure of Hooge et al. (2022) (using only an amplitude criterion).
+    Adapted version of stage 1 of the selection procedure of Hooge et al. (2022) (using only an amplitude criterion).
     Drops saccades that are smaller than `a_min`, then merges the fixations left adjacent (if they
     are close enough in time and space).
 
@@ -81,6 +81,8 @@ def merge_fixation_candidates(events, a_min=A_MIN, binocularity_criterion = True
             Maximum permitted difference, in milliseconds, for both onset and end times of matching binocular events. Must be non-negative.
         temporal_merge_threshold (float, optional): maximal time gap between
              two fixations for them to merge, in MILLISECONDS. Defaults to 50 ms.
+        spatial_merge_threshold (float, optional): Maximal Euclidean distance (in pixels) between two fixations for them to merge. 
+            Defaults to 44.5 pixels (which corresponds to ~1° in our setup).
 
     Returns:
         pd.DataFrame: events after the drop and merge, sorted by onset.
@@ -143,7 +145,8 @@ def merge_fixation_candidates(events, a_min=A_MIN, binocularity_criterion = True
             and events.iloc[i]["trial_type"] == "fixation" # if the current row is a fixation
             and events.iloc[i + 1]["trial_type"] == "fixation" # if the next row is also a fixation
             and events.iloc[i]["eye"] == events.iloc[i + 1]["eye"] # if the current row and the next row are from the same eye
-            and events.iloc[i+1]["onset"]-events.iloc[i]["end_time"] < temporal_merge_threshold # if the gap between the current row and the next row is less than the merge threshold
+            and events.iloc[i+1]["onset"]-events.iloc[i]["end_time"] < temporal_merge_threshold # if the gap between the current row and the next row is less than the merge threshold (temporal & spatial)
+            and euclidean_distance(events.iloc[i+1], events.iloc[i]) < spatial_merge_threshold
         ):
             j = i + 1
             duration_sum = current_row["duration"]
@@ -152,6 +155,7 @@ def merge_fixation_candidates(events, a_min=A_MIN, binocularity_criterion = True
                 and events.iloc[j]["trial_type"] == "fixation"
                 and events.iloc[j]["eye"] == current_row["eye"]
                 and events.iloc[j]["onset"]-events.iloc[j-1]["end_time"] < temporal_merge_threshold # if the gap between the current row and the next row is less than the merge threshold
+                and euclidean_distance(events.iloc[j], events.iloc[i]) < spatial_merge_threshold # check if the distance between the current fixation and the first fixation in the cluster is below threshold
             ):
                 next_row = events.iloc[j]
                 # full span from the first onset to the last end_time and therefore includes the removed saccades
@@ -410,3 +414,21 @@ def annotate_matching_binocular_events(events_df, tolerance_ms = 20, select_cand
         output_df.loc[~reciprocal, "matching_score"] = np.nan
             
     return output_df
+
+
+# Helper functions
+# =============================================================================
+
+def deg_to_px(size_deg, screen_distance_mm, px_per_mm):
+    """Convert a visual angle in degrees to pixels based on screen distance and pixel density."""
+    size_rad = np.radians(size_deg)
+    size_mm = np.tan(size_rad) * screen_distance_mm
+    size_px = size_mm * px_per_mm
+
+    return size_px
+
+def euclidean_distance(fix_1, fix_2):
+    """Calculate the Euclidean distance between two fixation points given as dataframe rows."""
+    p1 = np.array([fix_1['fix_avg_x'], fix_1['fix_avg_y']])
+    p2 = np.array([fix_2['fix_avg_x'], fix_2['fix_avg_y']])
+    return np.linalg.norm(p1 - p2)
