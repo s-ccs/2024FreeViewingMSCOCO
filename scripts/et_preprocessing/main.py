@@ -19,6 +19,7 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import pandas as pd
+import numpy as np
 
 import config
 from preprocessing import (
@@ -26,7 +27,7 @@ from preprocessing import (
     merge_fixation_candidates,
     annotate_blink_saccades_in_df,
     calculate_saccade_angle_in_df,
-    annotate_matching_binocular_events
+    deg_to_px,
 )
 from plotting import (
     plot_eye_trace_pre_post_processing,
@@ -193,19 +194,26 @@ def run_preprocessing(subject_id: str, overwrite: bool) -> bool:
     # Saccades which are below a certain amplitude are dropped
     # and the surrounding fixations are merged
     logger.info(
-        f"Dropping saccades below amplitude a_min={config.A_MIN}°... "
+        f"Dropping saccades below amplitude a_min={config.A_MIN}° (+ using binocularity criterion = {config.BINOCULARITY_CRITERION})... "
         )
     if isinstance(config.TEMPORAL_MERGE_THRESHOLD, (int, float)):
         temporal_merge_threshold = config.TEMPORAL_MERGE_THRESHOLD
     else:
         logger.warning(f"TEMPORAL_MERGE_THRESHOLD is not a number: {type(config.TEMPORAL_MERGE_THRESHOLD)}. TEMPORAL_MERGE_THRESHOLD will be set to 50 ms.")
         temporal_merge_threshold = 50
+
+    # Calculate pixel density for conversion from pixels to dva (take mean over x and y dimension as approximation)
+    px_per_mm = np.mean(np.array(config.SCREEN_RES) / np.array(config.SCREEN_SIZE_MM))
+    if isinstance(config.SPATIAL_MERGE_THRESHOLD, (int, float)):
+        spatial_merge_threshold = deg_to_px(config.SPATIAL_MERGE_THRESHOLD, config.SCREEN_DIST_MM, px_per_mm)
+    else:
+        logger.warning(f"SPATIAL_MERGE_THRESHOLD is not a number: {type(config.SPATIAL_MERGE_THRESHOLD)}. SPATIAL_MERGE_THRESHOLD will be set to 1°.")
+        spatial_merge_threshold = deg_to_px(1, config.SCREEN_DIST_MM, px_per_mm)
         
     logger.info(
-        f"Dropping saccades & merging surrounding fixations"
-        f"(a_min={config.A_MIN}°, "
-        f"t_min_fix={config.T_MIN_FIX} ms, "
-        f"binocularity_criterion={config.BINOCULARITY_CRITERION}, "
+        f"Merging surrounding fixations using the following parameters:"
+        f"Temporal merge threshold (between subsequent fixations): {temporal_merge_threshold} ms, "
+        f"Spatial merge threshold (Distance to first fixation in merging cluster): {spatial_merge_threshold} pixels "
     )
 
     if config.BINOCULARITY_CRITERION:
@@ -214,14 +222,16 @@ def run_preprocessing(subject_id: str, overwrite: bool) -> bool:
             a_min=config.A_MIN,
             binocularity_criterion=True,
             binocular_matching_tolerance=binocular_matching_tolerance,
-            temporal_merge_threshold=temporal_merge_threshold
+            temporal_merge_threshold=temporal_merge_threshold,
+            spatial_merge_threshold=spatial_merge_threshold,
         )
     else:
         events_merged = merge_fixation_candidates(
             events_raw,
             a_min=config.A_MIN,
             binocularity_criterion=False,
-            temporal_merge_threshold=temporal_merge_threshold
+            temporal_merge_threshold=temporal_merge_threshold,
+            spatial_merge_threshold=spatial_merge_threshold,
         )
 
     # 4b. Hooge et al. (2022), Stage 2
