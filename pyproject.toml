@@ -14,6 +14,15 @@ dependencies = [
     "pyprep>=0.6.0",
 ]
 
+[dependency-groups]
+dev = [
+    "pytest>=8",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["scripts/et_preprocessing/tests"]
+pythonpath = ["scripts/et_preprocessing"]
+
 [tool.uv.workspace]
 members = [
     "mne-bids-eyetracking-pipeline",

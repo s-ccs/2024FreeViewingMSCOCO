@@ -23,6 +23,7 @@ from pathlib import Path
 # =============================================================================
 # Root directory of the BIDS dataset.
 DATA_ROOT = Path("/scratch/data/2024FreeViewingMSCOCO")
+DATA_ROOT = Path("./data/") # local path for testing
 # DATA_ROOT = Path(
 #      r"C:\Users\chris\Documents\ArbeitUni\VIS_S-CCS\FreeViewing\BIDS")  # TBD: Delete later
 
