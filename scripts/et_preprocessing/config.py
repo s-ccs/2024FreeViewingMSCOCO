@@ -62,20 +62,25 @@ SUBJECTS = ["all"]
 # Screen / hardware specs
 # =============================================================================
 # For more accessible documentation in config file
-SCREEN_RES = (1920, 1080)
-SCREEN_SIZE_M = (0.552, 0.307)  # in metres (width, height)
-SCREEN_DIST_M = 0.729  # in metres
+SCREEN_RES = [1920, 1080]
+SCREEN_SIZE_MM = [552, 307]  # in mm (width, height)
+SCREEN_DIST_MM = 729  # in mm
 
 # Preprocessing
 # =============================================================================
 # Half-window in ms around each blink event for flagging saccades as "blink saccade" in annotate_blink_saccades_in_df().
 BLINK_WINDOW_MS = 50.0
 
+ # Whether to use non-binocularity as an exclusion criterion for saccades
+BINOCULARITY_CRITERION = True
+BINOCULAR_MATCHING_TOLERANCE = 20 # (in ms);  maximum allowed absolute difference in both onset and end time for two events to be labelled as matching
+
 # Minimum saccade amplitude threshold (degrees)
 # s. Hooge et al. (2022), Stage 1.
-A_MIN = 0.5 # Saccades smaller than this AND shorter than T_min are dropped. T_min = 2.2 · A_MIN + 27
+A_MIN = 0.5 # Saccades smaller than this are dropped.
 T_MIN_FIX = 60
-MERGE_THRESHOLD = 100 # must be integer or float (in ms); only fixations with a time difference < MERGE_THRESHOLD will be merged. Set to 'None' if T_MIN_SAC should be used as threshold.
+TEMPORAL_MERGE_THRESHOLD = 50 # must be integer or float (in ms); only fixations with a time difference < TEMPORAL_MERGE_THRESHOLD will be merged.
+SPATIAL_MERGE_THRESHOLD = 1 # must be integer of float (in °); only fixations with a spatial distance < SPATIAL_MERGE_THRESHOLD will be merged
 
 # Generate Report (boolean): creates an html report
 REPORT = True

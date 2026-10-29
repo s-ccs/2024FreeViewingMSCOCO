@@ -19,13 +19,15 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import pandas as pd
+import numpy as np
 
 import config
 from preprocessing import (
     load_subject_tsv,
     merge_fixation_candidates,
     annotate_blink_saccades_in_df,
-    calculate_saccade_angle_in_df
+    calculate_saccade_angle_in_df,
+    deg_to_px,
 )
 from plotting import (
     plot_eye_trace_pre_post_processing,
@@ -141,9 +143,12 @@ def subject_paths(subject_id: str) -> dict:
 def run_preprocessing(subject_id: str, overwrite: bool) -> bool:
     """
     1. Load events: sub-XXX_ses-001_task-freeviewing_et_events.tsv
-    2. Run the two-stage merge + save to merged TSV: sub-XXX_ses-001_task-freeviewing_et_events_merged.tsv
-    3. pre/post-merge eye trace comparison figure.
-    4. report generation
+    2. Annotate blink saccades
+    3. Check binocular merging criterion + tolerance level
+    4. Run the two-stage merge
+    5. Save preprocessed events to TSV in out_dir
+    6. Pre/post-merge eye trace + summary comparison figures
+    7. Report generation
 
     Args:
         subject_id (str): subject ID (zero-padded)
@@ -177,25 +182,59 @@ def run_preprocessing(subject_id: str, overwrite: bool) -> bool:
     events_raw = annotate_blink_saccades_in_df(events_raw, window_ms=config.BLINK_WINDOW_MS)
     events_raw = calculate_saccade_angle_in_df(events_raw)
 
-    # 3a. Hooge et al. (2022), Stage 1
-    # Saccades which are below a certain amplitude and duration are dropped
+    # 3. Check binocular merging criterion + tolerance level
+    if config.BINOCULARITY_CRITERION:
+        if isinstance(config.BINOCULAR_MATCHING_TOLERANCE, (int, float)):
+            binocular_matching_tolerance = config.BINOCULAR_MATCHING_TOLERANCE
+        else:
+            logger.warning(f"BINOCULAR_MATCHING_TOLERANCE is not a number: {type(config.BINOCULAR_MATCHING_TOLERANCE)}. BINOCULAR_MATCHING_TOLERANCE will be set to 20 ms.")
+            binocular_matching_tolerance = 20
+
+    # 4a. Hooge et al. (2022), Stage 1
+    # Saccades which are below a certain amplitude are dropped
     # and the surrounding fixations are merged
     logger.info(
-        f"Dropping saccades below amplitude a_min={config.A_MIN}°... "
+        f"Dropping saccades below amplitude a_min={config.A_MIN}° (+ using binocularity criterion = {config.BINOCULARITY_CRITERION})... "
         )
-    if isinstance(config.MERGE_THRESHOLD, (int, float)):
-        merge_threshold = config.MERGE_THRESHOLD
+    if isinstance(config.TEMPORAL_MERGE_THRESHOLD, (int, float)):
+        temporal_merge_threshold = config.TEMPORAL_MERGE_THRESHOLD
     else:
-        logger.warning(f"MERGE_THRESHOLD is not a number: {type(config.MERGE_THRESHOLD)}. MERGE_THRESHOLD will be set to 'None'")
-        merge_threshold = None
+        logger.warning(f"TEMPORAL_MERGE_THRESHOLD is not a number: {type(config.TEMPORAL_MERGE_THRESHOLD)}. TEMPORAL_MERGE_THRESHOLD will be set to 50 ms.")
+        temporal_merge_threshold = 50
 
-    events_merged = merge_fixation_candidates(
-        events_raw,
-        a_min=config.A_MIN,
-        merge_threshold=merge_threshold
+    # Calculate pixel density for conversion from pixels to dva (take mean over x and y dimension as approximation)
+    px_per_mm = np.mean(np.array(config.SCREEN_RES) / np.array(config.SCREEN_SIZE_MM))
+    if isinstance(config.SPATIAL_MERGE_THRESHOLD, (int, float)):
+        spatial_merge_threshold = deg_to_px(config.SPATIAL_MERGE_THRESHOLD, config.SCREEN_DIST_MM, px_per_mm)
+    else:
+        logger.warning(f"SPATIAL_MERGE_THRESHOLD is not a number: {type(config.SPATIAL_MERGE_THRESHOLD)}. SPATIAL_MERGE_THRESHOLD will be set to 1°.")
+        spatial_merge_threshold = deg_to_px(1, config.SCREEN_DIST_MM, px_per_mm)
+        
+    logger.info(
+        f"Merging surrounding fixations using the following parameters:"
+        f"Temporal merge threshold (between subsequent fixations): {temporal_merge_threshold} ms, "
+        f"Spatial merge threshold (Distance to first fixation in merging cluster): {spatial_merge_threshold} pixels "
     )
 
-    # 3b. Hooge et al. (2022), Stage 2
+    if config.BINOCULARITY_CRITERION:
+        events_merged = merge_fixation_candidates(
+            events_raw,
+            a_min=config.A_MIN,
+            binocularity_criterion=True,
+            binocular_matching_tolerance=binocular_matching_tolerance,
+            temporal_merge_threshold=temporal_merge_threshold,
+            spatial_merge_threshold=spatial_merge_threshold,
+        )
+    else:
+        events_merged = merge_fixation_candidates(
+            events_raw,
+            a_min=config.A_MIN,
+            binocularity_criterion=False,
+            temporal_merge_threshold=temporal_merge_threshold,
+            spatial_merge_threshold=spatial_merge_threshold,
+        )
+
+    # 4b. Hooge et al. (2022), Stage 2
     # Fixations shorter than the specified threshold are dropped from the events dataframe.
     if config.T_MIN_FIX is not None:
         t_min_fix_s = config.T_MIN_FIX / 1000.0
@@ -215,12 +254,12 @@ def run_preprocessing(subject_id: str, overwrite: bool) -> bool:
             f"Dropped {len(idx_drop_fix)}/{n_fix_before} fixations (sum for both eyes) with a duration below {config.T_MIN_FIX:.0f} ms."
             )
 
-    # Save
+    # 5. Save
     os.makedirs(paths["out_dir"], exist_ok=True)
     events_merged.to_csv(paths["out_tsv"], sep="\t", index=False)
     logger.info(f"--> Saved merged TSV: {paths['out_tsv']}")
 
-    # 4. pre/post-merge eye trace comparison
+    # 6a. pre/post-merge eye trace comparison
     os.makedirs(paths["plots_dir"], exist_ok=True)
     logger.info("Plotting eye trace comparison...")
     plot_eye_trace_pre_post_processing(
@@ -233,7 +272,7 @@ def run_preprocessing(subject_id: str, overwrite: bool) -> bool:
         top_n=3,
     )
 
-    # 5. before/after summary comparison (needs both raw + merged data)
+    # 6b. before/after summary comparison (needs both raw + merged data)
     logger.info("Plotting before/after summary comparison...")
     fig = plot_summary_comparison(
         events_before=events_raw,
@@ -249,6 +288,7 @@ def run_preprocessing(subject_id: str, overwrite: bool) -> bool:
     )
     plt.close(fig)
 
+    # 7. Report generation
     if config.REPORT:
         logger.info("Generating Subject Report...")
         generate_report(
