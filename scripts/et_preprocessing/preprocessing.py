@@ -179,6 +179,7 @@ def merge_fixation_candidates(events, a_min=A_MIN, binocularity_criterion = True
             i += 1
 
     merged_events = pd.DataFrame(rows_to_keep)
+    merged_events.drop(columns=["has_match", "matching_event", "matching_score"], inplace=True) # Drop columns related to binocularity criterion
     merged_events = merged_events.sort_values(["onset", "eye"]).reset_index(drop=True)
 
     return merged_events
