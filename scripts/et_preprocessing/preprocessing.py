@@ -64,7 +64,7 @@ def load_subject_tsv(
 
 # Preprocessing: Merge fixation candidates
 # =============================================================================
-def merge_fixation_candidates(events, a_min=A_MIN, binocularity_criterion = True, binocular_matching_tolerance = 20, temporal_merge_threshold=50, spatial_merge_threshold=44.5):
+def merge_fixation_candidates(events, a_min=A_MIN, binocularity_criterion = True, binocular_matching_tolerance = 20, temporal_merge_threshold = None, spatial_merge_threshold = None):
     """
     Adapted version of stage 1 of the selection procedure of Hooge et al. (2022) (using only an amplitude criterion).
     Drops saccades that are smaller than `a_min`, then merges the fixations left adjacent (if they
@@ -80,9 +80,8 @@ def merge_fixation_candidates(events, a_min=A_MIN, binocularity_criterion = True
         binocular_matching_tolerance (float, default: 20): Only used if binocularity_criterion for saccade selection is used.
             Maximum permitted difference, in milliseconds, for both onset and end times of matching binocular events. Must be non-negative.
         temporal_merge_threshold (float, optional): maximal time gap between
-             two fixations for them to merge, in MILLISECONDS. Defaults to 50 ms.
-        spatial_merge_threshold (float, optional): Maximal Euclidean distance (in pixels) between two fixations for them to merge. 
-            Defaults to 44.5 pixels (which corresponds to ~1° in our setup).
+             two fixations for them to merge, in MILLISECONDS.
+        spatial_merge_threshold (float): Maximal Euclidean distance (in pixels) between two fixations for them to merge. 
 
     Returns:
         pd.DataFrame: events after the drop and merge, sorted by onset.
@@ -95,6 +94,10 @@ def merge_fixation_candidates(events, a_min=A_MIN, binocularity_criterion = True
         fixation candidates. Behavior Research Methods, 54(6), 2765-2776.
         https://doi.org/10.3758/s13428-021-01723-1
     """
+
+    # Check whether temporal and spatial merging thresholds were provided
+    if temporal_merge_threshold is None or spatial_merge_threshold is None:
+        raise ValueError("Both temporal_merge_threshold (ms) and spatial_merge_threshold (px) must be provided.")
     
     # Convert from milliseconds to seconds 
     temporal_merge_threshold /= 1000.0  
