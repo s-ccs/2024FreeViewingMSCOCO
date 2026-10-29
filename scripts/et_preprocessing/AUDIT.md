@@ -84,7 +84,80 @@ robustness).
     onset/end are silently skipped (NaN sorts last; comparisons are False).
     Reasonable, but undocumented and untested by design.
 
-## Test suite
+## Second pass — new changes on `adapt-saccade-selection-criteria` (2026-10-29)
+
+The branch added a **spatial merge criterion** (commit 1215116), made both merge
+thresholds required, dropped the binocularity columns from the merge output
+(62cff5f), and added `deg_to_px` / `euclidean_distance` helpers. The tests were
+re-run against this code; findings below append the first pass.
+
+### Newly confirmed bugs
+
+#### 6. `binocularity_criterion=False` crashes: unconditional drop of annotation columns
+- Location: `preprocessing.py:182`
+- `merged_events.drop(columns=["has_match", "matching_event", "matching_score"])`
+  runs unconditionally, but with `binocularity_criterion=False` the annotation
+  is never executed and the columns do not exist → `KeyError`.
+- This is exactly what `main.py`'s non-binocular path does (`run_preprocessing`,
+  else-branch), so `python main.py` with `BINOCULARITY_CRITERION = False`
+  currently cannot run.
+- Fix: `drop(columns=[...], errors="ignore")` (also removes the pandas
+  deprecation below) or drop only when the columns exist.
+- Test: `tests/test_merge_fixation_candidates.py::test_binocularity_false_unannotated_input`
+
+#### 2. (still present, relocated) empty result crashes
+- Now fails one step earlier: `pd.DataFrame([])` has no columns, so the new
+  `drop(...)` call raises `KeyError` before `sort_values` is reached. Same root
+  cause as audit #2 in the first pass.
+- Test: `tests/test_merge_fixation_candidates.py::test_all_events_dropped`
+
+### Review notes on the new code
+
+7. **Units trap around `SPATIAL_MERGE_THRESHOLD`**: `config.py` documents the
+   value as "(in °)" (degrees of visual angle), the merge docstring says
+   "(in pixels)", and the `ValueError` message says "(px)". `main.py` converts
+   config degrees → pixels via `deg_to_px` before calling, so the pipeline is
+   consistent — but anyone calling `merge_fixation_candidates` directly with a
+   config-style value gets a silently wrong spatial criterion. Recommend one
+   unit statement everywhere (the function takes pixels; config stores degrees).
+8. **Cluster semantics — distance to first fixation**: the inner merge loop
+   checks `euclidean_distance(events.iloc[j], events.iloc[i])`, i.e. against
+   the **first** fixation of the cluster, not the previous one. A fixation 9 px
+   from a cluster member but 19 px from the cluster's first fixation is
+   excluded. `main.py`'s log message ("Distance to first fixation in merging
+   cluster") says this is intended; it is now pinned by
+   `test_spatial_distance_measured_to_first_fixation_in_cluster`.
+9. **`inplace=True` deprecation**: `DataFrame.drop(..., inplace=True)`
+   (`preprocessing.py:182`) is deprecated (pandas PDEP-8) and warns on every
+   call. Use `merged_events = merged_events.drop(columns=[...])`.
+10. **NaN fixation positions**: `euclidean_distance` returns NaN for NaN
+    coordinates → comparison False → such fixations are silently never merged.
+    Reasonable, now documented by `tests/test_helpers.py::test_euclidean_distance_with_nan_coords`.
+11. `deg_to_px` uses `tan` (exact for visual angle) — correct; verified against
+    the closed form in `tests/test_helpers.py`.
+12. Merge docstring still says "Maximal Euclidean distance … for them to merge"
+    while the code uses strict `<` for both thresholds — same ambiguity as
+    audit #8 in the first pass, now for the spatial threshold too.
+
+### Test suite (second pass)
+
+```bash
+uv sync --group dev          # or: use a venv with pytest, pandas, numpy
+uv run -m pytest             # ~11 s (includes a full-chain run on sub-022)
+```
+
+- 45 passed, 4 `xfail(strict=True)` (confirmed bugs 1-3 and 6), ~11 s.
+- Updated for the new API: all merge calls pass both thresholds; assertions on
+  the dropped binocularity columns replaced by a check that the columns are
+  gone (`test_binocularity_columns_dropped_from_output`, and in the smoke test).
+- New tests: required-threshold `ValueError`, spatial criterion blocking a
+  merge, distance-to-first-fixation cluster semantics, `deg_to_px` (known
+  value + monotonicity), `euclidean_distance` (3-4-5, same point, NaN).
+- The real-data smoke test now mirrors `main.py`'s degree→pixel conversion and
+  still asserts the pipeline invariants (monotonic onsets, non-negative
+  durations, `duration == end_time - onset` within 5 ms, kept saccades ≥ `a_min`).
+
+## Test suite (first pass — history)
 
 Run from the repo root:
 
