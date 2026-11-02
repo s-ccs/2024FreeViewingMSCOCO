@@ -348,7 +348,7 @@ def annotate_matching_binocular_events(events_df, tolerance_ms = 20, select_cand
         ``matching_event`` and ``NaN`` for ``matching_score``.
     """
 
-    if type(tolerance_ms) not in [int, float] or tolerance_ms < 0:
+    if not isinstance(tolerance_ms, (int, float)) or tolerance_ms < 0:
         raise ValueError("Tolerance must be a non-negative value (int or float) in milliseconds.")
     else:
         tolerance = tolerance_ms / 1000 # convert to seconds
