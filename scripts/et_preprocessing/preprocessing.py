@@ -95,6 +95,10 @@ def merge_fixation_candidates(events, a_min=A_MIN, binocularity_criterion = True
         https://doi.org/10.3758/s13428-021-01723-1
     """
 
+    if events.empty:
+        logger.warning("Input events DataFrame is empty. Returning empty DataFrame.")
+        return events
+
     # Check whether temporal and spatial merging thresholds were provided
     if temporal_merge_threshold is None or spatial_merge_threshold is None:
         raise ValueError("Both temporal_merge_threshold (ms) and spatial_merge_threshold (px) must be provided.")
@@ -132,10 +136,23 @@ def merge_fixation_candidates(events, a_min=A_MIN, binocularity_criterion = True
         ].reset_index(drop=True)
 
     n_dropped = n_before - (events["trial_type"] == "saccade").sum()
+
+    if n_before != 0:
+        percentage_dropped = (n_dropped/n_before)*100
+    else:
+        percentage_dropped = 0
+    
     logger.info(
-        f"Dropped {n_dropped} saccades (amplitude < {a_min}° or not binocular (if using binocularity criterion))"
+        f"Dropped {n_dropped} saccades ({percentage_dropped}%) (amplitude < {a_min}° or not binocular (if using binocularity criterion))"
     )
 
+    if n_dropped == n_before:
+        logger.warning("All saccades have been excluded. Please check the input df and the chosen exclusion criteria parameters.")
+
+    if events.empty:
+        logger.warning("The events df is empty after the saccade exclusion process. No fixations can be merged. The empty df will be returned.")
+        return events
+    
     rows_to_keep = []
     i = 0
 
