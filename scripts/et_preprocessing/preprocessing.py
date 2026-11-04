@@ -221,8 +221,8 @@ def annotate_blink_saccades_in_df(
             "The events dataframe contains no blink events."
         )
     if not sac_mask.any():
-        logger.warning(
-            "The events dataframe contains no saccade events."
+        raise ValueError(
+            "The events dataframe contains no saccade events; blink saccades cannot be annotated."
         )
 
     # One (onset, end_time) array PER EYE, blinks sorted by onset within each eye.
