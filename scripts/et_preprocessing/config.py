@@ -83,7 +83,7 @@ REPORT = True
 
 # Visualisation — general
 # =============================================================================
-# Eye selection for all plots. Options: "all", "left", "right", "binocular" or "both" (same as "binocular")
+# Eye selection for all plots. Options: "all", "left", "right", "binocular" or "both" (same as "binocular"; for compatibility with `mne.io.read_raw_eyelink` function)
 BY_EYE = "right"
 
 # Output figure file format. Options: "svg", "pdf", "eps"
