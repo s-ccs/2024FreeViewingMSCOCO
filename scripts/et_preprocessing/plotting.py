@@ -463,6 +463,12 @@ def plot_fixation_frequency(
     Histogram of fixation frequency (fixations per second), binned by
     second-level onset buckets.
 
+    Note:
+        Every second between the first and the last fixation onset (per eye/subject) is
+        counted, including seconds without any fixation. Depending on the input dataframe,
+        breaks without eye-tracking data (e.g. pauses between blocks) are therefore included
+        as zero counts, which can produce a large bar at 0.
+
     Args:
         events_df (pd.DataFrame):
         out_path (str): Directory to save the figure. Pass None to skip saving (default).
