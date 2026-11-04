@@ -274,6 +274,12 @@ def _graph_fixation_frequency(ax, fix_df, fix_after=None, subject_col=None):
     Helperfunction: draw the fixation-frequency histogram (fixations per second)
     onto `ax`. Single histogram when fix_after is None; stacked before/after otherwise.
 
+    Note:
+        Every second between the first and the last fixation onset (per eye/subject) is
+        counted, including seconds without any fixation. Depending on the input dataframe,
+        breaks without eye-tracking data (e.g. pauses between blocks) are therefore included
+        as zero counts, which can produce a large bar at 0.
+
     Args:
         ax: Matplotlib axis to draw on.
         fix_df (pd.DataFrame): fixation events (single, or the 'before' stage).
