@@ -48,7 +48,7 @@ logger = logging.getLogger(__name__)
 # Mapping for finding the events of the chosen eye(s) in the events dataframe, based on the `by_eye` argument.
 EYE_MAPPING = {"left": "L", 
                "right": "R", 
-               "binocular": "both", 
+               "binocular": "binocular", 
                "both": "both"
                }
 # Mapping for the title suffixes of the plots, based on the `by_eye` argument.
