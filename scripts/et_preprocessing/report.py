@@ -417,7 +417,7 @@ def _render_html(
             <p class="meta">Generated: {timestamp}</p>
             <h2><span class="sec-num">1</span> · Overview</h2>
             <p class="plot-caption">Summary statistics before vs. after preprocessing
-                (micro-saccade removal + fixation merge).</p>
+                (saccade removal + fixation merge).</p>
             <div class="stats-grid">{stats_grid}</div>
         </section>
 
@@ -440,13 +440,12 @@ def _render_html(
             <h2><span class="sec-num">3</span> · Fixation Merger</h2>
             <p class="plot-caption">
                 Two-step procedure following <a href="#sec-references">Hooge et al. (2022)</a>: first, implausibly small
-                <em>and</em> short saccades are dropped; then consecutive fixations of the same eye that are now no longer separated by such a saccade are merged. 
+                saccades (and non-binocular saccades, if BINOCULARITY_CRITERION=True) are dropped; then consecutive fixations of the same eye that are now no longer separated by such a saccade are merged if they are close in time and space. 
                 In the second step fixations shorter than the specified threshold of T_MIN_FIX = {T_MIN_FIX} are dropped.
             </p>
             <div class="formula">
-                drop saccade &nbsp;if&nbsp; amplitude &lt; a_min &nbsp;AND&nbsp; duration &lt; T_min<br>
+                drop saccade &nbsp;if&nbsp; (amplitude &lt; a_min) or (&not;has_binocular_match) <br>
                 a_min = {merge_info['a_min']}°<br>
-                T_min (ms) = 2.2 · a_min + 27 = {merge_info['t_min_ms']:.1f} ms
             </div>
             <p class="plot-caption"><strong>Effect on the data:</strong>
                 saccades {merge_info['n_sac_before']} → {merge_info['n_sac_after']}
@@ -631,7 +630,6 @@ def generate_report(
     n_sac_after = int(stats_after["saccades"]["Count"])
     merge_info = {
         "a_min": A_MIN,
-        "t_min_ms": 2.2 * A_MIN + 27,
         "blink_window": BLINK_WINDOW_MS,
         "blink_flagged": stats_after["saccades"]["Blink saccade flagged"],
         "n_fix_before": n_fix_before,
