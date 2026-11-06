@@ -36,12 +36,8 @@ def load_subject_tsv(
 ) -> pd.DataFrame:
     """
     Args:
-        folder_path (Path): Directory containing the subject's TSV file
+        filepath (Path): Directory containing the subject's TSV file
         subject_id (str): subject number, e.g. "005"
-        window_ms (float, optional): Window in ms around each blink for blink saccade annotation. Defaults to BLINK_WINDOW_MS.
-
-    Raises:
-        FileNotFoundError: _description_
 
     Returns:
         pd.DataFrame: Events DataFrame
@@ -79,13 +75,12 @@ def merge_fixation_candidates(events, a_min=A_MIN, binocularity_criterion = True
             not have a matching saccade in the opposite eye.
         binocular_matching_tolerance (float, default: 20): Only used if binocularity_criterion for saccade selection is used.
             Maximum permitted difference, in milliseconds, for both onset and end times of matching binocular events. Must be non-negative.
-        temporal_merge_threshold (float): maximal time gap between
-             two fixations for them to merge, in MILLISECONDS.
-        spatial_merge_threshold (float): Maximal Euclidean distance (in pixels) between two fixations for them to merge. 
+        temporal_merge_threshold (float): Only fixations with a time gap smaller than `temporal_merge_threshold` are merged, in MILLISECONDS.
+        spatial_merge_threshold (float): Only fixations with a Euclidean distance (in pixels) smaller than `spatial_merge_threshold` are merged. 
 
     Returns:
         pd.DataFrame: events after the drop and merge, sorted by onset.
-            Saccades below both thresholds are removed; merged fixations carry
+            Saccades with amplitudes below `a_min` (or non-binocular saccades) are removed; merged fixations carry
             the first onset, the last end_time and duration-weighted positions.
 
     References:
@@ -374,7 +369,7 @@ def annotate_matching_binocular_events(events_df, tolerance_ms = 20, select_cand
     n = len(output_df)
     output_df["has_match"] = pd.Series([False] * n, index=output_df.index, dtype=bool)
     output_df["matching_event"] = pd.Series([None] * n, index=output_df.index, dtype=object)
-    output_df["matching_score"] = output_df["matching_score"] = pd.Series([np.nan] * n, index=output_df.index, dtype=object)
+    output_df["matching_score"] = pd.Series([np.nan] * n, index=output_df.index, dtype=object)
     
     # Loop over all events and look for matching candidates in the other eye
     for i, row in output_df.iterrows():
