@@ -12,14 +12,13 @@ Preprocessing:
 """
 
 import logging
-import math
 import os
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
-from config import (
+from .config import (
     A_MIN,
     BLINK_WINDOW_MS,
     SESSION,
@@ -36,12 +35,8 @@ def load_subject_tsv(
 ) -> pd.DataFrame:
     """
     Args:
-        folder_path (Path): Directory containing the subject's TSV file
+        filepath (Path): Directory containing the subject's TSV file
         subject_id (str): subject number, e.g. "005"
-        window_ms (float, optional): Window in ms around each blink for blink saccade annotation. Defaults to BLINK_WINDOW_MS.
-
-    Raises:
-        FileNotFoundError: _description_
 
     Returns:
         pd.DataFrame: Events DataFrame
@@ -79,13 +74,12 @@ def merge_fixation_candidates(events, a_min=A_MIN, binocularity_criterion = True
             not have a matching saccade in the opposite eye.
         binocular_matching_tolerance (float, default: 20): Only used if binocularity_criterion for saccade selection is used.
             Maximum permitted difference, in milliseconds, for both onset and end times of matching binocular events. Must be non-negative.
-        temporal_merge_threshold (float): maximal time gap between
-             two fixations for them to merge, in MILLISECONDS.
-        spatial_merge_threshold (float): Maximal Euclidean distance (in pixels) between two fixations for them to merge. 
+        temporal_merge_threshold (float): Only fixations with a time gap smaller than `temporal_merge_threshold` are merged, in MILLISECONDS.
+        spatial_merge_threshold (float): Only fixations with a Euclidean distance (in pixels) smaller than `spatial_merge_threshold` are merged. 
 
     Returns:
         pd.DataFrame: events after the drop and merge, sorted by onset.
-            Saccades below both thresholds are removed; merged fixations carry
+            Saccades with amplitudes below `a_min` (or non-binocular saccades) are removed; merged fixations carry
             the first onset, the last end_time and duration-weighted positions.
 
     References:
@@ -94,6 +88,10 @@ def merge_fixation_candidates(events, a_min=A_MIN, binocularity_criterion = True
         fixation candidates. Behavior Research Methods, 54(6), 2765-2776.
         https://doi.org/10.3758/s13428-021-01723-1
     """
+
+    if events.empty:
+        logger.warning("Input events DataFrame is empty. Returning empty DataFrame.")
+        return events
 
     # Check whether temporal and spatial merging thresholds were provided
     if temporal_merge_threshold is None or spatial_merge_threshold is None:
@@ -132,10 +130,23 @@ def merge_fixation_candidates(events, a_min=A_MIN, binocularity_criterion = True
         ].reset_index(drop=True)
 
     n_dropped = n_before - (events["trial_type"] == "saccade").sum()
+
+    if n_before != 0:
+        percentage_dropped = (n_dropped/n_before)*100
+    else:
+        percentage_dropped = 0
+    
     logger.info(
-        f"Dropped {n_dropped} saccades (amplitude < {a_min}° or not binocular (if using binocularity criterion))"
+        f"Dropped {n_dropped} saccades ({percentage_dropped}%) (amplitude < {a_min}° or not binocular (if using binocularity criterion))"
     )
 
+    if n_dropped == n_before:
+        logger.warning("All saccades have been excluded. Please check the input df and the chosen exclusion criteria parameters.")
+
+    if events.empty:
+        logger.warning("The events df is empty after the saccade exclusion process. No fixations can be merged. The empty df will be returned.")
+        return events
+    
     rows_to_keep = []
     i = 0
 
@@ -179,7 +190,10 @@ def merge_fixation_candidates(events, a_min=A_MIN, binocularity_criterion = True
             i += 1
 
     merged_events = pd.DataFrame(rows_to_keep)
-    merged_events.drop(columns=["has_match", "matching_event", "matching_score"], inplace=True) # Drop columns related to binocularity criterion
+
+    if binocularity_criterion:
+        merged_events = merged_events.drop(columns=["has_match", "matching_event", "matching_score"]) # Drop columns related to binocularity criterion
+      
     merged_events = merged_events.sort_values(["onset", "eye"]).reset_index(drop=True)
 
     return merged_events
@@ -328,7 +342,7 @@ def annotate_matching_binocular_events(events_df, tolerance_ms = 20, select_cand
         ``matching_event`` and ``NaN`` for ``matching_score``.
     """
 
-    if type(tolerance_ms) not in [int, float] or tolerance_ms < 0:
+    if not isinstance(tolerance_ms, (int, float)) or tolerance_ms < 0:
         raise ValueError("Tolerance must be a non-negative value (int or float) in milliseconds.")
     else:
         tolerance = tolerance_ms / 1000 # convert to seconds
@@ -354,7 +368,7 @@ def annotate_matching_binocular_events(events_df, tolerance_ms = 20, select_cand
     n = len(output_df)
     output_df["has_match"] = pd.Series([False] * n, index=output_df.index, dtype=bool)
     output_df["matching_event"] = pd.Series([None] * n, index=output_df.index, dtype=object)
-    output_df["matching_score"] = output_df["matching_score"] = pd.Series([np.nan] * n, index=output_df.index, dtype=object)
+    output_df["matching_score"] = pd.Series([np.nan] * n, index=output_df.index, dtype=object)
     
     # Loop over all events and look for matching candidates in the other eye
     for i, row in output_df.iterrows():
