@@ -80,7 +80,8 @@ BINOCULAR_MATCHING_TOLERANCE = 20 # (in ms);  maximum allowed absolute differenc
 A_MIN = 0.5 # Saccades smaller than this are dropped.
 T_MIN_FIX = 60
 TEMPORAL_MERGE_THRESHOLD = 50 # must be integer or float (in ms); only fixations with a time difference < TEMPORAL_MERGE_THRESHOLD will be merged.
-SPATIAL_MERGE_THRESHOLD = 1 # must be integer of float (in °); only fixations with a spatial distance < SPATIAL_MERGE_THRESHOLD will be merged
+SPATIAL_MERGE_THRESHOLD = 1 # must be integer of float (in °); only fixations with a spatial distance < SPATIAL_MERGE_THRESHOLD will be merged;
+                            # will be converted to pixels in main.py
 
 # Generate Report (boolean): creates an html report
 REPORT = True
