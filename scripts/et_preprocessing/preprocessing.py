@@ -12,14 +12,13 @@ Preprocessing:
 """
 
 import logging
-import math
 import os
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
-from config import (
+from .config import (
     A_MIN,
     BLINK_WINDOW_MS,
     SESSION,

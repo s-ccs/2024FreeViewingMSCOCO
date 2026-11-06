@@ -1,9 +1,10 @@
 """
 Usage:
-- Full pipeline + subs specified in config.py: python main.py
-- Full pipeline + single subject: python main.py --subjects 007
-- Only preprocessing: python main.py --steps preprocessing --overwrite
-- Only visualisation + for specific subs + show plots interactively: python main.py --steps visualisation --subjects 005 006 --show_plots
+Run as a module from the project root directory
+- Full pipeline + subs specified in config.py: python -m scripts.et_preprocessing.main
+- Full pipeline + single subject: python -m scripts.et_preprocessing.main --subjects 007
+- Only preprocessing: python -m scripts.et_preprocessing.main --steps preprocessing --overwrite
+- Only visualisation + for specific subs + show plots interactively: python -m scripts.et_preprocessing.main --steps visualisation --subjects 005 006 --show_plots
 
 Logging:
 - Default log level is INFO. To change verbosity, pass --log-level followed by one of:
@@ -14,22 +15,21 @@ import argparse
 import logging
 import os
 import re
-import sys
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 
-import config
-from preprocessing import (
+from . import config
+from .preprocessing import (
     load_subject_tsv,
     merge_fixation_candidates,
     annotate_blink_saccades_in_df,
     calculate_saccade_angle_in_df,
     deg_to_px,
 )
-from plotting import (
+from .plotting import (
     plot_eye_trace_pre_post_processing,
     plot_main_sequence,
     plot_fixation_duration,
@@ -40,7 +40,7 @@ from plotting import (
     plot_summary,
     plot_summary_comparison,
 )
-from report import generate_report
+from .report import generate_report
 
 logger = logging.getLogger(__name__)
 
