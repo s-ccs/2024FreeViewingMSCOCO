@@ -25,15 +25,15 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import pandas as pd
 
-import config
-from config import BLINK_WINDOW_MS, A_MIN, T_MIN_FIX
-from plotting import (
+from . import config
+from .config import BLINK_WINDOW_MS, A_MIN, T_MIN_FIX
+from .plotting import (
     plot_summary,
     plot_summary_comparison,
     plot_main_sequence,
     plot_eye_trace_pre_post_processing,
 )
-from graphs import reset_dropout_stats, get_dropout_stats
+from .graphs import reset_dropout_stats, get_dropout_stats
 
 logger = logging.getLogger(__name__)
 

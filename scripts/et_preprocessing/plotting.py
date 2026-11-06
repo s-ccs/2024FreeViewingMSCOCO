@@ -33,7 +33,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from graphs import (
+from .graphs import (
     _graph_main_sequence,
     _graph_fixation_duration,
     _graph_fixation_frequency,
