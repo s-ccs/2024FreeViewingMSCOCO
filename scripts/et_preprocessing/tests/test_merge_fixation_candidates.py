@@ -223,7 +223,7 @@ def test_saccade_below_a_min_merged_span_includes_gap(make_events):
 
 def test_real_data_smoke(real_events):
     """Run the full chain on one real subject and check pipeline invariants."""
-    from preprocessing import (
+    from scripts.et_preprocessing.preprocessing import (
         annotate_blink_saccades_in_df,
         calculate_saccade_angle_in_df,
         deg_to_px,
