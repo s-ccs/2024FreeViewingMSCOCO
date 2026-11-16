@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+# TODO: This should be adapted once there is a solution for combining the data set with the code repository (symbolic link or config file)
 REPO_ROOT = Path(__file__).resolve().parents[3]
 REAL_TSV = (
     REPO_ROOT
