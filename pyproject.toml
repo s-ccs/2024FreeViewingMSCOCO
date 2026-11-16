@@ -12,7 +12,12 @@ dependencies = [
     "mne<1.11",
     "onnxruntime",
     "pyprep>=0.6.0",
+    "pytest>=9.0.3",
 ]
+
+[tool.pytest.ini_options]
+testpaths = ["scripts/et_preprocessing/tests"]
+pythonpath = ["."]
 
 [tool.uv.workspace]
 members = [
