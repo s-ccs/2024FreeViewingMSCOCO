@@ -63,7 +63,8 @@ def merge_fixation_candidates(events, a_min=A_MIN, binocularity_criterion = True
     """
     Adapted version of stage 1 of the selection procedure of Hooge et al. (2022) (using only an amplitude criterion).
     Drops saccades that are smaller than `a_min`, then merges the fixations left adjacent (if they
-    are close enough in time and space).
+    are close enough in time and space). When using the binocularity criterion (default is True), then also saccades that
+    do not have a matching event in the opposite eye are dropped in the first step.
 
     Args:
         events (pd.DataFrame): events with columns onset, end_time, duration,
