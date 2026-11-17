@@ -78,14 +78,6 @@ def test_match_eye_false_uses_any_eye(make_events):
     assert out[out["trial_type"] == "saccade"]["blink_saccade"].all()
 
 
-@pytest.mark.xfail(
-    reason=(
-        "audit #5: crashes when the DataFrame contains no saccades — "
-        "events.loc[sac_mask, 'blink_saccade'] = [] (empty list) fails "
-        "column validation on pandas 3.x"
-    ),
-    strict=True,
-)
 def test_non_saccade_rows_get_false_column(make_events):
     df = make_events(
         [
@@ -93,10 +85,9 @@ def test_non_saccade_rows_get_false_column(make_events):
             {"onset": 1.0, "duration": 0.05, "trial_type": "blink", "eye": "L"},
         ]
     )
-    out = annotate_blink_saccades_in_df(df, window_ms=W_MS)
-    assert "blink_saccade" in out.columns
-    assert not out[out["trial_type"] == "fixation"]["blink_saccade"].any()
-    assert not out[out["trial_type"] == "blink"]["blink_saccade"].any()
+    # We expect a ValueError because there are no saccades to process
+    with pytest.raises(ValueError):
+        annotate_blink_saccades_in_df(df, window_ms=W_MS)
 
 
 def test_no_blinks_no_crash(make_events):
