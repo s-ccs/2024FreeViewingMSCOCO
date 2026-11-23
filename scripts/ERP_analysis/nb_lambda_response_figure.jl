@@ -19,11 +19,15 @@ begin
 	using ColorSchemes
 end
 
+<<<<<<< Updated upstream
+=======
 # ╔═╡ 436a1c51-d2b4-4d67-95a4-f56f2752fa17
 	using TopoPlots
 
+
+>>>>>>> Stashed changes
 # ╔═╡ 94c886cf-07a5-4207-a473-af538b1d3268
-plots_dir = "/store/users/schepers/projects/FreeViewingMSCOCO/plots/2026-11-26_Meeting_Bene/"
+plots_dir = "/store/users/schepers/projects/FreeViewingMSCOCO/plots/2026-09-16_Meeting_Bene/"
 
 # ╔═╡ 9bc9f7a6-ebd0-4ebc-b417-5746e53afe98
 md"""
@@ -177,15 +181,65 @@ begin
 	ch_name_roi = ch_mapping_df[in.(ch_mapping_df.ch_idx,Ref(ch_idx_roi)),:ch_name]
 end
 
+<<<<<<< Updated upstream
+# ╔═╡ 827b3e75-1f53-4c80-81da-1ba048833ef6
+begin
+	using TopoPlots
+
+	colormap = vcat(1,colorschemes[:tab10].colors[1:length(ch_idx_roi)])
+	
+	marker_list = zeros(length(positions_2d))
+	marker_list[ch_idx_roi] .= 1:length(ch_idx_roi)
+
+	labels = repeat([""], length(positions_2d))
+	labels[ch_idx_roi] = ch_name_roi
+
+	stroke_color = repeat([:white], length(positions_2d))
+	stroke_color[ch_idx_roi] .= :black
+	
+	TopoPlots.eeg_topoplot(
+		marker_list,
+		#labels = labels,
+		positions=positions_2d,
+		label_scatter = (markersize = 25, strokecolor = stroke_color, strokewidth = 1),
+		interpolation = NullInterpolator(),
+		axis=(aspect=DataAspect(),),
+		colormap = colormap,
+		#label_text=true
+	)
+	hidedecorations!(current_axis())
+	hidespines!(current_axis())
+	
+	current_figure()
+end
+
 # ╔═╡ 15ed76c0-22b1-421a-a52d-02fb8f0383aa
 md"""
 # Lambda response figure
 """
 
-# ╔═╡ 885ad01a-e4e1-11f1-8f66-39177c1ab66e
+# ╔═╡ 3bdc8569-cd34-4790-a69b-f7f63b315b0e
+let
+=======
+# ╔═╡ 15ed76c0-22b1-421a-a52d-02fb8f0383aa
 md"""
 # Lambda response figure
 """
+
+# ╔═╡ 68de7a49-f738-4ca7-a283-5c165028b30e
+box1 = Box(g_abc[1,1:3], color = (:yellow, 0.5), strokecolor = :transparent)
+
+# ╔═╡ fbebd978-8b58-4fa6-a3b5-947cc2ca2380
+_x = g_d[1,1][1,2]
+
+# ╔═╡ 56a0e64f-9c1d-4bdf-89ab-46b8efac5692
+f.content[49].alignmode=Mixed(right=0)
+
+# ╔═╡ e1dc7db9-d34b-49d7-8cdb-97f2d533829d
+f.content[49].alignmode[]
+
+# ╔═╡ 3ab1013d-a751-4d55-a88c-45ef81b23ee1
+f.content[49]
 
 # ╔═╡ 2da779b0-586f-49ba-ab5c-329ff55e994c
 #g_abc.alignmode = Mixed(left=0)
@@ -217,152 +271,9 @@ md"""
 ## Helper functions
 """
 
-# ╔═╡ 68de7a49-f738-4ca7-a283-5c165028b30e
-box1 = Box(g_abc[1,1:3], color = (:yellow, 0.5), strokecolor = :transparent)
-
-# ╔═╡ fbebd978-8b58-4fa6-a3b5-947cc2ca2380
-_x = g_d[1,1][1,2]
-
-# ╔═╡ 56a0e64f-9c1d-4bdf-89ab-46b8efac5692
-f.content[49].alignmode=Mixed(right=0)
-
-# ╔═╡ e1dc7db9-d34b-49d7-8cdb-97f2d533829d
-f.content[49].alignmode[]
-
-# ╔═╡ 3ab1013d-a751-4d55-a88c-45ef81b23ee1
-f.content[49]
-
-# ╔═╡ d8e8dc1c-e3e5-4b26-ae9f-ce272e921877
-df = deepcopy(eff_sub_topo)
-
-# ╔═╡ 854aad24-57ff-4d7d-ba2a-f49d604f2411
+# ╔═╡ 3bdc8569-cd34-4790-a69b-f7f63b315b0e
 begin
-	# 1. Assign each time point to a 25 ms bin.
-	#    Rounding to whole ms first avoids float errors (e.g. 0.075/0.025 = 2.9999…).
-	binwidth_ms = 25
-	df.time_bin = floor.(Int, round.(Int, df.time .* 1000) ./ binwidth_ms) .* binwidth_ms ./ 1000  # bin start in s
-	
-	# 2. Mean estimate per predictor level × channel × time bin
-	binned = combine(groupby(df, [:sacc_visual_angle_w, :channel, :time_bin]),
-	                 :yhat_mean => mean => :bin_estimate)
-	
-	# 3. Channel with the highest mean in each predictor level × time bin
-	peak = combine(groupby(binned, [:sacc_visual_angle_w, :time_bin])) do sdf
-	    sdf[argmax(sdf.bin_estimate), [:channel, :bin_estimate]]
-	end
-	
-	sort!(peak, [:sacc_visual_angle_w, :time_bin])
-end
-
-# ╔═╡ d8359a1a-dcc9-47e7-b535-c391edc675c6
-peak_sub = filter(r -> (r.sacc_visual_angle_w == 10), peak)
-
-# ╔═╡ 84037b2a-d921-48aa-8fff-f838a19464de
-ch_mapping_df[in.(ch_mapping_df.ch_idx,Ref(peak_sub.channel)),:ch_name]
-
-# ╔═╡ 78044d42-455d-49b9-b305-5e489e4e752c
-ch_mapping_df[52, :ch_name]
-
-# ╔═╡ 8878f45f-9bd7-4f62-a24f-08eb895f5fe7
-peak_df_mean_frp
-
-# ╔═╡ 123e27a3-9f5c-4bfd-a3bc-355cbdf6248a
-mean_eff
-
-# ╔═╡ ca9d461f-92e3-4200-98b9-42ded54726d4
-peak_time_windows = [peak_df_mean_frp.peak_latency .- 0.01  peak_df_mean_frp.peak_latency .+ 0.01]
-
-# ╔═╡ 34cbc0bc-4e82-48bf-a738-afbabec2d5ae
-eff_sub_peak = filter(r -> (r.eventname == event) && (r[predictor] == 1.04) && (peak_time_windows[1,1] <= r.time <= peak_time_windows[1,2]), mean_eff)
-
-# ╔═╡ 3b4d7e9a-b814-4e0a-83b7-c45a0b51ce74
-data = combine(groupby(eff_sub_peak, [:sacc_visual_angle_w, :channel]),
-	                 :yhat_mean => mean => :peak_estimate)
-
-# ╔═╡ 71c399f4-f6cf-4e9b-9db6-c69b4008237d
-plot_topoplot(
-	data,
-	mapping = (; y = :peak_estimate),
-	positions = positions_2d,
-)
-
-# ╔═╡ 1e091d65-6460-49ed-bed8-41c21479acd9
-let
-	# Mean estimate per channel within ±10 ms around the peak, for every predictor level
-	data_all = mapreduce(vcat, eachrow(peak_df_mean_frp)) do pk
-	    lvl    = pk[predictor]
-	    t0, t1 = pk.peak_latency - 0.01, pk.peak_latency + 0.01
-	    sub = filter(r -> r.eventname == event && r[predictor] == lvl && t0 <= r.time <= t1, mean_eff)
-	    combine(groupby(sub, [predictor, :channel]), :yhat_mean => mean => :peak_estimate)
-	end
-	
-	levels = unique(data_all[!, predictor])
-	
-	# One shared, symmetric colour range so the topoplots are comparable
-	lim   = maximum(abs, data_all.peak_estimate)
-	clims = (-lim, lim)
-	
-	# One topoplot per predictor level, side by side
-	f = Figure(size = (280 * length(levels) + 80, 320))
-	for (i, lvl) in enumerate(levels)
-	    d = filter(predictor => ==(lvl), data_all)
-	    plot_topoplot!(f[1, i], d;
-	        mapping   = (; y = :peak_estimate),
-	        positions = positions_2d,
-	        axis      = (; title = "$(predictor) = $(round(lvl; digits = 2))"),
-	        visual    = (; colorrange = clims),
-	        layout    = (; use_colorbar = false),
-	    )
-	end
-	Colorbar(f[1, length(levels) + 1]; colormap = Reverse(:RdBu), limits = clims, label = "Estimate")
-	f
-end
-
-# ╔═╡ 885d73ba-e4e1-11f1-962f-872528571fbb
-md"""
-## Helper functions
-"""
-
-# ╔═╡ 885db6ae-e4e1-11f1-b189-abe52d36c5ab
-# ╠═╡ disabled = true
-#=╠═╡
-begin
-	#using TopoPlots
-	fig = Figure()
-	ax_t = Axis(fig[1,1], aspect=DataAspect())
-
-	colormap = vcat(1,colorschemes[:tab10].colors[1:length(ch_idx_roi)])
-	
-	marker_list = zeros(length(positions_2d))
-	marker_list[ch_idx_roi] .= 1:length(ch_idx_roi)
-
-	labels = repeat([""], length(positions_2d))
-	labels[ch_idx_roi] = ch_name_roi
-
-	stroke_color = repeat([:white], length(positions_2d))
-	stroke_color[ch_idx_roi] .= :black
-	
-	TopoPlots.eeg_topoplot!(
-		ax_t,
-		marker_list,
-		#labels = labels,
-		positions=positions_2d,
-		head = nothing,
-		label_scatter = (markersize = 25, strokecolor = stroke_color, strokewidth = 1),
-		interpolation = NullInterpolator(),
-		colormap = colormap,
-		#label_text=true
-	)
-	hidedecorations!(current_axis())
-	hidespines!(current_axis())
-
-	current_figure()
-end
 >>>>>>> Stashed changes
-  ╠═╡ =#
-
-# ╔═╡ 885d1cee-e4e1-11f1-a482-5d650cc201c0
-begin
 	# Figure layout
 	f = Figure(size = (1200,800), fontsize=19)
 	g_abc = f[1, 1:3] = GridLayout()
@@ -379,7 +290,11 @@ begin
 	    mapping = (; y = :yhat_mean, color = predictor, group = predictor),
 		colorbar = ( ;label = "Saccade amplitude [°]", labelrotation = pi/2),
 		visual = (; linewidth=3, colormap=:roma, color=:roma),
+<<<<<<< Updated upstream
+		axis = (; xlabel = "Time [s]"),
+=======
 		axis = (; xlabel = "Time [s]", xticks = 0:0.2:0.6),
+>>>>>>> Stashed changes
 	)
 
 	# Plot detected peaks
@@ -510,7 +425,11 @@ begin
 		positions=positions_2d,
 		label_scatter = (markersize = 4.85, strokecolor = stroke_color, strokewidth = 0.5),
 		interpolation = NullInterpolator(),
+<<<<<<< Updated upstream
+		head = (color = :black, linewidth = 0.5),
+=======
 		head = (color = :black, linewidth = 0.01),
+>>>>>>> Stashed changes
 		#axis=(aspect=DataAspect(),),
 		colormap = colormap,
 		#label_text=true
@@ -528,12 +447,18 @@ begin
 	    eff_sub_topo;
 		bin_width = bin_width,
 	    positions = positions_2d,
+<<<<<<< Updated upstream
 	    axis = (; xlabel = "Time windows [s]"), #ylabel = "Saccade amplitude [°]"),
 		mapping = (; y = :yhat_mean, row = :sacc_visual_angle_w),
 		visual = (; contours = (; color = :black)),
+=======
 	    # axis = (; alignmode=Mixed(left=0), backgroundcolor=:red, xlabel = "Time windows [s]", ylabel = "Saccade amplitude [°]"),
-	    # axis = (; backgroundcolor=:red, xlabel = "Time windows [s]", ylabel = "Y-Label"),
+	    axis = (; backgroundcolor=:red, xlabel = "Time windows [s]", ylabel = "Y-Label"),
 		#topo_axis=(;alignmode=Mixed(left=0),backgroundcolor=(:blue,0.5)),
+		mapping = (; y = :yhat_mean, row = :sacc_visual_angle_w),
+		visual = (; contours = (; color = :black)),
+		
+>>>>>>> Stashed changes
 	)
 
 	# Add panel labels
@@ -557,11 +482,19 @@ begin
 	current_figure()
 end
 
+<<<<<<< Updated upstream
+# ╔═╡ 16ad32d8-f331-4ba4-b488-eb690535fce2
+md"""
+## Helper functions
+"""
+=======
 # ╔═╡ 827b3e75-1f53-4c80-81da-1ba048833ef6
 # ╠═╡ disabled = true
 #=╠═╡
 begin
 	#using TopoPlots
+	fig = Figure()
+	ax_t = Axis(fig[1,1], aspect=DataAspect())
 
 	colormap = vcat(1,colorschemes[:tab10].colors[1:length(ch_idx_roi)])
 	
@@ -574,22 +507,24 @@ begin
 	stroke_color = repeat([:white], length(positions_2d))
 	stroke_color[ch_idx_roi] .= :black
 	
-	TopoPlots.eeg_topoplot(
+	TopoPlots.eeg_topoplot!(
+		ax_t,
 		marker_list,
 		#labels = labels,
 		positions=positions_2d,
+		head = nothing,
 		label_scatter = (markersize = 25, strokecolor = stroke_color, strokewidth = 1),
 		interpolation = NullInterpolator(),
-		axis=(aspect=DataAspect(),),
 		colormap = colormap,
 		#label_text=true
 	)
 	hidedecorations!(current_axis())
 	hidespines!(current_axis())
-	
+
 	current_figure()
 end
   ╠═╡ =#
+>>>>>>> Stashed changes
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -958,9 +893,9 @@ version = "3.0.2"
 
 [[deps.CodecZlib]]
 deps = ["TranscodingStreams", "Zlib_jll"]
-git-tree-sha1 = "970758a3d591a2a5c2a907c53f2e2f8c1b1d3537"
+git-tree-sha1 = "962834c22b66e32aa10f7611c08c8ca4e20749a9"
 uuid = "944b1d66-785c-5afd-91f1-9de20f533193"
-version = "0.7.9"
+version = "0.7.8"
 
 [[deps.CodecZstd]]
 deps = ["TranscodingStreams", "Zstd_jll"]
@@ -2319,9 +2254,9 @@ version = "1.3.4"
 
 [[deps.Preferences]]
 deps = ["TOML"]
-git-tree-sha1 = "aef1987d90dcc2e2cbd919ad10b2d25bcce4f418"
+git-tree-sha1 = "8b770b60760d4451834fe79dd483e318eee709c4"
 uuid = "21216c6a-2e73-6563-6e65-726566657250"
-version = "1.6.1"
+version = "1.5.2"
 
 [[deps.PrettyTables]]
 deps = ["Crayons", "LaTeXStrings", "Markdown", "PrecompileTools", "Printf", "REPL", "Reexport", "StringManipulation", "Tables"]
@@ -2804,9 +2739,9 @@ version = "1.0.1"
 
 [[deps.Tables]]
 deps = ["DataAPI", "DataValueInterfaces", "IteratorInterfaceExtensions", "OrderedCollections", "TableTraits"]
-git-tree-sha1 = "a94d9bdda1b7bed0046cea645639ab3f62196fac"
+git-tree-sha1 = "0f38a06c83f0007bbab3cf911262841c9a0f07e0"
 uuid = "bd369af6-aec1-5ad0-b16a-f7cc5008161c"
-version = "1.14.0"
+version = "1.13.0"
 
 [[deps.Tar]]
 deps = ["ArgTools", "SHA"]
@@ -3184,9 +3119,10 @@ version = "4.1.0+0"
 # ╟─6765e88a-da48-42fd-9524-2f9abd209bc3
 # ╠═3f61697b-211a-49e9-9869-b94e5f95bc50
 # ╟─15ed76c0-22b1-421a-a52d-02fb8f0383aa
-# ╠═436a1c51-d2b4-4d67-95a4-f56f2752fa17
-# ╠═827b3e75-1f53-4c80-81da-1ba048833ef6
-# ╠═885ad01a-e4e1-11f1-8f66-39177c1ab66e
+<<<<<<< Updated upstream
+# ╠═3bdc8569-cd34-4790-a69b-f7f63b315b0e
+# ╟─16ad32d8-f331-4ba4-b488-eb690535fce2
+=======
 # ╠═68de7a49-f738-4ca7-a283-5c165028b30e
 # ╠═fbebd978-8b58-4fa6-a3b5-947cc2ca2380
 # ╠═56a0e64f-9c1d-4bdf-89ab-46b8efac5692
@@ -3196,21 +3132,10 @@ version = "4.1.0+0"
 # ╠═54963a1c-deef-4269-b315-16788352f8a5
 # ╠═6f247b96-dc31-4ccd-9303-b4c6ce620234
 # ╠═101085cd-d008-4a37-867f-162e7ecb728d
+# ╠═3bdc8569-cd34-4790-a69b-f7f63b315b0e
 # ╟─16ad32d8-f331-4ba4-b488-eb690535fce2
-# ╠═885d1cee-e4e1-11f1-a482-5d650cc201c0
-# ╠═d8e8dc1c-e3e5-4b26-ae9f-ce272e921877
-# ╠═854aad24-57ff-4d7d-ba2a-f49d604f2411
-# ╠═d8359a1a-dcc9-47e7-b535-c391edc675c6
-# ╠═84037b2a-d921-48aa-8fff-f838a19464de
-# ╠═78044d42-455d-49b9-b305-5e489e4e752c
-# ╠═8878f45f-9bd7-4f62-a24f-08eb895f5fe7
-# ╠═123e27a3-9f5c-4bfd-a3bc-355cbdf6248a
-# ╠═ca9d461f-92e3-4200-98b9-42ded54726d4
-# ╠═34cbc0bc-4e82-48bf-a738-afbabec2d5ae
-# ╠═3b4d7e9a-b814-4e0a-83b7-c45a0b51ce74
-# ╠═71c399f4-f6cf-4e9b-9db6-c69b4008237d
-# ╠═1e091d65-6460-49ed-bed8-41c21479acd9
-# ╟─885d73ba-e4e1-11f1-962f-872528571fbb
-# ╠═885db6ae-e4e1-11f1-b189-abe52d36c5ab
+# ╠═436a1c51-d2b4-4d67-95a4-f56f2752fa17
+>>>>>>> Stashed changes
+# ╠═827b3e75-1f53-4c80-81da-1ba048833ef6
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
