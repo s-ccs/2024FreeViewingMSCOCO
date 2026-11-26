@@ -30,11 +30,12 @@ plus one file for all subjects: <out-dir>/quality_summary.tsv
 
 Usage
 -----
-python et_quality.py --events-dir <folder> --asc-dir <folder> [--subjects 005 006] [--steps accuracy]
+From repository root:
+python -m scripts.et_preprocessing.et_quality --events-dir <folder> --asc-dir <folder> [--subjects 005 006] [--steps accuracy]
                      [--out-dir <folder>] [--show_plots]
 
 Example (local BIDS copy):
-python et_quality.py --subjects 005 006 007
+python -m scripts.et_preprocessing.et_quality --subjects 005 006 007
     --events-dir C:/.../BIDS/derivatives/custom-preprocessing
     --asc-dir    C:/.../BIDS
 
@@ -52,10 +53,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-import config
-from config import SCREEN_DIST_M, SCREEN_RES, SCREEN_SIZE_M
-from graphs import EYE_COLORS
-from plotting import EYE_MAPPING, GAZE_MAPPING
+from . import config
+from .config import SCREEN_DIST_M, SCREEN_RES, SCREEN_SIZE_M
+from .graphs import EYE_COLORS
+from .plotting import EYE_MAPPING, GAZE_MAPPING
 
 logger = logging.getLogger(__name__)
 
